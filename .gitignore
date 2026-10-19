@@ -1,0 +1,8 @@
+/target/
+/.tools/
+/.observr/
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+.DS_Store

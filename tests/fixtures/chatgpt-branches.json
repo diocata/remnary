@@ -1,0 +1,63 @@
+[
+  {
+    "id": "conversation-branches",
+    "title": null,
+    "create_time": null,
+    "update_time": 1700000004.5,
+    "current_node": "a-alternative",
+    "custom_field": {"keep": true},
+    "mapping": {
+      "d-followup": {
+        "parent": "c-primary",
+        "children": [],
+        "message": {
+          "author": {"role": "user"},
+          "create_time": 1700000004.5,
+          "content": {"content_type": "text", "parts": ["Follow-up on primary"]}
+        }
+      },
+      "a-alternative": {
+        "parent": "b-user",
+        "children": [],
+        "message": {
+          "author": {"role": "assistant"},
+          "create_time": 1700000003,
+          "content": {"content_type": "text", "parts": ["Alternative answer"]}
+        }
+      },
+      "root": {
+        "parent": null,
+        "children": ["b-user"],
+        "message": null,
+        "custom_node_field": {"preserve": true}
+      },
+      "c-primary": {
+        "parent": "b-user",
+        "children": ["d-followup"],
+        "message": {
+          "author": {"role": "assistant"},
+          "create_time": 1700000002,
+          "content": {"content_type": "text", "parts": ["Primary answer"]}
+        }
+      },
+      "b-user": {
+        "parent": "root",
+        "children": ["c-primary", "a-alternative"],
+        "message": {
+          "id": "provider-message-id",
+          "author": {"role": "user"},
+          "create_time": 1700000001,
+          "content": {
+            "content_type": "multimodal_text",
+            "parts": [
+              "Hello",
+              {"content_type": "image_asset_pointer", "asset_pointer": "file-service://image"},
+              "world"
+            ]
+          },
+          "metadata": {"keep_message_field": true}
+        }
+      }
+    }
+  }
+]

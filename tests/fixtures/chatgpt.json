@@ -1,0 +1,154 @@
+[
+  {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "title": "Observr architecture — synthetic demo",
+    "create_time": 1792324800,
+    "update_time": 1792324860,
+    "current_node": "11111111-1111-4111-8111-111111111115",
+    "synthetic_demo": true,
+    "mapping": {
+      "11111111-1111-4111-8111-111111111110": {
+        "id": "11111111-1111-4111-8111-111111111110",
+        "parent": null,
+        "children": ["11111111-1111-4111-8111-111111111112"],
+        "message": null
+      },
+      "11111111-1111-4111-8111-111111111112": {
+        "id": "11111111-1111-4111-8111-111111111112",
+        "parent": "11111111-1111-4111-8111-111111111110",
+        "children": ["11111111-1111-4111-8111-111111111113"],
+        "message": {
+          "id": "11111111-1111-4111-8111-111111111112",
+          "author": {"role": "user"},
+          "create_time": 1792324800,
+          "content": {
+            "content_type": "text",
+            "parts": ["I want to build Observr in Rust. Could we store my AI conversations as Markdown files?"]
+          },
+          "metadata": {}
+        }
+      },
+      "11111111-1111-4111-8111-111111111113": {
+        "id": "11111111-1111-4111-8111-111111111113",
+        "parent": "11111111-1111-4111-8111-111111111112",
+        "children": ["11111111-1111-4111-8111-111111111114"],
+        "message": {
+          "id": "11111111-1111-4111-8111-111111111113",
+          "author": {"role": "assistant"},
+          "create_time": 1792324820,
+          "content": {
+            "content_type": "text",
+            "parts": ["Rust can use SQLite for one local database file, with Markdown exports for reading and editing. We could also introduce separate services for search and background analysis."]
+          },
+          "metadata": {}
+        }
+      },
+      "11111111-1111-4111-8111-111111111114": {
+        "id": "11111111-1111-4111-8111-111111111114",
+        "parent": "11111111-1111-4111-8111-111111111113",
+        "children": ["11111111-1111-4111-8111-111111111115"],
+        "message": {
+          "id": "11111111-1111-4111-8111-111111111114",
+          "author": {"role": "user"},
+          "create_time": 1792324840,
+          "content": {
+            "content_type": "text",
+            "parts": ["Keep the implementation simple. Start with Rust and SQLite, plus readable Markdown exports. I do not want extra services for the first version."]
+          },
+          "metadata": {}
+        }
+      },
+      "11111111-1111-4111-8111-111111111115": {
+        "id": "11111111-1111-4111-8111-111111111115",
+        "parent": "11111111-1111-4111-8111-111111111114",
+        "children": [],
+        "message": {
+          "id": "11111111-1111-4111-8111-111111111115",
+          "author": {"role": "assistant"},
+          "create_time": 1792324860,
+          "content": {
+            "content_type": "text",
+            "parts": ["We will start with a Rust CLI, a local SQLite database, and Markdown exports. The first workflow imports conversations and searches the original messages."]
+          },
+          "metadata": {}
+        }
+      }
+    }
+  },
+  {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "title": "Observr search scope — synthetic demo",
+    "create_time": 1792411200,
+    "update_time": 1792411260,
+    "current_node": "22222222-2222-4222-8222-222222222226",
+    "synthetic_demo": true,
+    "mapping": {
+      "22222222-2222-4222-8222-222222222220": {
+        "id": "22222222-2222-4222-8222-222222222220",
+        "parent": null,
+        "children": ["22222222-2222-4222-8222-222222222223"],
+        "message": null
+      },
+      "22222222-2222-4222-8222-222222222223": {
+        "id": "22222222-2222-4222-8222-222222222223",
+        "parent": "22222222-2222-4222-8222-222222222220",
+        "children": ["22222222-2222-4222-8222-222222222224"],
+        "message": {
+          "id": "22222222-2222-4222-8222-222222222223",
+          "author": {"role": "user"},
+          "create_time": 1792411200,
+          "content": {
+            "content_type": "text",
+            "parts": ["What should we build next for Observr search?"]
+          },
+          "metadata": {}
+        }
+      },
+      "22222222-2222-4222-8222-222222222224": {
+        "id": "22222222-2222-4222-8222-222222222224",
+        "parent": "22222222-2222-4222-8222-222222222223",
+        "children": ["22222222-2222-4222-8222-222222222225"],
+        "message": {
+          "id": "22222222-2222-4222-8222-222222222224",
+          "author": {"role": "assistant"},
+          "create_time": 1792411220,
+          "content": {
+            "content_type": "text",
+            "parts": ["One option is to build semantic search with a separate vector database and an embedding service."]
+          },
+          "metadata": {}
+        }
+      },
+      "22222222-2222-4222-8222-222222222225": {
+        "id": "22222222-2222-4222-8222-222222222225",
+        "parent": "22222222-2222-4222-8222-222222222224",
+        "children": ["22222222-2222-4222-8222-222222222226"],
+        "message": {
+          "id": "22222222-2222-4222-8222-222222222225",
+          "author": {"role": "user"},
+          "create_time": 1792411240,
+          "content": {
+            "content_type": "text",
+            "parts": ["Again, keep the implementation simple. Rust and SQLite are enough for now. Use SQLite FTS5 and show the source messages before adding more infrastructure."]
+          },
+          "metadata": {}
+        }
+      },
+      "22222222-2222-4222-8222-222222222226": {
+        "id": "22222222-2222-4222-8222-222222222226",
+        "parent": "22222222-2222-4222-8222-222222222225",
+        "children": [],
+        "message": {
+          "id": "22222222-2222-4222-8222-222222222226",
+          "author": {"role": "assistant"},
+          "create_time": 1792411260,
+          "content": {
+            "content_type": "text",
+            "parts": ["The next step is SQLite FTS5 search in the Rust CLI, with each result linked to its original conversation and message."]
+          },
+          "metadata": {}
+        }
+      }
+    }
+  }
+]
