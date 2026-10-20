@@ -184,6 +184,11 @@ pub(crate) fn reconcile(
         .observations(true)?
         .into_iter()
         .filter(|root| {
+            // A free-form owner correction may change the meaning of the old
+            // automatic identity. Do not reinterpret or alias into that text.
+            if root.user_value.is_some() {
+                return false;
+            }
             let text = format!(
                 "{} {}",
                 identity(&root.observation),
@@ -202,6 +207,14 @@ pub(crate) fn reconcile(
     };
     for candidate in &mut output.observations {
         let original_id = candidate.stable_id();
+        let deleted: bool = store.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM deleted_observations WHERE observation_id=?1)",
+            [&original_id],
+            |row| row.get(0),
+        )?;
+        if deleted {
+            continue;
+        }
         if roots.iter().any(|root| root.id == original_id) {
             continue;
         }
@@ -353,6 +366,69 @@ mod tests {
             distinct: BTreeSet::new(),
         }
     }
+    #[test]
+    fn owner_corrections_and_deleted_keys_are_not_reinterpreted_by_model_matching() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let mut store = Store::init(temp.path())?;
+        let mut source = source();
+        source.messages[0].content = "I prefer Rust.".into();
+        store.import(std::slice::from_ref(&source))?;
+        let p = Processor::rules();
+        let target = store.analysis_targets(&p)?.remove(0);
+        let original = extract_rules(&source, 1);
+        store.save_analysis(&target, &p, original.clone())?;
+        let root = store.observations(true)?.remove(0);
+        store.feedback(
+            &root.id,
+            FeedbackAction::Correct,
+            Some("Rust only for one experiment"),
+        )?;
+        let mut candidate = original.clone();
+        candidate.observations[0].canonical_value = "Rust is preferred".into();
+        let version = ModelIdentity {
+            digest: "0".repeat(64),
+            daemon_version: "synthetic".into(),
+        };
+        // Unreachable endpoint proves these boundaries do not request a model verdict.
+        let (output, proof) = reconcile(
+            &store,
+            "http://127.0.0.1:9",
+            "synthetic",
+            &version,
+            &source,
+            candidate.clone(),
+        )?;
+        assert_eq!(output, candidate);
+        let mut next = p.clone();
+        next.version = "next".into();
+        assert!(
+            store
+                .save_reconciled_analysis(&target, &next, output, &proof)
+                .is_err()
+        );
+        assert_eq!(
+            store.observations(true)?[0].display_text(),
+            "Rust only for one experiment"
+        );
+        store.delete_observation(&root.id)?;
+        let mut other = source.clone();
+        other.source_id = "other".into();
+        other.messages[0].content = "I prefer SQLite.".into();
+        store.import(std::slice::from_ref(&other))?;
+        let other_target = store.analysis_targets(&p)?.remove(0);
+        store.save_analysis(&other_target, &p, extract_rules(&other, 1))?;
+        let (output, _) = reconcile(
+            &store,
+            "http://127.0.0.1:9",
+            "synthetic",
+            &version,
+            &source,
+            original.clone(),
+        )?;
+        assert_eq!(output, original);
+        Ok(())
+    }
+
     #[test]
     fn relation_contract_rejects_missing_duplicate_unknown_and_extra_fields() {
         let ids = vec!["a".into(), "b".into()];
