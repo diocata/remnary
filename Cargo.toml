@@ -5,6 +5,7 @@ edition = "2024"
 rust-version = "1.99"
 description = "Local-first, evidence-backed intelligence from AI conversations"
 publish = false
+license = "MIT"
 
 [dependencies]
 anyhow = "1"

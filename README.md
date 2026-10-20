@@ -113,3 +113,7 @@ Use that same `--key-file` with subsequent commands. On Unix key files must be p
 ```
 
 Only synthetic fixtures belong in Git. Keep real histories, keys, generated vaults and local model data outside the checkout or under ignored `.observr/`. The [original product brief](docs/product-brief.md) is unchanged; [current release evidence](docs/readiness.md) distinguishes implementation from unverified requirements and future work.
+
+## License
+
+Observr is licensed under [MIT](LICENSE). Native dependency notices are included under [third_party/notices](third_party/notices/).
