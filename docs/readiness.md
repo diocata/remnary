@@ -13,7 +13,7 @@ The exact packaged binary passed a fresh encrypted synthetic workflow: initializ
 | Required v0.1 capability | Evidence and limits |
 | --- | --- |
 | 1. CLI | Packaged and installed binaries run the principal workflow; argument/errors and encrypted/source flows have integration coverage. |
-| 2. ChatGPT export importer | Mapping JSON, ZIP and numeric ZIP shards; all branches/null roots, reconstruction, byte/entry bounds, ambiguity and conflicting-copy rejection tested. A real account-export ZIP remains unverified. |
+| 2. ChatGPT export importer | Mapping JSON, ZIP and numeric ZIP shards; all branches/null roots, reconstruction, byte/entry bounds, ambiguity and conflicting-copy rejection tested. Five published real records (82 nodes / 77 messages) passed exact reconstruction and repeat import in JSON and generated ZIP/shard wrappers. [Compatibility evidence](import-compatibility.md). An original account ZIP remains unverified. |
 | 3. Normalized storage | Immutable source revisions, parent/message identity, source coverage, atomic failure, migrations and foreign keys tested. Real local imports/reimports exercised. |
 | 4. SQLite | Direct SQL with bundled SQLCipher 4.19.0 / SQLite 3.53.4 and Apple CommonCrypto; no database server or ORM. [Native provenance](native-dependencies.md). |
 | 5. Deduplication | Repeated/older imports, new revisions, tombstones and partial-view safeguards tested; packaged repeat import and real local reimports observed. |
@@ -36,7 +36,7 @@ Current deterministic rules completed all 40 sources with two candidates. The cu
 
 The current Qwen 3.5 9B synthetic development evaluation completed all 20 sources, produced 11 candidates and passed **20/20** in **437.95 seconds**. It checks options versus choices, reversals, assistant/quoted attribution, routine tasks, scoped correction, Portuguese preference, project/topic extraction and one-off versus repeated workflow. The cases informed development and do not provide an independent accuracy estimate. Earlier real runs exposed semantic errors despite exact quotes; those findings remain in the [history](evaluation-history.md).
 
-No real ChatGPT account export was found in the selected local search. Mapping/ZIP/shard contracts have automated coverage, but actual account-export compatibility must remain explicitly unverified until observed.
+No owner account-export ZIP was found in the selected local or indexed filename search. Five independently published real mapping records now pass import, exact graph/message/metadata reconstruction and repeat import, including generated ZIP/shard wrappers. This closes the absence of real-record format evidence; an original account ZIP and other export layouts remain unverified. [Detailed provenance and limits](import-compatibility.md).
 
 ## Privacy, recovery and distribution scope
 
