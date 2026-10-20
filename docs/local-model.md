@@ -1,6 +1,6 @@
 # Local model setup and verification
 
-The evaluated setup uses Homebrew Ollama 0.40.6 on Apple Silicon with the explicit `qwen3.5:4b-q4_K_M` model (about 3.3 GB). Model downloads contact the registry; conversation extraction uses the local daemon. No provider account/API key is needed.
+The evaluated setup uses Homebrew Ollama 0.40.6 on Apple Silicon with the explicit `qwen3.5:4b-q4_K_M` model (about 3.3 GB). Model downloads contact the registry; conversation extraction uses the local daemon. No provider account/API key is needed. Evaluated local model digest: `sha256:d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04` (3,324,173,934 bytes).
 
 ```sh
 brew install ollama
@@ -19,6 +19,17 @@ The adapter preflights local weights and rejects advertised remote/cloud aliases
 Each conversation has a maximum of 256 windows. A failed window prevents the conversation checkpoint; earlier completed conversations stay committed. A newer completed processor version retires the previous automatic results for the same engine/model while preserving grounded human review. Different selected models/engines may contribute separate candidates.
 
 Observed evaluation: the first permissive-generation run rejected five of 32 private conversations for non-exact quotations; 27 committed. After grounding decoder choices, all **32/32** completed with 43 candidate extractions in 346.6 seconds. Three additional partial ChatGPT views completed in 56.6 seconds with ten candidates, for **35 conversations / 53 extractions**. No-user sources checkpoint empty results without inference. These numbers describe validator acceptance, **not** semantic accuracy or usefulness. Exploratory questions and one-time actions are still sometimes mislabeled as preferences. Human review and improved semantic evaluation are required before profile confirmation or a production-quality claim.
+
+The current processor is v4. It restricts generation to explicit preferences, corrections and decision events (at most five per window). Known transcript introductions exclude a message from personal evidence. Recognized exploratory option questions cannot supply preference/correction citations; they can support decision considerations, or the model can abstain. This conservative English-prefix safeguard is not a complete multilingual intent classifier. Larger mixed messages may contain valid statements that it omits.
+
+Run the development semantic evaluation with the built binary and the daemon running:
+
+```sh
+./scripts/cargo-local build --locked
+python3 scripts/evaluate-model.py
+```
+
+The fixture contains ten synthetic, hand-labeled cases. Processor v4 passed 10/10 in 37.9 seconds, producing five candidate claims: scoped English/Portuguese preferences, an option consideration, a choice and a reversal. Routine commands, assistant assertions, a pasted transcript and a sensitive question produced none; an uncertain option was omitted (permitted by the fixture). All ten conversations completed. These development cases helped shape the safeguards and do not establish real-world precision or usefulness. The private real-history v3 results are retained unchanged pending human review; this new processor has not yet been run against them.
 
 Model/daemon updates can change behavior; keep the installed version/tag/digest with an evaluation record and rerun the synthetic checks. Smaller models may miss context or produce poor interpretations despite valid quotes. Do not bypass validation or switch to cloud processing to make a test pass.
 

@@ -7,7 +7,8 @@ use crate::{
     analysis_batches::model_batches,
     analysis_store::Processor,
     intelligence::{
-        AnalysisOutput, extract_rules, group_observations, output_schema, validate_output,
+        AnalysisOutput, extract_rules, focused_output_schema, group_observations,
+        validate_focused_output,
     },
     ollama::analyze_json,
     privacy::redact_conversation,
@@ -33,9 +34,9 @@ pub fn analyze(store: &mut Store, engine: AnalysisEngine<'_>) -> Result<Analysis
         AnalysisEngine::Rules => Processor::rules(),
         AnalysisEngine::Ollama { model, .. } => Processor {
             engine: "ollama".into(),
-            version: "3".into(),
+            version: "4".into(),
             model: (*model).into(),
-            prompt_version: "3".into(),
+            prompt_version: "4".into(),
         },
     };
     let targets = store.analysis_targets(&processor)?;
@@ -53,7 +54,7 @@ pub fn analyze(store: &mut Store, engine: AnalysisEngine<'_>) -> Result<Analysis
                         let json = analyze_json(
                             endpoint,
                             model,
-                            &output_schema(),
+                            &focused_output_schema(),
                             &batch,
                             target.revision,
                         )?;
@@ -65,8 +66,9 @@ pub fn analyze(store: &mut Store, engine: AnalysisEngine<'_>) -> Result<Analysis
                             })?;
                         // Validate against the window actually sent, then the
                         // original immutable source again before committing.
-                        observations
-                            .extend(validate_output(&batch, target.revision, output)?.observations);
+                        observations.extend(
+                            validate_focused_output(&batch, target.revision, output)?.observations,
+                        );
                     }
                     AnalysisOutput {
                         observations: group_observations(&observations)

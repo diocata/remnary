@@ -220,6 +220,45 @@ pub fn output_schema() -> Value {
     schema
 }
 
+/// Limit MVP generation to explicit choices and corrections. The broader
+/// contract remains available to future topic/project/inference processors.
+pub fn focused_output_schema() -> Value {
+    let mut schema = output_schema();
+    let branches = schema["properties"]["observations"]["items"]["anyOf"]
+        .as_array()
+        .expect("owned schema alternatives")
+        .clone();
+    let mut preference = branches[0].clone();
+    preference["properties"]["kind"] = json!({"const":"explicit_preference"});
+    let mut correction = branches[0].clone();
+    correction["properties"]["kind"] = json!({"const":"correction"});
+    schema["properties"]["observations"]["items"]["anyOf"] =
+        json!([preference, correction, branches[1]]);
+    schema["properties"]["observations"]["maxItems"] = json!(5);
+    schema
+}
+
+pub(crate) fn validate_focused_output(
+    conversation: &Conversation,
+    revision: i64,
+    output: AnalysisOutput,
+) -> Result<AnalysisOutput> {
+    ensure!(
+        output.observations.len() <= 5,
+        "focused extraction permits at most five observations per window"
+    );
+    ensure!(
+        output.observations.iter().all(|o| matches!(
+            o.kind,
+            ExtractionKind::ExplicitPreference
+                | ExtractionKind::Correction
+                | ExtractionKind::Decision
+        )),
+        "focused extraction permits only explicit preferences, corrections and decision events"
+    );
+    validate_output(conversation, revision, output)
+}
+
 /// Reject an entire output atomically on invalid provenance or inconsistent
 /// classification. In particular, an assistant describing the user is not a
 /// source of user preferences, corrections, decisions or inferred user facts.
@@ -276,6 +315,20 @@ pub fn validate_output(
             ),
             ExtractionKind::Topic | ExtractionKind::ProjectReference => {}
         }
+        if matches!(
+            observation.kind,
+            ExtractionKind::ExplicitPreference | ExtractionKind::Correction
+        ) {
+            ensure!(
+                observation.evidence.iter().any(|e| {
+                    !is_option_question(&e.quote)
+                        && messages
+                            .get(&e.source_message_id)
+                            .is_some_and(|message| !is_option_question(&message.content))
+                }),
+                "exploratory option questions cannot establish an explicit preference or correction"
+            );
+        }
         if observation.inference == InferenceType::Inferred {
             validate_inference_domain(observation)?;
         }
@@ -298,8 +351,8 @@ pub fn validate_output(
                 "evidence quote is not an exact source substring"
             );
             ensure!(
-                message.role.eq_ignore_ascii_case("user"),
-                "personal intelligence observations require user messages"
+                eligible_personal_evidence(message),
+                "personal intelligence requires direct user evidence, not a quoted transcript or another role"
             );
         }
         observation.evidence.sort();
@@ -410,7 +463,7 @@ fn validate_inference_domain(observation: &CandidateObservation) -> Result<()> {
 pub fn extract_rules(conversation: &Conversation, revision: i64) -> AnalysisOutput {
     let mut output = AnalysisOutput::default();
     for message in &conversation.messages {
-        if !message.role.eq_ignore_ascii_case("user") {
+        if !eligible_personal_evidence(message) {
             continue;
         }
         for quote in direct_statements(&message.content) {
@@ -458,14 +511,20 @@ fn evidence_for(
     }
 }
 
-fn direct_statements(content: &str) -> Vec<&str> {
+pub(crate) fn eligible_personal_evidence(message: &Message) -> bool {
+    message.role.eq_ignore_ascii_case("user")
+        && !message.content.trim().is_empty()
+        && !declared_transcript(&message.content)
+}
+
+fn declared_transcript(content: &str) -> bool {
     let first_line = content
         .lines()
         .find(|line| !line.trim().is_empty())
         .unwrap_or("")
         .trim()
         .to_lowercase();
-    if matches!(
+    matches!(
         first_line.as_str(),
         "this was it:"
             | "here is the transcript:"
@@ -473,7 +532,11 @@ fn direct_statements(content: &str) -> Vec<&str> {
             | "here is the conversation:"
             | "here's the conversation:"
             | "example conversation:"
-    ) {
+    )
+}
+
+fn direct_statements(content: &str) -> Vec<&str> {
+    if declared_transcript(content) {
         // A pasted transcript is source material, not the owner's endorsement.
         // The rules cannot resolve individual speakers inside it reliably.
         return Vec::new();
@@ -649,6 +712,19 @@ fn canonical_correction(statement: &str) -> Option<(&'static str, &'static str)>
     }
 }
 
+pub(crate) fn is_option_question(quote: &str) -> bool {
+    let quote = normalize_key(quote);
+    [
+        "what about ",
+        "how about ",
+        "could we use ",
+        "should we use ",
+        "would it make sense to use ",
+    ]
+    .iter()
+    .any(|prefix| quote.starts_with(prefix))
+}
+
 fn normalize_key(value: &str) -> String {
     value
         .split_whitespace()
@@ -783,6 +859,39 @@ mod tests {
             }
             assert!(validate_output(&source, 1, invalid).is_err());
         }
+    }
+
+    #[test]
+    fn exploratory_option_questions_support_consideration_but_not_preference() {
+        let (mut source, mut output) = explicit();
+        source.messages[0].content = "What about DuckDB plus JSON files?".into();
+        output.observations[0].canonical_value = "consider_duckdb_json".into();
+        output.observations[0].summary = "Asked about DuckDB with JSON files.".into();
+        output.observations[0].evidence[0].quote = source.messages[0].content.clone();
+        assert!(validate_output(&source, 1, output.clone()).is_err());
+        output.observations[0].kind = ExtractionKind::Correction;
+        assert!(validate_output(&source, 1, output.clone()).is_err());
+        output.observations[0].kind = ExtractionKind::Decision;
+        output.observations[0].decision_event = Some(DecisionEventType::Consideration);
+        assert!(validate_focused_output(&source, 1, output).is_ok());
+        let (source, mut output) = explicit();
+        output.observations[0].kind = ExtractionKind::Topic;
+        assert!(validate_output(&source, 1, output.clone()).is_ok());
+        assert!(validate_focused_output(&source, 1, output).is_err());
+    }
+
+    #[test]
+    fn shortened_quotes_cannot_turn_an_option_question_into_a_statement() {
+        let (mut source, mut output) = explicit();
+        source.messages[0].content = "What about DuckDB plus JSON files?".into();
+        output.observations[0].evidence[0].quote = "DuckDB plus JSON files".into();
+        assert!(validate_output(&source, 1, output.clone()).is_err());
+        output.observations[0].kind = ExtractionKind::Correction;
+        assert!(validate_output(&source, 1, output).is_err());
+        let (mut source, mut output) = explicit();
+        source.messages[0].content = "Here is the transcript:\nAssistant: I prefer Rust.".into();
+        output.observations[0].evidence[0].quote = "I prefer Rust.".into();
+        assert!(validate_output(&source, 1, output).is_err());
     }
 
     #[test]

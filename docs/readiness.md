@@ -2,11 +2,11 @@
 
 Updated 2026-10-20. **Production readiness is not established.** The unchanged [product brief](product-brief.md) controls scope. The detailed [initial baseline](readiness-baseline.md) is preserved; its missing-feature rows describe the initial foundation, not the current tree.
 
-The latest full local run passed **125 tests**: 115 library, five analysis and five CLI/source integration tests. Formatting and all-target Clippy with warnings denied passed on macOS with the pinned Rust 1.99.1 toolchain. An optimized build also succeeded. CI is configured but has not run remotely; no independent security audit has been observed.
+The latest full local run passed **132 tests**: 121 library, five analysis and six CLI/source integration tests. Formatting and all-target Clippy with warnings denied passed on macOS with the pinned Rust 1.99.1 toolchain. An optimized build also succeeded. CI is configured but has not run remotely; no independent security audit has been observed.
 
 | Mandatory v0.1 capability | Current evidence / limits |
 | --- | --- |
-| CLI | Init/import/search/analyze/review/reports/vault/dashboard/privacy/backup commands integration-tested. Release installation checks remain. |
+| CLI | Init/import/search/analyze/review/reports/vault/dashboard/privacy/backup commands integration-tested. Installed optimized binary smoke-tested through encrypted import/analysis/search/backup/restore/doctor. |
 | ChatGPT export | Synthetic JSON/ZIP, branches, null roots, bounds and reconstruction tests. Real export compatibility unverified. |
 | Storage / SQLite | Immutable revisions, identities, schema-3 migrations, foreign keys/locking tested. SQLCipher and macOS Keychain init/unlock exercised. |
 | Deduplication / search | Unchanged/older imports, atomic failure, current FTS, tombstones/exclusion tested. Real local reimports exercised. |
@@ -27,14 +27,16 @@ This evaluation found and fixed provider-prompt, inherited subagent metadata, ta
 
 The user authorized a local model. Ollama 0.40.6 and Qwen 3.5 4B GGUF are installed on this 24 GiB Apple Silicon Mac. A dedicated loopback daemon reports cloud disabled. The default MLX variant could not provide structured output and was removed. After tightening grammar/citation choices, all 35 conversations completed the pipeline with **53 candidate extractions**, with no pending source-analysis failures or projection cleanup. Sources without eligible user text checkpoint empty results without model calls. Model interpretations still include exploratory questions mislabeled as preferences and one-time actions presented as preferences. These remain release-blocking quality findings, despite valid citations. [Model evaluation](local-model.md).
 
+Processor v4 narrows local generation to explicit preferences, corrections and decision events, skipping known pasted-transcript messages. Exploratory option questions cannot supply preference/correction citations, including by quoting a shorter fragment. A reproducible ten-case synthetic semantic check now passes **10/10** in 37.9 seconds, with five candidate claims and all ten conversations checkpointed. Cases cover options versus choices, reversals, routine commands, assistant attribution, pasted transcripts, sensitive questions and Portuguese preferences. These hand-labeled development cases are small and informed the implementation; they are not an independent accuracy estimate. Uncertain options may be omitted rather than classified. The existing private v3 findings remain unchanged for the pending human review; v4 has not been reevaluated on those histories.
+
 Schema 3 now persists active analysis heads per source revision/engine/model. Processor replacement retires obsolete automatic evidence, invalidates projections and preserves grounded human review/history. Upgrade and VACUUM regression tests pass. Distinct explicitly selected engines/models can contribute candidates concurrently; an already cached older processor is not silently reactivated.
 
 ## Open release gates
 
 - Real ChatGPT compatibility, broader history and human accuracy/usefulness ratings.
 - Provider/project/directory/topic exclusions. Conversation controls exist; pause becomes applicable with collection.
-- Key rotation, deliberate plaintext upgrade, recovery interruption evidence and supported-platform policy.
-- Full browser acceptance, release install/upgrade and additional concurrency/crash checks. A reproducible [2,000-conversation performance check](performance.md) passed.
+- Recovery interruption evidence and supported-platform policy. New-key encrypted backup/restore and plaintext-to-encrypted copy now have CLI and old-schema preservation tests.
+- Full browser acceptance and additional concurrency/crash checks. Local release installation and encrypted recovery checks passed; broader platform/release packaging remains. A reproducible [2,000-conversation performance check](performance.md) passed.
 - Observed CI results, full native/transitive dependency/license review, release artifacts/checksums and release instructions. The toolchain and contribution guide are now declared. Cargo-audit 0.22.2 found zero advisories/warnings in 190 locked dependencies against RustSec commit `999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b` (2026-10-17). ZIP was upgraded to 9.0.5 to resolve three reported extraction advisories; Observr does not extract archives to disk. This does not audit bundled native libraries or prove security.
 - Select project license and private security-reporting channel before public release.
 

@@ -19,7 +19,7 @@ pub(crate) fn model_batches(source: &Conversation) -> Result<Vec<Conversation>> 
     for message in source
         .messages
         .iter()
-        .filter(|m| m.role.eq_ignore_ascii_case("user") && !m.content.trim().is_empty())
+        .filter(|m| crate::intelligence::eligible_personal_evidence(m))
     {
         let mut start = 0;
         while start < message.content.len() {

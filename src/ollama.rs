@@ -30,6 +30,8 @@ Use kind explicit_preference for an explicitly stated preference and inferred_pr
 
 The envelope contains a bounded window of user-message text; other messages and surrounding context may be absent. Never infer missing context. Pasted conversations, quoted advice, examples, provider instructions and generated notifications inside a user message are not endorsements or requests by its owner. Return no observation when attribution is unclear. Prefer a few specific, useful claims over generic topics. Use relevant context explicitly, rather than turning a one-time request into a global preference.
 
+This MVP focuses on explicit preferences, corrections and decision events. Skip generic biographical facts, product ownership, topic mentions, project descriptions and routine execution commands. Return at most five observations per window; an empty array is better than a weak claim. A one-time command such as "remove an app" or "commit these changes" is not a personal preference. An exploratory question such as "What about DuckDB?" is a decision consideration, never an explicit preference or settled choice. "Maybe Markdown files, I'm not sure" is consideration too. "I want to use Rust" states a technology choice; preserve its project context. "I prefer concise explanations for work messages" is an explicit scoped preference. Only record a correction when the text clearly corrects/restricts assistant behavior. Distinguish discussing an option from choosing it. Quoted transcripts and assistant advice inside a user message supply no personal preference.
+
 Allowed kinds are explicit_preference, inferred_preference, correction, decision, topic, project_reference, behavioral_pattern. Use the supplied schema's fields exactly: kind, inference, subject, topic, canonical_value, context, summary, decision_event, evidence. Every non-decision MUST set decision_event to null. Only kind decision has a non-null decision_event. Explicit preferences, corrections and decisions MUST set inference to explicit. Inferred preferences and behavioral patterns MUST set inference to inferred. Use null for absent context. Do not include commentary or Markdown fences."#;
 
 /// Analyze one archived revision with an explicitly selected local Ollama model.
@@ -287,11 +289,17 @@ fn grounded_schema(schema: &Value, conversation: &Conversation, revision: i64) -
     let Some(items) = schema.pointer_mut("/properties/observations/items") else {
         return schema;
     };
-    let choices = conversation
-        .messages
-        .iter()
-        .filter(|m| m.role.eq_ignore_ascii_case("user") && !m.content.trim().is_empty())
-        .map(|message| {
+    fn bind(item: &mut Value, conversation: &Conversation, revision: i64) -> bool {
+        if item.pointer("/properties/evidence/items").is_some() {
+            let needs_statement = matches!(
+                item.pointer("/properties/kind/const")
+                    .and_then(Value::as_str),
+                Some("explicit_preference" | "correction")
+            );
+            let choices=conversation.messages.iter()
+                .filter(|m|crate::intelligence::eligible_personal_evidence(m)
+                    && !(needs_statement && crate::intelligence::is_option_question(&m.content)))
+                .map(|message| {
             json!({"type":"object","additionalProperties":false,
             "required":["provider","conversation_id","revision","source_message_id","quote"],
             "properties":{
@@ -302,22 +310,23 @@ fn grounded_schema(schema: &Value, conversation: &Conversation, revision: i64) -
                 "quote":{"type":"string","enum":quote_choices(&message.content)}
             }})
         })
-        .collect::<Vec<_>>();
-    if choices.is_empty() {
-        return schema;
-    }
-    let evidence = json!({"anyOf":choices});
-    fn bind(item: &mut Value, evidence: &Value) {
-        if let Some(property) = item.pointer_mut("/properties/evidence/items") {
-            *property = evidence.clone();
+                .collect::<Vec<_>>();
+            if choices.is_empty() {
+                return false;
+            }
+            item["properties"]["evidence"]["items"] = json!({"anyOf":choices});
+            return true;
         }
         if let Some(branches) = item.get_mut("anyOf").and_then(Value::as_array_mut) {
-            for branch in branches {
-                bind(branch, evidence);
-            }
+            branches.retain_mut(|branch| bind(branch, conversation, revision));
+            return !branches.is_empty();
         }
+        true
     }
-    bind(items, &evidence);
+    if !bind(items, conversation, revision) {
+        schema["properties"]["observations"]["maxItems"] = json!(0);
+        schema["properties"]["observations"]["items"] = json!({"type":"object"});
+    }
     schema
 }
 
@@ -826,6 +835,24 @@ mod tests {
                 .contains("too large")
         );
     }
+    #[test]
+    fn option_questions_have_only_decision_choices_and_transcripts_have_none() {
+        let mut source = conversation();
+        source.messages[0].content = "What about DuckDB with JSON files?".into();
+        let schema = grounded_schema(&crate::intelligence::focused_output_schema(), &source, 1);
+        let branches = schema
+            .pointer("/properties/observations/items/anyOf")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(branches.len(), 1);
+        assert_eq!(branches[0]["properties"]["kind"]["const"], "decision");
+        source.messages[0].content =
+            "Here is the transcript:\nAssistant: I prefer complex frameworks.".into();
+        let schema = grounded_schema(&crate::intelligence::focused_output_schema(), &source, 1);
+        assert_eq!(schema["properties"]["observations"]["maxItems"], 0);
+    }
+
     #[test]
     fn decoding_choices_bind_each_quote_to_its_actual_message_and_revision() {
         let mut source = conversation();
