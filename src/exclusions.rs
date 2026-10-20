@@ -40,7 +40,12 @@ pub struct ExclusionRule {
 }
 impl ExclusionRule {
     pub fn new(scope: ExclusionScope, value: &str) -> Result<Self> {
-        let value = value.trim();
+        // Whitespace can be a real path component. Normalize only textual
+        // provider/topic selectors, never silently select a different folder.
+        let value = match scope {
+            ExclusionScope::Provider | ExclusionScope::Topic => value.trim(),
+            ExclusionScope::Directory | ExclusionScope::Project => value,
+        };
         ensure!(
             !value.is_empty() && value.len() <= 4096 && !value.contains('\0'),
             "exclusion value must be 1–4096 bytes without NUL"
@@ -310,6 +315,35 @@ mod tests {
                     store.delete_conversation(&c.stable_id())?;
                 }
             }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn path_rules_preserve_significant_trailing_whitespace() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let mut store = Store::init(tmp.path())?;
+        let exact = source(
+            "space",
+            "codex",
+            json!({"cwd":"/private/project "}),
+            "hello",
+        );
+        let other = source(
+            "no-space",
+            "codex",
+            json!({"cwd":"/private/project"}),
+            "hello",
+        );
+        store.import(&[exact.clone(), other.clone()])?;
+        for scope in [ExclusionScope::Project, ExclusionScope::Directory] {
+            let rule = ExclusionRule::new(scope, "/private/project ")?;
+            assert_eq!(rule.value, "/private/project ");
+            assert!(rule.matches(&exact));
+            assert!(!rule.matches(&other));
+            assert_eq!(store.add_exclusion_rule(&rule)?, 1);
+            assert_eq!(store.excluded_conversations()?, vec![exact.stable_id()]);
+            store.remove_exclusion_rule(&rule.id)?;
         }
         Ok(())
     }
