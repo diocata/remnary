@@ -221,5 +221,125 @@
     "summary": "User prefers Rust for CLI tools and Python for data analysis.",
     "context": "local CLI development",
     "expected_supported": false
+  },
+  {
+    "id": "mail-task-not-preference",
+    "kind": "explicit_preference",
+    "quotes": [
+      "Place this draft in my local mail app."
+    ],
+    "canonical_value": "prefers the local mail app",
+    "summary": "User prefers the local mail app.",
+    "context": null,
+    "expected_supported": false,
+    "topic": "interaction_pattern"
+  },
+  {
+    "id": "file-task-not-preference",
+    "kind": "explicit_preference",
+    "quotes": [
+      "Create a new file with a puzzle game."
+    ],
+    "canonical_value": "prefers puzzle game files",
+    "summary": "User prefers puzzle game files.",
+    "context": null,
+    "expected_supported": false,
+    "topic": "interaction_pattern"
+  },
+  {
+    "id": "request-budget-not-preference",
+    "kind": "explicit_preference",
+    "quotes": [
+      "Give me more used camera options between 300 and 800 euros."
+    ],
+    "canonical_value": "prefers used cameras priced 300-800 euros",
+    "summary": "User prefers used cameras priced 300-800 euros.",
+    "context": null,
+    "expected_supported": false,
+    "topic": "interaction_pattern"
+  },
+  {
+    "id": "hypothetical-comparison-not-preference",
+    "kind": "explicit_preference",
+    "quotes": [
+      "How much would I net in City B with the same gross salary"
+    ],
+    "canonical_value": "prefers comparing net income between cities",
+    "summary": "User prefers comparing net income between cities.",
+    "context": null,
+    "expected_supported": false,
+    "topic": "interaction_pattern"
+  },
+  {
+    "id": "speculation-not-preference",
+    "kind": "explicit_preference",
+    "quotes": [
+      "I bet the cash-only offer would leave me with more net income."
+    ],
+    "canonical_value": "prefers cash over stock compensation",
+    "summary": "User prefers cash over stock compensation.",
+    "context": null,
+    "expected_supported": false,
+    "topic": "interaction_pattern"
+  },
+  {
+    "id": "ownership-is-not-project",
+    "kind": "project_reference",
+    "quotes": [
+      "I own a Northstar Field watch."
+    ],
+    "canonical_value": "owns a Northstar Field watch",
+    "summary": "User owns a Northstar Field watch.",
+    "context": null,
+    "expected_supported": false,
+    "topic": "software project"
+  },
+  {
+    "id": "appointment-is-not-project",
+    "kind": "project_reference",
+    "quotes": [
+      "I need to schedule one appointment with a dentist next week."
+    ],
+    "canonical_value": "plans one dentist appointment next week",
+    "summary": "User plans one dentist appointment next week.",
+    "context": null,
+    "expected_supported": false,
+    "topic": "software project"
+  },
+  {
+    "id": "unnamed-project-reference",
+    "kind": "project_reference",
+    "quotes": [
+      "Back to our project; how would we execute it?"
+    ],
+    "canonical_value": "wants to continue an unnamed project",
+    "summary": "User wants to continue an unnamed project.",
+    "context": null,
+    "expected_supported": false,
+    "topic": "software project"
+  },
+  {
+    "id": "supported-named-project",
+    "kind": "project_reference",
+    "quotes": [
+      "I am building LumenLog, a local JSONL log browser."
+    ],
+    "canonical_value": "building LumenLog, a local JSONL log browser",
+    "summary": "User building LumenLog, a local JSONL log browser.",
+    "context": null,
+    "expected_supported": true,
+    "topic": "software project"
+  },
+  {
+    "id": "bare-topic-does-not-establish-book-interest",
+    "kind": "topic",
+    "quotes": [
+      "volcanoes"
+    ],
+    "canonical_value": "likes books about volcanoes",
+    "summary": "User likes books about volcanoes.",
+    "context": null,
+    "expected_supported": false,
+    "topic": "reading"
   }
 ]

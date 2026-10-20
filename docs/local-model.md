@@ -101,4 +101,15 @@ Offline tests cover strict relation decoding, persistent rejection under paraphr
 ./scripts/cargo-local test --locked --lib reconciliation::local_model -- --ignored --nocapture
 ```
 
-The ten cases check paraphrases, task/project scope, consideration versus choice, negation, distinct facts, general versus scoped preferences and reversal direction. Its model result and the complete v14 pipeline evaluation remain pending; code-level tests alone do not establish semantic quality.
+The ten cases check paraphrases, task/project scope, consideration versus choice, negation, distinct facts, general versus scoped preferences and reversal direction. That initial v14 model check failed its broader-scope case; the v15 changes and new results below supersede it. The full v14 run was not started. Code-level tests alone do not establish semantic quality.
+
+
+## Producer v15: declaration gate and quotation-only support
+
+The v13 real run was stopped deliberately after 27/40 completed sources (608.76 seconds), rather than spending more time on a pipeline whose partial top five failed agent usefulness assessment (0/5). Its review copy contained 33 visible claims, zero recurring groups and no confirmations. Fifteen claims were labeled explicit preferences; ordinary tasks, questions, one-off constraints and speculative beliefs appeared under that kind. The audit also found wrong project types and details supplied by uncited context. This is a partial diagnostic, not a complete-corpus accuracy score or independent human rating.
+
+V15 requires a recognizable English/Portuguese first-person preference declaration in an exact citation before an explicit preference can proceed. Recognized forms include `I prefer`, `I like`, `I dislike`, `prefiro` and `gosto de`; ordinary commands, requests for more options, hypothetical comparisons and speculative beliefs do not suffice. This is deliberately conservative and can omit valid preferences in unrecognized wording/languages. Generation requests the declaration itself in the citation; no quote is repaired.
+
+Support verification now receives only claims and their citations. Survivors receive a separate context check if any citation omits surrounding source text. The second pass may invalidate a claim but can never restore one the first pass rejected. The initial expanded verifier development check passed 23/23 in 18.06 seconds, including the ordinary-request failures. A further expansion adds product ownership, one appointment, an unnamed project, a named project control and an unsupported book-interest claim; that 28-case result remains pending.
+
+The v14 identity-only model check had failed the general-versus-scoped case. V15 adds an independent structural boundary for null versus non-null context and makes the prompt's scope rule explicit. Its ten identity development cases now pass in 16.77 seconds. The full extraction fixture has expanded from twenty to twenty-six cases, including genuine declared shopping preference as a positive control. Its v15 result and the clean real-corpus run remain pending.

@@ -285,5 +285,81 @@
         "kind": "behavioral_pattern"
       }
     ]
+  },
+  {
+    "id": "one-time-mail-delivery",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Place this draft in my local mail app."
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "one-time-game-file",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Create a new file with a puzzle game."
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "shopping-budget-constraint",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Give me more used camera options between 300 and 800 euros."
+      }
+    ],
+    "forbidden": [
+      "explicit_preference",
+      "inferred_preference",
+      "behavioral_pattern"
+    ]
+  },
+  {
+    "id": "hypothetical-net-comparison",
+    "messages": [
+      {
+        "role": "user",
+        "text": "How much would I net in City B with the same gross salary"
+      }
+    ],
+    "forbidden": [
+      "explicit_preference",
+      "inferred_preference",
+      "behavioral_pattern"
+    ]
+  },
+  {
+    "id": "speculation-not-preference",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I bet the cash-only offer would leave me with more net income."
+      }
+    ],
+    "forbidden": [
+      "explicit_preference",
+      "inferred_preference",
+      "behavioral_pattern"
+    ]
+  },
+  {
+    "id": "declared-shopping-preference",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I prefer used cameras to new ones for travel photography."
+      }
+    ],
+    "required": [
+      {
+        "kind": "explicit_preference"
+      }
+    ]
   }
 ]
