@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use crate::model::{Conversation, Message, digest};
 
 pub const SCHEMA_VERSION: u32 = 1;
-pub const RULES_VERSION: &str = "explicit-rules-v4";
+pub const RULES_VERSION: &str = "explicit-rules-v5";
 const MAX_OBSERVATIONS: usize = 1_000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -480,6 +480,9 @@ pub fn extract_rules(conversation: &Conversation, revision: i64) -> AnalysisOutp
             .into_iter()
             .flat_map(direct_statements)
         {
+            if quote.contains(crate::privacy::REDACTED) {
+                continue;
+            }
             if let Some(mut observation) = classify_statement(quote) {
                 if check_text(&observation.canonical_value, "canonical_value", 4096).is_err()
                     || check_text(&observation.summary, "summary", 4096).is_err()
@@ -904,6 +907,25 @@ mod tests {
         let source = conversation("one", &[("user", "I prefer Rust.")]);
         let output = extract_rules(&source, 1);
         (source, output)
+    }
+
+    #[test]
+    fn rules_skip_redacted_spans_without_turning_placeholders_into_evidence() {
+        let source = conversation(
+            "contact",
+            &[("user", "I prefer Rust; contact person@example.test.")],
+        );
+        let redacted = crate::privacy::redact_conversation(&source).unwrap();
+        let output = extract_rules(&redacted, 1);
+        assert!(
+            output
+                .observations
+                .iter()
+                .flat_map(|o| &o.evidence)
+                .all(|e| source.messages[0].content.contains(&e.quote)
+                    && !e.quote.contains(crate::privacy::REDACTED))
+        );
+        assert!(source.messages[0].content.contains("person@example.test"));
     }
 
     #[test]

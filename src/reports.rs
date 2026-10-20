@@ -248,16 +248,51 @@ pub fn rank_discoveries(
             .then_with(|| compare_time_desc(left.last_seen, right.last_seen))
             .then_with(|| left.id.cmp(&right.id))
     });
-    observations.truncate(limit);
-    observations
+    if limit >= observations.len() {
+        return observations;
+    }
+    // Within an equal recurrence/confirmation/kind tier, cover another
+    // conversation before showing more details from an already shown source.
+    // Never replace stronger recurrence or confirmed evidence for diversity.
+    let mut ranked = Vec::with_capacity(limit.min(observations.len()));
+    let mut covered = BTreeSet::new();
+    while ranked.len() < limit && !observations.is_empty() {
+        let first = &observations[0];
+        let selected = observations
+            .iter()
+            .position(|record| {
+                record.distinct_conversations == first.distinct_conversations
+                    && (record.status == ObservationStatus::UserConfirmed)
+                        == (first.status == ObservationStatus::UserConfirmed)
+                    && discovery_kind_priority(record.observation.kind)
+                        == discovery_kind_priority(first.observation.kind)
+                    && record.observation.evidence.iter().any(|evidence| {
+                        !covered.contains(&(
+                            evidence.provider.clone(),
+                            evidence.conversation_id.clone(),
+                        ))
+                    })
+            })
+            .unwrap_or(0);
+        let record = observations.remove(selected);
+        covered.extend(
+            record
+                .observation
+                .evidence
+                .iter()
+                .map(|evidence| (evidence.provider.clone(), evidence.conversation_id.clone())),
+        );
+        ranked.push(record);
+    }
+    ranked
 }
 
 // The MVP centers on actionable preferences/corrections/decisions. Generic
 // topics should not win an unknown-date tie merely through their hash value.
 fn discovery_kind_priority(kind: ExtractionKind) -> u8 {
     match kind {
-        ExtractionKind::Correction => 5,
-        ExtractionKind::ExplicitPreference => 4,
+        ExtractionKind::ExplicitPreference => 5,
+        ExtractionKind::Correction => 4,
         ExtractionKind::Decision => 3,
         ExtractionKind::ProjectReference => 2,
         ExtractionKind::InferredPreference | ExtractionKind::BehavioralPattern => 1,
@@ -548,8 +583,38 @@ mod tests {
                 .iter()
                 .map(|r| r.id.as_str())
                 .collect::<Vec<_>>(),
-            ["e", "d", "c", "b", "a"]
+            ["d", "e", "c", "b", "a"]
         );
+    }
+
+    #[test]
+    fn short_discovery_lists_cover_another_source_within_the_same_evidence_tier() {
+        let mut records = Vec::new();
+        for (id, source, time) in [
+            ("a", "one", 4.0),
+            ("b", "one", 3.0),
+            ("c", "one", 2.0),
+            ("d", "two", 1.0),
+        ] {
+            let mut record = observations(&target()).remove(0);
+            record.id = id.into();
+            record.observation.kind = ExtractionKind::ExplicitPreference;
+            record.last_seen = Some(time);
+            for evidence in &mut record.observation.evidence {
+                evidence.conversation_id = source.into();
+            }
+            records.push(record);
+        }
+        let ranked = rank_discoveries(records, 3);
+        assert_eq!(
+            ranked
+                .iter()
+                .map(|record| record.id.as_str())
+                .collect::<Vec<_>>(),
+            ["a", "d", "b"]
+        );
+        assert_eq!(ranked[1].last_seen, Some(1.0));
+        assert_eq!(ranked[1].distinct_conversations, 1);
     }
 
     #[test]

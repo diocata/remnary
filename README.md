@@ -69,7 +69,7 @@ OLLAMA_NO_CLOUD=1 ollama serve
 observr analyze --engine ollama --model YOUR_INSTALLED_LOCAL_MODEL
 ```
 
-Observr does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. Real-data checks pass provenance validation; semantic accuracy/usefulness remain release blockers.
+Observr does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices, separately checks claim support and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. Real-data checks pass provenance validation; semantic accuracy/usefulness remain release blockers.
 
 ## Generate a vault
 

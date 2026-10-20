@@ -19,3 +19,5 @@ pub mod store;
 pub mod vault;
 pub mod vault_feedback;
 pub mod web;
+
+pub mod verification;

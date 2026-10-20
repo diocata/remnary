@@ -500,6 +500,12 @@ fn run() -> Result<()> {
                 "Analyzed {} conversations; persisted {} candidate extractions.",
                 summary.processed, summary.observations
             );
+            if summary.rejected_candidates > 0 {
+                println!(
+                    "Omitted {} unsupported or uncertain candidate claims after separate evidence verification.",
+                    summary.rejected_candidates
+                );
+            }
             if summary.processed == 0 && summary.failures.is_empty() {
                 println!("No pending conversations for this processor and model.");
             }

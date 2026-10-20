@@ -58,3 +58,23 @@ Without this flag, explicitly selected models contribute concurrently. With it, 
 Model/daemon updates can change behavior; keep the installed version/tag/digest with an evaluation record and rerun the synthetic checks. Smaller models may miss context or produce poor interpretations despite valid quotes. Do not bypass validation or switch to cloud processing to make a test pass.
 
 References: [Ollama model tags](https://ollama.com/library/qwen3.5/tags), [local-only configuration](https://docs.ollama.com/faq#how-do-i-disable-ollamas-cloud-features), [structured chat API](https://docs.ollama.com/api/chat), [Homebrew package](https://formulae.brew.sh/formula/ollama).
+
+## Producer v12: verification and scope checks
+
+The v11 real run completed 39/40 sources with 58 extractions; one generation exceeded its deadline. An isolated current-results review contained 59 visible claims, no recurring groups and no user confirmations. Its top-five ranking still exposed questions as corrections, low-value one-off edits and unsupported claim details. It did not meet the delegated usefulness target.
+
+Producer/prompt v12 adds a separate local verification request after strict generation/source validation and before persistence. It checks both summary and canonical value, kind/inference and scope against cited user quotations. Matching message context is supplied only to catch omitted qualifiers, negation or fictional/quoted attribution; uncited context cannot rescue a missing positive detail. Raw metadata is omitted. Missing/duplicate/unknown candidate verdicts, inconsistent reasons, absent/mismatched source context and malformed responses fail the conversation. Only fully supported candidates survive, unchanged. Unsupported/uncertain candidates are omitted, with a count reported after successful conversation commits. A failed source stays pending. Both stages check the exact model-manifest/daemon identity; no result is promoted to user-confirmed.
+
+The verifier uses `think: false`, 4,096 tokens and a bounded 120-second deadline. A thinking-enabled eight-case development check passed 8/8 in 155.6 seconds; the expanded non-thinking/context check passed **15/15 in 16.5 seconds**, accepting five grounded controls and rejecting ten overclaims, attribution errors, mismatched decision stages and injection attempts. The fixture/harness are `tests/fixtures/verifier-semantic-evaluation.json` and `examples/evaluate-verifier.rs`:
+
+```sh
+./scripts/cargo-local run --example evaluate-verifier -- http://127.0.0.1:11435 qwen3.5:9b-q4_K_M
+```
+
+These are development regressions, not independent proof of real-world precision. The verifier can also make mistakes. The full twenty-case extraction-plus-verification evaluation and revised real-history assessment remain pending.
+
+For generation only, advertised `qwen35` thinking models now receive the [model author's general thinking profile](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices): temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5 and repetition penalty 1.0. Seed 42 records a stable requested seed; hardware/backend execution is not guaranteed deterministic. This addresses the observed greedy-generation stall without increasing the hard token/deadline limits. Other model families retain their prior sampling behavior; verification remains non-thinking/temperature 0.
+
+Best-effort redaction now additionally removes common email addresses and international '+' phone forms. Decoder quote choices omit redaction markers and can retain an unchanged safe clause next to a redacted span. The original source is not rewritten; unchanged exact evidence is still required. Rules are `explicit-rules-v5` and skip redacted spans. This does not provide complete personal-information detection.
+
+Short discovery lists now favor explicit preferences over single-source corrections when recurrence and confirmation tie. Within the same recurrence/confirmation/kind tier, a different conversation is shown before more findings from an already covered source. Stronger recurrence/confirmation priorities and genuine timestamps remain intact; the algorithm invents no usefulness score or dates.

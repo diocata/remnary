@@ -201,7 +201,7 @@ fn analyze_with_limits(
     timeout: Duration,
     max_response_bytes: u64,
 ) -> Result<Value> {
-    let (url, _) = local_endpoint(endpoint)?;
+    local_endpoint(endpoint)?;
     validate_model(model)?;
     ensure!(revision > 0, "conversation revision must be positive");
     ensure!(
@@ -209,6 +209,56 @@ fn analyze_with_limits(
         "analysis output schema must be an object"
     );
     let body = request_body(model, schema, conversation, revision)?;
+    let mut output =
+        chat_body_with_limits(endpoint, model, body, timeout, max_response_bytes, true)?;
+    if uses_observation_protocol(schema) {
+        decode_observation_protocol(&mut output)?;
+    }
+    Ok(output)
+}
+
+/// Strict local structured completion for evidence verification. No metadata,
+/// tools, forwarding, proxies or model installation are enabled by this API.
+pub(crate) fn structured_json(
+    endpoint: &str,
+    model: &str,
+    system: &str,
+    data: &Value,
+    schema: &Value,
+) -> Result<Value> {
+    validate_model(model)?;
+    let data = serde_json::to_string(data)?;
+    ensure!(
+        system.len() + data.len() <= 24_000,
+        "verification input exceeds the bounded local context budget"
+    );
+    let body = serde_json::to_vec(&json!({"model":model,
+        "messages":[{"role":"system","content":system},{"role":"user","content":data}],
+        "format":schema,"stream":false,"think":false,"truncate":false,"shift":false,
+        "options":{"temperature":0,"num_ctx":32768,"num_predict":4096}}))?;
+    ensure!(
+        body.len() <= MAX_REQUEST_BYTES,
+        "verification request exceeds its safety limit"
+    );
+    chat_body_with_limits(
+        endpoint,
+        model,
+        body,
+        REQUEST_TIMEOUT,
+        MAX_RESPONSE_BYTES,
+        false,
+    )
+}
+
+fn chat_body_with_limits(
+    endpoint: &str,
+    model: &str,
+    body: Vec<u8>,
+    timeout: Duration,
+    max_response_bytes: u64,
+    allow_thinking: bool,
+) -> Result<Value> {
+    let (url, _) = local_endpoint(endpoint)?;
     let (client, _) = local_client(endpoint, timeout)?;
     let mut show_url = url.clone();
     show_url.set_path("/api/show");
@@ -228,14 +278,26 @@ fn analyze_with_limits(
     validate_local_model(&details)?;
     // Enable reasoning only when this local model advertises that capability.
     // Ordinary completion-only models retain their compatible request shape.
-    let thinking = details
-        .get("capabilities")
-        .and_then(Value::as_array)
-        .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")));
+    let thinking = allow_thinking
+        && details
+            .get("capabilities")
+            .and_then(Value::as_array)
+            .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")));
     let body = if thinking {
         let mut request: Value = serde_json::from_slice(&body)?;
         request["think"] = json!(true);
         request["options"]["num_predict"] = json!(8192);
+        if details.pointer("/details/family").and_then(Value::as_str) == Some("qwen35") {
+            // Qwen's documented general thinking profile avoids greedy
+            // repetition. The processor version fingerprints this policy.
+            request["options"]["temperature"] = json!(1.0);
+            request["options"]["top_p"] = json!(0.95);
+            request["options"]["top_k"] = json!(20);
+            request["options"]["min_p"] = json!(0.0);
+            request["options"]["presence_penalty"] = json!(1.5);
+            request["options"]["repeat_penalty"] = json!(1.0);
+            request["options"]["seed"] = json!(42);
+        }
         serde_json::to_vec(&request)?
     } else {
         body
@@ -277,7 +339,7 @@ fn analyze_with_limits(
         envelope.message.role == "assistant",
         "local Ollama response has an unexpected message role"
     );
-    let mut output: Value = serde_json::from_str(&envelope.message.content).map_err(|_| {
+    let output: Value = serde_json::from_str(&envelope.message.content).map_err(|_| {
         anyhow::anyhow!(
             "local Ollama output is not strict JSON; choose a model supporting structured output"
         )
@@ -286,9 +348,6 @@ fn analyze_with_limits(
         output.is_object(),
         "local Ollama analysis must be a JSON object"
     );
-    if uses_observation_protocol(schema) {
-        decode_observation_protocol(&mut output)?;
-    }
     Ok(output)
 }
 
@@ -619,6 +678,14 @@ fn quote_choices(text: &str) -> Vec<String> {
         if line.len() <= 1024 {
             choices.insert(line.to_owned());
         }
+        // Clause alternatives let a harmless preference retain its exact
+        // source bytes beside redacted contact details or credentials.
+        for clause in line.split([',', ';']) {
+            let clause = clause.trim();
+            if !clause.is_empty() && clause.len() <= 1024 {
+                choices.insert(clause.to_owned());
+            }
+        }
         for sentence in crate::intelligence::sentence_spans(line) {
             let sentence = sentence.trim();
             if sentence.is_empty() {
@@ -635,7 +702,11 @@ fn quote_choices(text: &str) -> Vec<String> {
             }
         }
     }
-    choices.into_iter().take(512).collect()
+    choices
+        .into_iter()
+        .filter(|quote| !quote.contains(crate::privacy::REDACTED))
+        .take(512)
+        .collect()
 }
 
 #[derive(Deserialize)]
@@ -938,6 +1009,46 @@ mod tests {
         assert_eq!(body["options"]["num_predict"], 8192);
         assert_eq!(body["truncate"], false);
         assert_eq!(body["format"], schema());
+    }
+
+    #[test]
+    fn qwen_generation_uses_sampling_but_verification_stays_non_reasoning() {
+        for verification in [false, true] {
+            let mut metadata = local_metadata();
+            metadata["details"]["family"] = json!("qwen35");
+            metadata["capabilities"] = json!(["thinking"]);
+            let (endpoint, requests, handle) = responses_server(vec![
+                ("/api/show", reply(&metadata.to_string())),
+                ("/api/chat", reply(&envelope(r#"{"observations":[]}"#))),
+            ]);
+            if verification {
+                structured_json(
+                    &endpoint,
+                    "local-model",
+                    "Check only cited evidence",
+                    &json!({"candidates":[]}),
+                    &schema(),
+                )
+                .unwrap();
+            } else {
+                analyze_json(&endpoint, "local-model", &schema(), &conversation(), 1).unwrap();
+            }
+            requests.recv_timeout(Duration::from_secs(3)).unwrap();
+            let body = requests.recv_timeout(Duration::from_secs(3)).unwrap();
+            assert_eq!(body["think"], !verification);
+            assert_eq!(body["truncate"], false);
+            assert_eq!(body["format"], schema());
+            if verification {
+                assert_eq!(body["options"]["temperature"], 0);
+                assert_eq!(body["options"]["num_predict"], 4096);
+            } else {
+                assert_eq!(body["options"]["temperature"], 1.0);
+                assert_eq!(body["options"]["presence_penalty"], 1.5);
+                assert_eq!(body["options"]["seed"], 42);
+                assert_eq!(body["options"]["num_predict"], 8192);
+            }
+            handle.join().unwrap();
+        }
     }
 
     #[test]
@@ -1250,6 +1361,19 @@ mod tests {
             }
             handle.join().unwrap();
         }
+    }
+
+    #[test]
+    fn decoder_quotes_exclude_redaction_spans_and_keep_untouched_clauses() {
+        let original = "Contact person@example.test; I prefer Rust.";
+        let redacted = crate::privacy::redact_text(original);
+        let choices = quote_choices(&redacted);
+        assert!(choices.iter().any(|quote| quote == "I prefer Rust."));
+        assert!(
+            choices
+                .iter()
+                .all(|quote| original.contains(quote) && !quote.contains(crate::privacy::REDACTED))
+        );
     }
 
     #[test]

@@ -20,6 +20,7 @@ pub struct AnalysisSummary {
     pub processor: Option<Processor>,
     pub processed: usize,
     pub observations: usize,
+    pub rejected_candidates: usize,
     pub failures: Vec<String>,
 }
 
@@ -77,7 +78,8 @@ pub fn analyze_with_progress(
     for (index, target) in targets.into_iter().enumerate() {
         let current = index + 1;
         progress(AnalysisProgress::Conversation { current, total });
-        let result = (|| -> Result<usize> {
+        let result = (|| -> Result<(usize, usize)> {
+            let mut rejected_candidates = 0;
             // No raw message metadata or obvious credentials cross the analysis
             // boundary, including when using deterministic local rules.
             let redacted = redact_conversation(&target.conversation)?;
@@ -109,9 +111,16 @@ pub fn analyze_with_progress(
                             })?;
                         // Validate against the window actually sent, then the
                         // original immutable source again before committing.
-                        observations.extend(
-                            validate_model_output(&batch, target.revision, output)?.observations,
-                        );
+                        let grounded = validate_model_output(&batch, target.revision, output)?;
+                        let (verified, rejected) = crate::verification::verify_observations(
+                            endpoint,
+                            model,
+                            identity.as_ref().expect("model identity resolved"),
+                            &batch,
+                            grounded,
+                        )?;
+                        rejected_candidates += rejected;
+                        observations.extend(verified.observations);
                     }
                     AnalysisOutput {
                         observations: group_observations(&observations)
@@ -125,16 +134,20 @@ pub fn analyze_with_progress(
             // Source identity is unchanged by redaction. Quotes must still be
             // exact spans in the ORIGINAL revision, so a redaction placeholder
             // cannot become fabricated supporting evidence.
-            store.save_analysis(&target, &processor, output)
+            Ok((
+                store.save_analysis(&target, &processor, output)?,
+                rejected_candidates,
+            ))
         })();
         progress(AnalysisProgress::Finished {
             conversation: current,
             success: result.is_ok(),
         });
         match result {
-            Ok(count) => {
+            Ok((count, rejected)) => {
                 summary.processed += 1;
                 summary.observations += count;
+                summary.rejected_candidates += rejected;
             }
             Err(error) => {
                 // Source identifiers are hashes; error text is produced by our

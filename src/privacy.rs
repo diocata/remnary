@@ -1,6 +1,6 @@
 //! Best-effort secret redaction at the analysis boundary.
 //!
-//! This recognizes common credential formats; it cannot guarantee that all
+//! This recognizes common credential/contact formats; it cannot guarantee that all
 //! secrets, identifying information, or sensitive personal data are removed.
 //! Redacted copies are analysis input, never replacements for source evidence.
 //! A quote containing a replacement must not be accepted as an exact quotation
@@ -40,6 +40,11 @@ static SECRET_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
         r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b",
         r"(?i)\bbearer[ \t]+[A-Za-z0-9._~+/-]{12,}={0,2}",
         r"(?i)\bauthorization[ \t]*:[ \t]*basic[ \t]+[A-Za-z0-9+/]{8,}={0,2}",
+        // Common contact details are unnecessary for personal-preference
+        // extraction. International '+' form avoids treating ordinary prices,
+        // dates and recipe quantities as phone numbers.
+        r"\+[1-9][0-9]{0,2}(?:[ \t().-]*[0-9]){7,12}\b",
+        r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b",
     ]
     .into_iter()
     .map(|pattern| Regex::new(pattern).expect("fixed secret-redaction expression is valid"))
@@ -53,7 +58,7 @@ static ASSIGNMENT: LazyLock<Regex> = LazyLock::new(|| {
     .expect("fixed credential-assignment expression is valid")
 });
 
-/// Replace recognized credential values while keeping surrounding text intact.
+/// Replace recognized credentials/contact details while keeping surrounding text intact.
 ///
 /// Matching is heuristic and intentionally does not claim complete secret or
 /// personal-information detection. Unmatched text is preserved byte-for-byte.
@@ -77,7 +82,7 @@ pub fn redact_text(text: &str) -> String {
         .into_owned()
 }
 
-/// Whether the text contains a credential recognized by the current rules.
+/// Whether the text contains a credential/contact recognized by the current rules.
 /// False means no known pattern matched, not that the text is safe to disclose.
 pub fn has_secret(text: &str) -> bool {
     redact_text(text) != text
@@ -120,6 +125,21 @@ mod tests {
         for quote in ["I prefer Rust.", "keep the code simple."] {
             assert!(original.contains(quote) && redacted.contains(quote));
         }
+    }
+
+    #[test]
+    fn contact_minimization_preserves_ordinary_amounts_and_safe_clauses() {
+        for contact in [
+            "+1 (202) 555-0123",
+            "+44 7700 900123",
+            "person@example.test",
+        ] {
+            let text = format!("Contact {contact}; I prefer Rust.");
+            assert_eq!(redact_text(&text), "Contact [REDACTED]; I prefer Rust.");
+            assert!(has_secret(&text));
+        }
+        let ordinary = "Budget 300-700, use 250 grams, meet on 2026-10-20.";
+        assert_eq!(redact_text(ordinary), ordinary);
     }
 
     #[test]

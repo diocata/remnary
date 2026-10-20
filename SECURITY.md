@@ -8,7 +8,7 @@ Wrong/missing keys fail closed. Existing archives never silently receive replace
 
 Only selected conversation sources are imported. Filename/size detection is separate. The application does not read account credentials, capture keystrokes, enable cloud sync, contact AI accounts or send telemetry. The optional adapter sends redacted normalized content only to a trusted loopback Ollama daemon and refuses advertised cloud models before sending history. Disable Ollama cloud features separately. An arbitrary daemon can lie about forwarding.
 
-Redaction covers tested patterns, not every possible secret. Evidence checks prevent invented citations; they cannot prove that a pasted sentence expresses the owner's views. Findings require review before profile confirmation. Sensitive inferred traits are restricted.
+Redaction covers tested credential patterns and common contact forms, not every possible secret or identifying detail. Evidence checks prevent invented citations; they cannot prove that a pasted sentence expresses the owner's views. Findings require review before profile confirmation. Sensitive inferred traits are restricted.
 
 ## Plaintext and deletion boundaries
 
@@ -20,4 +20,4 @@ Exclusion hides retained conversations; deletion removes canonical revisions, se
 
 ## Reporting
 
-No private reporting channel or public release repository has been established. Keep sensitive reports private with the project owner. Share synthetic reproductions and affected commits, avoiding credentials/personal data. A maintained reporting channel is a release gate.
+No private reporting channel or public release repository has been established. Keep sensitive reports private with the project owner. Share synthetic reproductions and affected commits, avoiding credentials/personal data. A maintained private reporting channel must be established before public release; local evaluation does not create a remote repository or publish a release.
