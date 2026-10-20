@@ -3,6 +3,7 @@ pub mod analysis_store;
 pub mod import;
 pub mod intelligence;
 pub mod knowledge;
+pub mod local_sources;
 pub mod model;
 pub mod ollama;
 pub mod operations;

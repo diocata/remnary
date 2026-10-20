@@ -3,9 +3,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 use observr::{
     analysis::{AnalysisEngine, analyze},
     analysis_store::{FeedbackAction, ObservationRecord, ObservationStatus},
-    import::read_chatgpt,
     intelligence::ExtractionKind,
     knowledge::sync_vault,
+    local_sources::{SourceFormat, detect_local, read_source},
     model::digest,
     reports::{rank_discoveries, summarize_days},
     store::Store,
@@ -54,8 +54,12 @@ enum Command {
     Init,
     /// Show imported data and completed analysis counts.
     Status,
-    /// Import an explicitly selected ChatGPT JSON or ZIP export.
-    Import { file: PathBuf },
+    /// Import selected ChatGPT exports or local Claude Code, Codex or Kiro sessions.
+    Import {
+        file: PathBuf,
+        #[arg(long, value_enum, default_value_t = SourceFormat::Auto)]
+        source: SourceFormat,
+    },
     /// Search current message text; all words must match within a message.
     Search {
         query: String,
@@ -119,6 +123,9 @@ enum Command {
     Sources {
         #[arg(long)]
         json: bool,
+        /// Inventory known local session directories without reading message text.
+        #[arg(long)]
+        detect: bool,
     },
     /// Inspect the exact normalized revision cited as evidence.
     Show {
@@ -202,6 +209,11 @@ fn main() {
 }
 fn run() -> Result<()> {
     let cli = Cli::parse();
+    if let Command::Sources { detect: true, .. } = &cli.command {
+        let base = directories::BaseDirs::new().context("cannot locate home directory")?;
+        print_json(&detect_local(base.home_dir())?)?;
+        return Ok(());
+    }
     let data_dir = match cli.data_dir {
         Some(dir) => dir,
         None => directories::ProjectDirs::from("", "", "observr")
@@ -310,8 +322,8 @@ fn run() -> Result<()> {
                 store.pending_cleanup_count()?
             );
         }
-        Command::Import { file } => {
-            let summary = store.import(&read_chatgpt(&file)?)?;
+        Command::Import { file, source } => {
+            let summary = store.import(&read_source(&file, source)?)?;
             println!(
                 "Imported {} new, {} updated, {} unchanged, {} skipped conversations.",
                 summary.inserted, summary.updated, summary.unchanged, summary.skipped
@@ -511,7 +523,7 @@ fn run() -> Result<()> {
                 "Feedback saved for {id}. Run `observr vault sync` to refresh exported knowledge."
             );
         }
-        Command::Sources { json: _ } => {
+        Command::Sources { .. } => {
             let records=store.current_snapshots()?.into_iter().map(|s|serde_json::json!({"id":s.conversation.stable_id(),"provider":s.conversation.provider,"source_id":s.conversation.source_id,"title":s.conversation.title,"revision":s.revision,"messages":s.conversation.messages.len()})).collect::<Vec<_>>();
             print_json(&records)?;
         }
