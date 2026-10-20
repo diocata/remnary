@@ -10,7 +10,7 @@ use crate::model::{Conversation, Message};
 
 const MAX_IMPORT_BYTES: u64 = 256 * 1024 * 1024;
 
-/// Read an extracted ChatGPT `conversations.json` or the original export ZIP.
+/// Read an extracted ChatGPT `conversations.json` or the original export ZIP (one file or numbered shards).
 ///
 /// All mapping branches are retained, with parents preceding their children.
 /// ZIP members are read directly; archive paths are never extracted to disk.
@@ -38,47 +38,109 @@ pub fn read_chatgpt(path: &Path) -> Result<Vec<Conversation>> {
             [b'P', b'K', 3, 4] | [b'P', b'K', 5, 6] | [b'P', b'K', 7, 8]
         );
 
-    let bytes = if zip_extension || zip_magic {
-        read_zip(file)?
+    let conversations = if zip_extension || zip_magic {
+        read_zip(file)
     } else {
-        read_bounded(file, MAX_IMPORT_BYTES).context("read conversations.json")?
+        let bytes = read_bounded(file, MAX_IMPORT_BYTES).context("read conversations.json")?;
+        parse_chatgpt(&bytes)
     };
-    parse_chatgpt(&bytes).with_context(|| format!("import ChatGPT export {}", path.display()))
+    conversations.with_context(|| format!("import ChatGPT export {}", path.display()))
 }
 
-fn read_zip(file: File) -> Result<Vec<u8>> {
+fn read_zip(file: File) -> Result<Vec<Conversation>> {
+    read_zip_with_limit(file, MAX_IMPORT_BYTES)
+}
+
+fn read_zip_with_limit(file: File, limit: u64) -> Result<Vec<Conversation>> {
     let mut archive = zip::ZipArchive::new(file).context("open ChatGPT ZIP archive")?;
-    let mut matches = Vec::new();
+    ensure!(
+        archive.len() <= 100_000,
+        "ChatGPT ZIP exceeds the 100,000-member limit"
+    );
+    let mut legacy = Vec::new();
+    let mut shards = BTreeMap::new();
+    let mut folder = None;
+    let mut declared_bytes = 0_u64;
     for index in 0..archive.len() {
-        let entry = archive
-            .by_index(index)
-            .with_context(|| format!("read ZIP member {index}"))?;
-        if entry.is_file()
-            && entry
-                .name()
-                .context("ZIP entry name is not valid text")?
-                .rsplit('/')
-                .next()
-                == Some("conversations.json")
-        {
-            matches.push(index);
+        let entry = archive.by_index(index).context("read ChatGPT ZIP member")?;
+        if !entry.is_file() {
+            continue;
+        }
+        let name = entry.name().context("ZIP entry name is not valid text")?;
+        let (parent, basename) = name.rsplit_once('/').unwrap_or(("", name.as_ref()));
+        let shard = basename
+            .strip_prefix("conversations-")
+            .and_then(|s| s.strip_suffix(".json"))
+            .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()));
+        if basename != "conversations.json" && shard.is_none() {
+            continue;
+        }
+        if let Some(previous) = &folder {
+            ensure!(
+                previous == parent,
+                "ChatGPT ZIP contains ambiguous conversation folders; found 2 or more"
+            );
+        } else {
+            folder = Some(parent.to_owned());
+        }
+        declared_bytes = declared_bytes
+            .checked_add(entry.size())
+            .context("ZIP expanded size overflow")?;
+        ensure!(
+            declared_bytes <= limit,
+            "ZIP conversation files exceed the {limit}-byte total uncompressed input limit"
+        );
+        if let Some(number) = shard {
+            let number: u64 = number
+                .parse()
+                .context("conversation shard number is too large")?;
+            ensure!(
+                shards.insert(number, index).is_none(),
+                "ChatGPT ZIP contains duplicate conversation shard numbers"
+            );
+            ensure!(
+                shards.len() <= 1024,
+                "ChatGPT ZIP exceeds the 1,024-shard limit"
+            );
+        } else {
+            legacy.push(index);
         }
     }
     ensure!(
-        matches.len() == 1,
-        "ChatGPT ZIP must contain exactly one conversations.json; found {}",
-        matches.len()
+        (legacy.len() == 1 && shards.is_empty()) || (legacy.is_empty() && !shards.is_empty()),
+        "ChatGPT ZIP must contain one conversations.json or numbered conversations-*.json shards, never both; found {} legacy files and {} shards",
+        legacy.len(),
+        shards.len()
     );
-    let entry = archive
-        .by_index(matches[0])
-        .context("open conversations.json in ZIP")?;
-    ensure!(
-        entry.size() <= MAX_IMPORT_BYTES,
-        "ZIP conversations.json exceeds the {} MiB uncompressed input limit",
-        MAX_IMPORT_BYTES / 1024 / 1024
-    );
-    // The streaming cap also applies if an archive's declared size is incorrect.
-    read_bounded(entry, MAX_IMPORT_BYTES).context("read conversations.json in ZIP")
+    let indexes: Vec<_> = if legacy.is_empty() {
+        shards.into_values().collect()
+    } else {
+        legacy
+    };
+    let mut consumed = 0;
+    let mut conversations = Vec::<Conversation>::new();
+    let mut seen = BTreeMap::<String, usize>::new();
+    for index in indexes {
+        let entry = archive
+            .by_index(index)
+            .context("open conversation file in ZIP")?;
+        // Cap actual streamed bytes too, independently of declared ZIP sizes.
+        let bytes =
+            read_bounded(entry, limit - consumed).context("read conversation file in ZIP")?;
+        consumed += bytes.len() as u64;
+        for conversation in parse_chatgpt(&bytes)? {
+            if let Some(previous) = seen.get(&conversation.source_id) {
+                ensure!(
+                    conversations[*previous] == conversation,
+                    "conflicting duplicate conversation ID across ZIP shards"
+                );
+            } else {
+                seen.insert(conversation.source_id.clone(), conversations.len());
+            }
+            conversations.push(conversation);
+        }
+    }
+    Ok(conversations)
 }
 
 fn read_bounded(reader: impl Read, limit: u64) -> Result<Vec<u8>> {
@@ -522,6 +584,83 @@ mod tests {
             ],
         )?;
         assert!(format!("{:#}", read_chatgpt(&path).unwrap_err()).contains("found 2"));
+        Ok(())
+    }
+
+    #[test]
+    fn numbered_zip_shards_are_numeric_ordered_bounded_and_never_extracted() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("export.zip");
+        let mut first = record();
+        first["id"] = json!("first");
+        let mut second = record();
+        second["id"] = json!("second");
+        let first = json!([first]).to_string();
+        let second = json!([second]).to_string();
+        write_zip(
+            &path,
+            &[
+                ("export/conversations-10.json", &second),
+                ("export/conversations-2.json", &first),
+                ("ignored.json", "invalid"),
+            ],
+        )?;
+        let records = read_chatgpt(&path)?;
+        assert_eq!(
+            records
+                .iter()
+                .map(|c| c.source_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["first", "second"]
+        );
+        assert_eq!(std::fs::read_dir(directory.path())?.count(), 1);
+        assert!(
+            read_zip_with_limit(File::open(&path)?, (first.len() + second.len() - 1) as u64)
+                .is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn zip_shards_reject_ambiguity_and_conflicting_duplicates() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("export.zip");
+        for entries in [
+            vec![("conversations.json", "[]"), ("conversations-0.json", "[]")],
+            vec![
+                ("one/conversations-0.json", "[]"),
+                ("two/conversations-1.json", "[]"),
+            ],
+            vec![
+                ("conversations-01.json", "[]"),
+                ("conversations-1.json", "[]"),
+            ],
+        ] {
+            write_zip(&path, &entries)?;
+            assert!(read_chatgpt(&path).is_err());
+        }
+        let first = json!([record()]).to_string();
+        let mut changed = record();
+        changed["title"] = json!("conflicting title");
+        let changed = json!([changed]).to_string();
+        write_zip(
+            &path,
+            &[
+                ("conversations-0.json", &first),
+                ("conversations-1.json", &changed),
+            ],
+        )?;
+        assert!(
+            format!("{:#}", read_chatgpt(&path).unwrap_err()).contains("conflicting duplicate")
+        );
+        write_zip(
+            &path,
+            &[
+                ("conversations-0.json", &first),
+                ("conversations-1.json", &first),
+            ],
+        )?;
+        assert_eq!(read_chatgpt(&path)?.len(), 2);
         Ok(())
     }
 

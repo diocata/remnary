@@ -2,12 +2,12 @@
 
 Updated 2026-10-20. **Production readiness is not established.** The unchanged [product brief](product-brief.md) controls scope. The detailed [initial baseline](readiness-baseline.md) is preserved; its missing-feature rows describe the initial foundation, not the current tree.
 
-The latest full local run passed **154 tests**: 139 library, eight analysis and seven CLI/source integration tests. Formatting and all-target Clippy with warnings denied passed on macOS with the pinned Rust 1.99.1 toolchain. An optimized build also succeeded. CI is configured but has not run remotely; no independent security audit has been observed.
+The latest full local run passed **156 tests**: 141 library, eight analysis and seven CLI/source integration tests. Formatting and all-target Clippy with warnings denied passed on macOS with the pinned Rust 1.99.1 toolchain. An optimized build also succeeded. CI is configured but has not run remotely; no independent security audit has been observed.
 
 | Mandatory v0.1 capability | Current evidence / limits |
 | --- | --- |
 | CLI | Init/import/search/analyze/review/reports/vault/dashboard/privacy/backup commands integration-tested. Installed optimized binary smoke-tested through encrypted import/analysis/search/backup/restore/doctor. |
-| ChatGPT export | Synthetic JSON/ZIP, branches, null roots, bounds and reconstruction tests. Real export compatibility unverified. |
+| ChatGPT export | Synthetic JSON/ZIP including numbered shards, branches, null roots, bounds and reconstruction tests. Real export compatibility unverified. |
 | Storage / SQLite | Immutable revisions, identities, schema-4 migrations, foreign keys/locking tested. SQLCipher and macOS Keychain init/unlock exercised. |
 | Deduplication / search | Unchanged/older imports, atomic failure, current FTS, tombstones/exclusion tested. Real local reimports exercised. |
 | Extraction | Strict schema, source-constrained decoder choices, original-user evidence and versioned runs tested. Real local-model pipeline completed 35 conversations; semantic quality remains insufficient. |
@@ -60,4 +60,4 @@ A daemon, browser/live capture, full TUI, every-provider support, mobile, cloud 
 
 A local, unpublished evaluation package at commit `c355c134b8b8` passed locked tests/Clippy/build and an exact-binary encrypted synthetic smoke test. Its 306 files include license/security documentation and target-specific dependency notices. Binary/archive hashes and source commit are recorded; archive contents and absence of this workstation's user path in the binary were checked. It is unsigned/unnotarized and predates the v11 prompt change, so it is not the final release artifact. [Packaging recipe](releasing.md).
 
-Additional synthetic browser checks at 1280×720 verified visible keyboard focus, the skip-to-main link, focus transfer to the search field, Enter-to-search, an announced result count, and labeled results/source controls. Browser zoom shortcuts had no observable effect in the test surface; narrow-viewport reflow remains unverified.
+Additional synthetic browser checks at 1280×720 verified visible keyboard focus, the skip-to-main link, focus transfer to the search field, Enter-to-search, an announced result count, labeled results/source controls, source-dialog close focus, Escape dismissal and restoration of focus to the opener. Browser zoom shortcuts had no observable effect in the test surface; narrow-viewport reflow remains unverified.
