@@ -40,7 +40,16 @@ pub struct SearchHit {
 }
 
 impl Store {
+    /// Low-level plaintext storage for explicitly selected development use.
     pub fn init(data_dir: &Path) -> Result<Self> {
+        Self::init_impl(data_dir, None)
+    }
+
+    pub fn init_encrypted(data_dir: &Path, key: &crate::security::SecretKey) -> Result<Self> {
+        Self::init_impl(data_dir, Some(key))
+    }
+
+    fn init_impl(data_dir: &Path, key: Option<&crate::security::SecretKey>) -> Result<Self> {
         let mut builder = fs::DirBuilder::new();
         builder.recursive(true);
         #[cfg(unix)]
@@ -64,7 +73,7 @@ impl Store {
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => (),
             Err(error) => return Err(error).context("creating database file"),
         }
-        let mut store = Self::connect(data_dir)?;
+        let mut store = Self::connect(data_dir, key)?;
         let transaction = store
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -90,17 +99,35 @@ impl Store {
     }
 
     pub fn open(data_dir: &Path) -> Result<Self> {
-        let mut store = Self::connect(data_dir)?;
+        Self::open_impl(data_dir, None)
+    }
+
+    pub fn open_encrypted(data_dir: &Path, key: &crate::security::SecretKey) -> Result<Self> {
+        Self::open_impl(data_dir, Some(key))
+    }
+
+    fn open_impl(data_dir: &Path, key: Option<&crate::security::SecretKey>) -> Result<Self> {
+        let mut store = Self::connect(data_dir, key)?;
         store.migrate()?;
         store.check_schema()?;
         Ok(store)
     }
 
-    fn connect(data_dir: &Path) -> Result<Self> {
+    fn connect(data_dir: &Path, key: Option<&crate::security::SecretKey>) -> Result<Self> {
         let path = data_dir.join(DATABASE_NAME);
+        ensure!(
+            fs::symlink_metadata(&path)
+                .map(|m| m.file_type().is_file())
+                .unwrap_or(false),
+            "database must be an existing regular file; run observr init first"
+        );
         let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)
             .with_context(|| format!("opening {}; run `observr init` first", path.display()))?;
+        if let Some(key) = key {
+            crate::security::apply_key(&connection, key)?;
+        }
         connection.busy_timeout(Duration::from_secs(5))?;
+        connection.pragma_update(None, "temp_store", "MEMORY")?;
         connection.pragma_update(None, "foreign_keys", true)?;
         connection.pragma_update(None, "secure_delete", true)?;
         Ok(Self { connection })
@@ -129,7 +156,7 @@ impl Store {
         Ok(())
     }
 
-    fn check_schema(&self) -> Result<()> {
+    pub(crate) fn check_schema(&self) -> Result<()> {
         let application: i64 = self
             .connection
             .pragma_query_value(None, "application_id", |r| r.get(0))?;

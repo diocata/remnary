@@ -6,6 +6,7 @@ use std::{
 
 fn run(data_dir: &Path, arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_observr"))
+        .arg("--insecure-plaintext")
         .arg("--data-dir")
         .arg(data_dir)
         .args(arguments)

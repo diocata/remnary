@@ -23,12 +23,33 @@ struct Cli {
     /// Override the OS application data directory.
     #[arg(long, global = true, value_name = "DIRECTORY")]
     data_dir: Option<PathBuf>,
+    /// Unlock with a private recovery key file instead of macOS Keychain.
+    #[arg(long, global = true, conflicts_with = "insecure_plaintext")]
+    key_file: Option<PathBuf>,
+    /// Development only: explicitly use unencrypted storage.
+    #[arg(long, global = true)]
+    insecure_plaintext: bool,
     #[command(subcommand)]
     command: Command,
 }
 
 #[derive(Subcommand)]
 enum Command {
+    /// Check database integrity and pending projection cleanup without content.
+    Doctor,
+    /// Create a consistent encrypted backup at a new filename.
+    Backup {
+        output: PathBuf,
+        #[arg(long)]
+        backup_key_file: Option<PathBuf>,
+    },
+    /// Restore into a new data directory using an explicit recovery key.
+    Restore { backup: PathBuf },
+    /// Create a private key file or export the current recovery key.
+    Key {
+        #[command(subcommand)]
+        command: KeyCommand,
+    },
     /// Initialize local storage. No sources are scanned.
     Init,
     /// Show imported data and completed analysis counts.
@@ -138,6 +159,11 @@ enum VaultCommand {
     },
 }
 #[derive(Subcommand)]
+enum KeyCommand {
+    Create { output: PathBuf },
+    Export { output: PathBuf },
+}
+#[derive(Subcommand)]
 enum DeleteTarget {
     Conversation { id: String },
     Observation { id: String },
@@ -183,18 +209,90 @@ fn run() -> Result<()> {
             .data_local_dir()
             .to_path_buf(),
     };
-    match &cli.command {
-        Command::Init => {
-            Store::init(&data_dir)?;
-            println!("Initialized Observr at {}", data_dir.display());
-            return Ok(());
-        }
-        Command::Web { port } => return observr::web::serve(&data_dir, *port),
-        _ => {}
+    if let Command::Key {
+        command: KeyCommand::Create { output },
+    } = &cli.command
+    {
+        observr::security::SecretKey::generate()?.write_new(output)?;
+        println!(
+            "Created private key file at {}. Keep it separate from database backups.",
+            output.display()
+        );
+        return Ok(());
     }
-    let mut store = Store::open(&data_dir)?;
+    if let Command::Restore { backup } = &cli.command {
+        let restore_key = if cli.insecure_plaintext {
+            None
+        } else {
+            Some(observr::security::SecretKey::from_key_file(
+                cli.key_file
+                    .as_deref()
+                    .context("restore requires --key-file with the original backup recovery key")?,
+            )?)
+        };
+        Store::restore_new(&data_dir, backup, restore_key.as_ref())?;
+        println!(
+            "Restored canonical data to {}. Generate a new vault explicitly; original projection files remain independently owned.",
+            data_dir.display()
+        );
+        return Ok(());
+    }
+    let key = if cli.insecure_plaintext {
+        None
+    } else {
+        Some(observr::security::resolve_key(
+            &data_dir,
+            cli.key_file.as_deref(),
+            matches!(cli.command, Command::Init),
+        )?)
+    };
+    if let Command::Init = &cli.command {
+        if let Some(key) = &key {
+            Store::init_encrypted(&data_dir, key)?;
+        } else {
+            Store::init(&data_dir)?;
+        }
+        println!("Initialized Observr at {}", data_dir.display());
+        return Ok(());
+    }
+    let mut store = if let Some(key) = &key {
+        Store::open_encrypted(&data_dir, key)?
+    } else {
+        Store::open(&data_dir)?
+    };
     match cli.command {
-        Command::Init | Command::Web { .. } => unreachable!(),
+        Command::Restore { .. }
+        | Command::Init
+        | Command::Key {
+            command: KeyCommand::Create { .. },
+        } => unreachable!(),
+        Command::Doctor => print_json(&store.doctor()?)?,
+        Command::Backup {
+            output,
+            backup_key_file,
+        } => {
+            let backup_key = backup_key_file
+                .as_deref()
+                .map(observr::security::SecretKey::from_key_file)
+                .transpose()?;
+            store.backup_to(&output, backup_key.as_ref().or(key.as_ref()))?;
+            println!(
+                "Backup saved to {}. Recovery requires the matching key; Markdown exports and independent copies are not part of this database backup.",
+                output.display()
+            );
+        }
+        Command::Key {
+            command: KeyCommand::Export { output },
+        } => {
+            key.as_ref()
+                .context("plaintext stores have no encryption key to export")?
+                .write_new(&output)?;
+            println!(
+                "Recovery key exported to {}. Keep this file private and separate from backups.",
+                output.display()
+            );
+        }
+        Command::Web { port } => return observr::web::serve_store(store, port),
         Command::Status => {
             let stats = store.stats()?;
             println!(
