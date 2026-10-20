@@ -1,18 +1,18 @@
 # Local model setup and verification
 
-The evaluated setup uses Homebrew Ollama 0.40.6 on Apple Silicon with the explicit `qwen3.5:4b-q4_K_M` model (about 3.3 GB). Model downloads contact the registry; conversation extraction uses the local daemon. No provider account/API key is needed. Evaluated local model digest: `sha256:d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04` (3,324,173,934 bytes).
+The current development setup uses Homebrew Ollama 0.40.6 on Apple Silicon with the explicit `qwen3.5:9b-q4_K_M` model (about 6.6 GB). Model downloads contact the registry; conversation extraction uses the local daemon. No provider account/API key is needed. Local model digest: `sha256:56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90` (6,550,825,550 bytes). Current quality acceptance is still under evaluation; versioned results and earlier comparators follow below.
 
 ```sh
 brew install ollama
 ./scripts/ollama-local
 # In another terminal:
-OLLAMA_HOST=127.0.0.1:11435 ollama pull qwen3.5:4b-q4_K_M
-observr analyze --engine ollama --model qwen3.5:4b-q4_K_M --endpoint http://127.0.0.1:11435
+OLLAMA_HOST=127.0.0.1:11435 ollama pull qwen3.5:9b-q4_K_M
+observr analyze --engine ollama --model qwen3.5:9b-q4_K_M --endpoint http://127.0.0.1:11435
 ```
 
 The script binds `127.0.0.1:11435`, disables cloud features/request-body debug logging and limits parallel/loaded models. It runs in the foreground; no login/background service is installed. Stop it with Ctrl-C. Homebrew may install/upgrade shared dependencies: the local setup installed MLX support and upgraded its Python, OpenSSL and related dependencies. It did not change shell profiles or start a login service.
 
-The initial default `qwen3.5:4b` download selected an MLX/safetensors runner. On this Homebrew build that runner returned HTTP 501 (`structured output is unavailable`) because its grammar library was absent. Those requests accepted no output. The explicit GGUF variant passed synthetic extraction checks. The unused MLX model was removed; the working GGUF model remains under `~/.ollama/models`.
+The earlier 4B GGUF comparator is also retained (3,324,173,934 bytes; digest `sha256:d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04`). Its historical results do not establish current-pipeline quality. The initial default `qwen3.5:4b` download selected an MLX/safetensors runner. On this Homebrew build that runner returned HTTP 501 (`structured output is unavailable`) because its grammar library was absent. Those requests accepted no output. The explicit GGUF variant passed synthetic extraction checks. The unused MLX model was removed; the working GGUF model remains under `~/.ollama/models`.
 
 The adapter preflights local weights and rejects advertised remote/cloud aliases before sending history. Prompts use bounded user-only windows; long messages overlap without changing evidence identities. Each citation is constrained to exact provider/conversation/revision/message IDs and literal source quote choices. Quotes are bounded to 1 KiB choices (sentences/lines/fragments, up to 512 per message), then checked again against both the submitted window and original unredacted source. This improves citation reliability without rewriting a model's claims after generation. Secret-redaction placeholders cannot become fabricated evidence. Schema alternatives constrain event/inference combinations; semantic validation remains mandatory.
 
@@ -119,4 +119,4 @@ The v14 identity-only model check had failed the general-versus-scoped case. V15
 
 The v15 full extraction development run completed all 26 sources in 364.61 seconds and scored 25/26. Its sole failure reclassified a routine file-creation command as a decision proposal, bypassing the preference-only gate. No v15 real run was started.
 
-V16 filters common routine file/draft/push/continuation commands across all kinds. It retains mixed messages containing a separate preference/choice or multiple sentences for semantic checking. This is a conservative list, not a complete multilingual intent classifier. The targeted file-creation case now passes with no observation. All 182 offline tests pass (163 library, twelve analysis, seven CLI/source); the 28-case verifier and complete 26-case pipeline checks are pending.
+V16 filters common routine file/draft/push/continuation commands across all kinds. It retains mixed messages containing a separate preference/choice or multiple sentences for semantic checking. This is a conservative list, not a complete multilingual intent classifier. The targeted file-creation case now passes with no observation. All 182 offline tests pass (163 library, twelve analysis, seven CLI/source); the expanded verifier passed 28/28 in 24.09 seconds (seven supported controls and twenty-one rejected errors). The complete 26-case pipeline check is pending.
