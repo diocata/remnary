@@ -37,6 +37,15 @@ impl Processor {
         }
     }
 
+    pub fn ollama(model: &str) -> Self {
+        Self {
+            engine: "ollama".into(),
+            version: "5".into(),
+            model: model.into(),
+            prompt_version: "5".into(),
+        }
+    }
+
     fn run_id(&self, target: &AnalysisTarget) -> Result<String> {
         Ok(digest(&serde_json::to_vec(&(
             target.conversation.stable_id(),
@@ -103,6 +112,69 @@ impl Store {
             }
         }
         Ok(targets)
+    }
+
+    /// Explicitly select this exact completed processor for current included
+    /// sources. Other models' automatic results retire; all runs, raw evidence
+    /// and human review remain history. Sources without this result are untouched.
+    pub fn select_model_results(&mut self, processor: &Processor) -> Result<usize> {
+        ensure!(
+            processor.engine == "ollama" && !processor.model.trim().is_empty(),
+            "model selection requires an Ollama processor"
+        );
+        let _guard = self.projection_lock()?;
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let selected = {
+            let mut query = transaction.prepare("SELECT r.id, r.conversation_id, r.revision FROM analysis_runs r
+                JOIN conversations c ON c.id = r.conversation_id AND c.current_revision = r.revision
+                WHERE r.engine = ?1 AND r.model = ?2 AND r.processor_version = ?3 AND r.prompt_version = ?4
+                AND NOT EXISTS(SELECT 1 FROM excluded_sources x WHERE x.conversation_id = c.id)")?;
+            query
+                .query_map(
+                    params![
+                        processor.engine,
+                        processor.model,
+                        processor.version,
+                        processor.prompt_version
+                    ],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, i64>(2)?,
+                        ))
+                    },
+                )?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        let mut retired = 0;
+        for (run, source, revision) in selected {
+            let ids = {
+                let mut query = transaction.prepare("SELECT DISTINCT x.observation_id FROM active_analysis_runs a
+                    JOIN observation_extractions x ON x.analysis_run_id = a.run_id
+                    WHERE a.conversation_id = ?1 AND a.revision = ?2 AND a.engine = ?3 AND a.run_id != ?4")?;
+                query
+                    .query_map(params![source, revision, processor.engine, run], |row| {
+                        row.get::<_, String>(0)
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?
+            };
+            for id in ids {
+                crate::privacy_store::enqueue_observation_files(
+                    &transaction,
+                    &id,
+                    "model_selected",
+                )?;
+            }
+            retired += transaction.execute("DELETE FROM active_analysis_runs WHERE conversation_id = ?1 AND revision = ?2 AND engine = ?3 AND run_id != ?4", params![source,revision,processor.engine,run])?;
+            transaction.execute("INSERT INTO active_analysis_runs(conversation_id,revision,engine,model,run_id) VALUES (?1,?2,?3,?4,?5)
+                ON CONFLICT(conversation_id,revision,engine,model) DO UPDATE SET run_id = excluded.run_id", params![source,revision,processor.engine,processor.model,run])?;
+        }
+        transaction.commit()?;
+        self.process_cleanup_unlocked()?;
+        Ok(retired)
     }
 
     /// Validate untrusted model output before opening a write transaction, then

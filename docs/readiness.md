@@ -2,7 +2,7 @@
 
 Updated 2026-10-20. **Production readiness is not established.** The unchanged [product brief](product-brief.md) controls scope. The detailed [initial baseline](readiness-baseline.md) is preserved; its missing-feature rows describe the initial foundation, not the current tree.
 
-The latest full local run passed **141 tests**: 129 library, five analysis and seven CLI/source integration tests. Formatting and all-target Clippy with warnings denied passed on macOS with the pinned Rust 1.99.1 toolchain. An optimized build also succeeded. CI is configured but has not run remotely; no independent security audit has been observed.
+The latest full local run passed **142 tests**: 129 library, six analysis and seven CLI/source integration tests. Formatting and all-target Clippy with warnings denied passed on macOS with the pinned Rust 1.99.1 toolchain. An optimized build also succeeded. CI is configured but has not run remotely; no independent security audit has been observed.
 
 | Mandatory v0.1 capability | Current evidence / limits |
 | --- | --- |
@@ -30,6 +30,10 @@ The user authorized a local model. Ollama 0.40.6 and Qwen 3.5 4B GGUF are instal
 Processor v4 narrows local generation to explicit preferences, corrections and decision events, skipping known pasted-transcript messages. Exploratory option questions cannot supply preference/correction citations, including by quoting a shorter fragment. A reproducible ten-case synthetic semantic check now passes **10/10** in 37.9 seconds, with five candidate claims and all ten conversations checkpointed. Cases cover options versus choices, reversals, routine commands, assistant attribution, pasted transcripts, sensitive questions and Portuguese preferences. These hand-labeled development cases are small and informed the implementation; they are not an independent accuracy estimate. Uncertain options may be omitted rather than classified. An encrypted evaluation copy subsequently completed all 35 real sources with 48 candidates, but still mislabeled ordinary commands and one quoted assistant question. All 48 visible claims had only one supporting conversation; no useful recurrence was established. This contradicts a production-quality claim despite the synthetic score. The original private v3 findings remain unchanged for the pending human review. Processor v5 now limits structured question-panel messages to their user-answer spans; exact encoded source bytes remain intact. This source-attribution fix has regression coverage, but is not a general solution to semantic classification.
 
 Schema 3 now persists active analysis heads per source revision/engine/model. Processor replacement retires obsolete automatic evidence, invalidates projections and preserves grounded human review/history. Upgrade and VACUUM regression tests pass. Distinct explicitly selected engines/models can contribute candidates concurrently; an already cached older processor is not silently reactivated.
+
+The explicit `--replace-other-models` analysis option now selects a completed current processor/model and retires other Ollama automatic results only after an entirely successful run. Regression coverage preserves manual feedback/history and sources with no replacement result. Switching back is explicit; ordinary cache lookup never reactivates a retired result.
+
+A release-binary recovery check killed backup, restore and plaintext conversion processes after observing nonempty private stages. All three left originals unchanged, published no incomplete destination, and retried successfully with integrity/search checks. This is observed SIGKILL coverage, not hardware power-loss testing or every publication boundary. Reproduce with `python3 scripts/check-recovery.py`.
 
 ## Open release gates
 

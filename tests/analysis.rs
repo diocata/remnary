@@ -235,3 +235,66 @@ fn feedback_validation_does_not_modify_status_on_invalid_requests() -> Result<()
     assert_eq!(store.observations(false)?[0].feedback_count, 0);
     Ok(())
 }
+
+#[test]
+fn explicit_model_selection_retires_only_completed_source_results_and_keeps_review_history()
+-> Result<()> {
+    let temp = tempfile::tempdir()?;
+    let mut store = Store::init(temp.path())?;
+    let mut sources = fixture()?;
+    for source in &mut sources {
+        source
+            .messages
+            .iter_mut()
+            .find(|m| m.role == "user")
+            .unwrap()
+            .content
+            .push_str(" I prefer Rust.");
+    }
+    store.import(&sources)?;
+    let old = Processor::ollama("synthetic-old");
+    let replacement = Processor::ollama("synthetic-new");
+    process(&mut store, &old)?;
+    let records = store.observations(false)?;
+    assert!(records.len() >= 2);
+    let confirmed = records[0].id.clone();
+    let automatic = records[1].id.clone();
+    store.feedback(&confirmed, FeedbackAction::Confirm, None)?;
+    let projection = temp.path().join("model-result.md");
+    std::fs::write(&projection, "Synthetic automatic finding")?;
+    store.register_managed_file(
+        &projection,
+        &observr::model::digest(b"Synthetic automatic finding"),
+        &[],
+        &[automatic],
+    )?;
+    let mut targets = store.analysis_targets(&replacement)?;
+    let first = targets.remove(0);
+    store.save_analysis(&first, &replacement, AnalysisOutput::default())?;
+    assert_eq!(store.select_model_results(&replacement)?, 1);
+    assert!(!projection.exists());
+    // Sources with no completed replacement retain their current model result.
+    assert!(store.observations(false)?.iter().any(|r| r.id != confirmed));
+    for target in targets {
+        store.save_analysis(&target, &replacement, AnalysisOutput::default())?;
+    }
+    assert_eq!(store.select_model_results(&replacement)?, 1);
+    let records = store.observations(false)?;
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].id, confirmed);
+    assert_eq!(records[0].status, ObservationStatus::UserConfirmed);
+    assert_eq!(records[0].feedback_count, 1);
+    assert!(store.analysis_targets(&old)?.is_empty());
+    // Switching back is an explicit choice and can use this exact cached run.
+    assert_eq!(store.select_model_results(&old)?, 2);
+    assert!(store.observations(false)?.len() >= 2);
+    let human = store
+        .observations(false)?
+        .into_iter()
+        .find(|r| r.id == confirmed)
+        .unwrap();
+    assert_eq!(human.feedback_count, 1);
+    assert_eq!(human.status, ObservationStatus::UserConfirmed);
+    assert!(store.select_model_results(&Processor::rules()).is_err());
+    Ok(())
+}

@@ -32,12 +32,7 @@ pub enum AnalysisEngine<'a> {
 pub fn analyze(store: &mut Store, engine: AnalysisEngine<'_>) -> Result<AnalysisSummary> {
     let processor = match &engine {
         AnalysisEngine::Rules => Processor::rules(),
-        AnalysisEngine::Ollama { model, .. } => Processor {
-            engine: "ollama".into(),
-            version: "5".into(),
-            model: (*model).into(),
-            prompt_version: "5".into(),
-        },
+        AnalysisEngine::Ollama { model, .. } => Processor::ollama(model),
     };
     let targets = store.analysis_targets(&processor)?;
     let mut summary = AnalysisSummary::default();

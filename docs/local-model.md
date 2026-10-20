@@ -35,6 +35,14 @@ Processor v5 isolates the answer fields in structured question-panel replies, in
 
 A larger local comparator, `qwen3.5:9b-q4_K_M`, is installed (6,550,825,550 bytes; digest `sha256:56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90`). With v5 it passed the same ten development cases in 54.2 seconds. This is not a real-history quality result and does not prove the larger model solves the observed errors. Both installed models remain local; neither is automatically downloaded by Observr.
 
+When switching models, explicitly retire older automatic results after a successful run:
+
+```sh
+observr analyze --engine ollama --model qwen3.5:9b-q4_K_M --endpoint http://127.0.0.1:11435 --replace-other-models
+```
+
+Without this flag, explicitly selected models contribute concurrently. With it, a fully successful analysis selects the exact current processor/model/prompt result for each current included source with a completed run, and retires the other Ollama active results for that source. Incomplete sources, other engines, historical runs and human feedback remain intact. If analysis fails, this selection step is not applied. A later explicit switch back can select that exact cached processor result; cache lookup alone does not reactivate a retired model. Generated notes affected by replacement enter cleanup; refresh the vault explicitly.
+
 Model/daemon updates can change behavior; keep the installed version/tag/digest with an evaluation record and rerun the synthetic checks. Smaller models may miss context or produce poor interpretations despite valid quotes. Do not bypass validation or switch to cloud processing to make a test pass.
 
 References: [Ollama model tags](https://ollama.com/library/qwen3.5/tags), [local-only configuration](https://docs.ollama.com/faq#how-do-i-disable-ollamas-cloud-features), [structured chat API](https://docs.ollama.com/api/chat), [Homebrew package](https://formulae.brew.sh/formula/ollama).

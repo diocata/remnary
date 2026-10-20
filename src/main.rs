@@ -81,6 +81,10 @@ enum Command {
         /// Installed Ollama model. Run the daemon with cloud disabled.
         #[arg(long)]
         model: Option<String>,
+        /// After a fully successful run, select this model and retire other
+        /// Ollama automatic results for sources with this exact completed run.
+        #[arg(long)]
+        replace_other_models: bool,
         #[arg(long, default_value = "http://127.0.0.1:11434")]
         endpoint: String,
     },
@@ -437,10 +441,15 @@ fn run() -> Result<()> {
             engine,
             model,
             endpoint,
+            replace_other_models,
         } => {
             let engine = match engine {
                 EngineChoice::Rules => {
                     ensure!(model.is_none(), "--model requires --engine ollama");
+                    ensure!(
+                        !replace_other_models,
+                        "--replace-other-models requires --engine ollama"
+                    );
                     AnalysisEngine::Rules
                 }
                 EngineChoice::Ollama => AnalysisEngine::Ollama {
@@ -466,6 +475,16 @@ fn run() -> Result<()> {
                 "{} conversations failed analysis and remain pending",
                 summary.failures.len()
             );
+            if replace_other_models {
+                let processor = observr::analysis_store::Processor::ollama(
+                    model.as_deref().expect("Ollama model checked"),
+                );
+                let retired = store.select_model_results(&processor)?;
+                println!(
+                    "Selected model results; retired {retired} other active result sets. Human review and historical runs are preserved."
+                );
+                report_cleanup(&mut store)?;
+            }
         }
         Command::Discover { all, json, limit } => {
             let records = store.observations(all)?;
