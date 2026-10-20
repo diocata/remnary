@@ -5,11 +5,18 @@ Observr imports files you select. It does not sign into providers, read credenti
 | Source | Import input | Detection on macOS | Verification |
 | --- | --- | --- | --- |
 | ChatGPT | Mapping-format `conversations.json`, or ZIP containing exactly one such file | No export found in the selected local search | Synthetic JSON/ZIP fixtures; a real account export remains unverified |
+| Connected app history views | Selected Codex-app `read_thread` JSON snapshot | Available through this assistant session's connected history tools, rather than a filesystem scan | Three selected ChatGPT views imported; partial coverage and truncation retained |
 | Claude Code | One JSONL file or selected session directory | `~/.claude/projects` | 17 local files imported; synthetic regression and encrypted integration tests |
 | Codex | One rollout JSONL file or selected session directory | `~/.codex/sessions` | 11 local files imported; forked/inherited metadata regression tests |
 | Kiro IDE | One `.chat` JSON file or selected chat directory | `~/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent` | Eight local snapshots coalesced into four chats; synthetic regression tests |
 
 These private application formats can change. Local compatibility evidence is from this machine on 2026-10-20, rather than a promise about every application version. Unknown formats fail with a diagnostic instead of being reported as connected. Claude consumer exports, Kiro CLI exports, Cursor databases, Gemini and other account histories are currently unsupported. Finding an installed application does not provide access to its account history.
+
+## Partial connected-app views
+
+`observr import-app-snapshot /path/to/snapshot.json` accepts a selected ChatGPT `read_thread` result from Codex app. Codex task views are refused here because their human/subagent attribution is not established by this view; use local Codex JSONL instead. `observr import-app-snapshot -` reads one compact JSON line from standard input, allowing a caller to send an authorized tool result directly into encryption without a plaintext export file. The Rust application does not itself connect to Codex/ChatGPT accounts; these tools are available to the assistant in this app session.
+
+Provider/message IDs and source text are retained. Message timestamps/parents absent from the view stay unknown; turn timing remains metadata. Partial history, pagination and truncated items remain explicit, including in the dashboard/transcripts. Truncated user items cannot supply personal findings. Snapshots never replace a full provider export, and an updated partial view must retain every previously imported message ID. Combine source pages before importing a larger view. Identical snapshots are unchanged. This does not validate ChatGPT's account-export ZIP format against real data or imply access to every account conversation.
 
 ```sh
 observr sources --detect
@@ -35,6 +42,6 @@ These guards cannot establish that every passage inside a human message is the p
 
 ## Real-data check
 
-The authorized local evaluation imported 32 conversations from the sources above. It exposed and fixed provider-instruction and task-notification attribution errors, and repeated unchanged imports and analysis were exercised. After those corrections, the rules produced one remaining candidate from a pasted conversation; no useful recurring pattern or human-confirmed profile was established. This is evidence that the import path works and that richer extraction still needs evaluation, not evidence that the product's usefulness target has passed. Private sources, keys and results are ignored by Git.
+The authorized local evaluation imported 32 conversations from local coding-assistant files and three selected partial ChatGPT views, for 35 total. It exposed and fixed provider-instruction, task-notification and pasted-transcript attribution errors. Reimports and incremental analysis were exercised. Rules now reject the identified pasted-transcript case; the local-model evaluation is recorded separately in [local-model.md](local-model.md). No useful recurring-pattern or human usefulness target has been established. Private sources, keys and results are ignored by Git.
 
 Provider references: [Claude Code sessions](https://code.claude.com/docs/en/sessions), [Kiro IDE chat](https://kiro.dev/docs/ide/chat/), [Kiro CLI commands](https://kiro.dev/docs/cli/reference/slash-commands/). The Kiro IDE `.chat` adapter follows the locally observed format; its presence does not imply support for the separately documented CLI export formats.

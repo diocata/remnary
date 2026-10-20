@@ -232,12 +232,13 @@ async function openSource(id, revision, messageId) {
     if (revision) params.set('revision', revision);
     const source = await api(`/api/source?${params}`);
     $('source-title').textContent = source.title || 'Untitled conversation';
-    $('source-meta').textContent = `${source.provider} · revision ${revision || source.revision || 'current'}`;
+    $('source-meta').textContent = `${source.provider} · revision ${revision || source.revision || 'current'}${source.partial_view ? ' · Partial history view; messages or context may be missing' : ''}`;
     $('source-messages').replaceChildren();
     source.messages.forEach((message) => {
       const item = node('article', `source-message${message.source_id === messageId ? ' highlighted' : ''}`);
       const heading = node('div', 'source-message-header');
       heading.append(node('strong', '', message.role), document.createTextNode(`${date(message.created_at)} · ${message.source_id}`));
+      if (message.truncated) heading.append(document.createTextNode(' · Truncated source text'));
       item.append(heading, node('pre', '', message.content || '(No text content)'));
       if (message.source_id === messageId) item.dataset.highlighted = 'true';
       $('source-messages').append(item);
@@ -255,7 +256,7 @@ function renderSources() {
   [...state.sources].sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0)).forEach((source) => {
     const row = node('article', 'source-row');
     const information = node('div');
-    information.append(node('h3', '', source.title || 'Untitled conversation'), node('p', '', `${source.provider} · ${source.messages} messages · revision ${source.revision} · ${date(source.updated_at || source.created_at)}`));
+    information.append(node('h3', '', source.title || 'Untitled conversation'), node('p', '', `${source.provider} · ${source.messages} messages · revision ${source.revision} · ${date(source.updated_at || source.created_at)}${source.partial_view ? ' · Partial history view' : ''}`));
     row.append(information, button('Read source ↗', 'button button-quiet', () => openSource(source.id, source.revision)));
     container.append(row);
   });

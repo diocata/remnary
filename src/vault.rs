@@ -107,6 +107,9 @@ fn render(conversation: &Conversation, stable_id: &str, fingerprint: &str) -> St
         conversation.messages.len()
     ));
     note.push_str("This immutable snapshot contains available message text. Original source metadata is retained in the database. Changes to this note are preserved and are not imported.\n\n");
+    if crate::app_snapshot::is_partial(&conversation.metadata) {
+        note.push_str("**Coverage: partial app history view.** Messages, branches or surrounding context may be missing; this is not a complete account export.\n\n");
+    }
 
     let mut children: HashMap<&str, Vec<&str>> = HashMap::new();
     let source_ids: HashSet<&str> = conversation
@@ -141,6 +144,14 @@ fn render(conversation: &Conversation, stable_id: &str, fingerprint: &str) -> St
         ));
         field(&mut note, "Role", &message.role);
         field(&mut note, "Message source ID", &message.source_id);
+        if message
+            .metadata
+            .pointer("/app_item/truncated")
+            .and_then(Value::as_bool)
+            == Some(true)
+        {
+            note.push_str("**Source text is truncated.**\n\n");
+        }
         if let Some(parent) = message.parent_source_id.as_deref() {
             field(&mut note, "Parent source ID", parent);
             if source_ids.contains(parent) {
@@ -149,7 +160,7 @@ fn render(conversation: &Conversation, stable_id: &str, fingerprint: &str) -> St
                 note.push_str("Parent message is absent from this snapshot.\n\n");
             }
         } else {
-            note.push_str("**Parent:** root\n\n");
+            note.push_str("No parent reference recorded.\n\n");
         }
         if let Some(descendants) = children.get(message.source_id.as_str()) {
             note.push_str(&format!(

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Dedicated local-only model server for Observr evaluation. No login service.
+set -eu
+export OLLAMA_NO_CLOUD=1
+export OLLAMA_HOST=127.0.0.1:11435
+export OLLAMA_NUM_PARALLEL=1
+export OLLAMA_MAX_LOADED_MODELS=1
+export OLLAMA_KEEP_ALIVE=2m
+export OLLAMA_DEBUG=false
+export OLLAMA_DEBUG_LOG_REQUESTS=false
+exec ollama serve

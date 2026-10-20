@@ -247,7 +247,8 @@ fn api(
             let sources: Vec<_> = sources.into_iter().map(|target| {
                 let source = target.conversation;
                 json!({"id":source.stable_id(),"provider":source.provider,"title":source.title,
-                    "messages":source.messages.len(),"created_at":source.created_at,"updated_at":source.updated_at,"revision":target.revision})
+                    "messages":source.messages.len(),"created_at":source.created_at,"updated_at":source.updated_at,"revision":target.revision,
+                    "partial_view":crate::app_snapshot::is_partial(&source.metadata)})
             }).collect();
             Ok(json_response(200, json!({"sources":sources})))
         }
@@ -286,12 +287,14 @@ fn api(
             let source = store
                 .snapshot(&id, Some(revision))
                 .map_err(|_| error(404, "This source revision is unavailable or excluded."))?;
+            let partial_view = crate::app_snapshot::is_partial(&source.metadata);
             let messages: Vec<_> = source.messages.into_iter().map(|message| json!({
-                "source_id":message.source_id,"parent_source_id":message.parent_source_id,"role":message.role,"content":message.content,"created_at":message.created_at
+                "source_id":message.source_id,"parent_source_id":message.parent_source_id,"role":message.role,"content":message.content,"created_at":message.created_at,
+                "truncated":message.metadata.pointer("/app_item/truncated").and_then(Value::as_bool).unwrap_or(false)
             })).collect();
             Ok(json_response(
                 200,
-                json!({"id":id,"provider":source.provider,"title":source.title,"revision":revision,"messages":messages}),
+                json!({"id":id,"provider":source.provider,"title":source.title,"revision":revision,"messages":messages,"partial_view":partial_view}),
             ))
         }
         (Method::Post, "/api/feedback") => {

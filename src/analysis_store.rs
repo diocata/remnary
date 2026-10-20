@@ -115,6 +115,7 @@ impl Store {
     ) -> Result<usize> {
         let output = validate_output(&target.conversation, target.revision, output)?;
         let source_id = target.conversation.stable_id();
+        let _projection_guard = self.projection_lock()?;
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -138,6 +139,42 @@ impl Store {
         if inserted == 0 {
             transaction.commit()?;
             return Ok(0);
+        }
+        transaction.execute(
+            "INSERT INTO active_analysis_runs (conversation_id, revision, engine, model, run_id)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(conversation_id, revision, engine, model) DO UPDATE SET run_id = excluded.run_id",
+            params![source_id, target.revision, processor.engine, processor.model, run_id],
+        )?;
+        // Replacing a processor/prompt version must retire its published
+        // automatic findings, even when the replacement returns no claims.
+        // Keep all old payloads/evidence and human feedback as history.
+        let replaced_ids = {
+            let mut statement = transaction.prepare(
+                "SELECT DISTINCT x.observation_id FROM observation_extractions x
+                 JOIN analysis_runs r ON r.id = x.analysis_run_id
+                 WHERE r.conversation_id = ?1 AND r.revision = ?2
+                   AND r.engine = ?3 AND r.model = ?4 AND r.id != ?5",
+            )?;
+            statement
+                .query_map(
+                    params![
+                        source_id,
+                        target.revision,
+                        processor.engine,
+                        processor.model,
+                        run_id
+                    ],
+                    |row| row.get::<_, String>(0),
+                )?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        for id in replaced_ids {
+            crate::privacy_store::enqueue_observation_files(
+                &transaction,
+                &id,
+                "analysis_replaced",
+            )?;
         }
         let groups = group_observations(&output.observations);
         let mut count = 0;
@@ -186,12 +223,14 @@ impl Store {
             )?;
         }
         transaction.commit()?;
+        self.process_cleanup_unlocked()?;
         Ok(count)
     }
 
     /// Return grounded observations whose evidence is present in active source
     /// revisions. Old extractions remain in SQLite for provenance and history.
     pub fn observations(&self, include_hidden: bool) -> Result<Vec<ObservationRecord>> {
+        let active_evidence = self.active_extraction_evidence()?;
         let mut statement = self.connection.prepare(
             "SELECT id, kind, inference, subject, topic, canonical_value, context, summary, decision_event,
              status, user_value, (SELECT count(*) FROM user_feedback f WHERE f.observation_id = o.id)
@@ -233,6 +272,13 @@ impl Store {
                     source_message_id: row.get(3)?,
                     quote: row.get(4)?,
                 };
+                if matches!(
+                    status,
+                    ObservationStatus::Candidate | ObservationStatus::Supported
+                ) && !active_evidence.contains(&(id.clone(), reference.clone()))
+                {
+                    continue;
+                }
                 if let Some(time) = row.get::<_, Option<f64>>(5)? {
                     times.push(time);
                 }
@@ -285,11 +331,61 @@ impl Store {
         Ok(observations)
     }
 
+    /// Latest completed version per engine/model and exact source revision.
+    /// Different explicitly selected engines/models may contribute candidates.
+    /// Human-reviewed facts retain their grounded citations independently.
+    fn active_extraction_evidence(&self) -> Result<BTreeSet<(String, EvidenceRef)>> {
+        let mut statement = self.connection.prepare(
+            "SELECT x.observation_id, x.payload FROM observation_extractions x
+             JOIN analysis_runs r ON r.id = x.analysis_run_id
+             JOIN active_analysis_runs a ON a.run_id = r.id
+             JOIN conversations c ON c.id = r.conversation_id AND c.current_revision = r.revision
+             WHERE NOT EXISTS(SELECT 1 FROM excluded_sources s WHERE s.conversation_id = c.id)",
+        )?;
+        let mut rows = statement.query([])?;
+        let mut active = BTreeSet::new();
+        while let Some(row) = rows.next()? {
+            let id: String = row.get(0)?;
+            let payload: String = row.get(1)?;
+            let observation: CandidateObservation =
+                serde_json::from_str(&payload).context("invalid stored extraction payload")?;
+            active.extend(
+                observation
+                    .evidence
+                    .into_iter()
+                    .map(|evidence| (id.clone(), evidence)),
+            );
+        }
+        Ok(active)
+    }
+
     pub fn feedback(
         &mut self,
         observation_id: &str,
         action: FeedbackAction,
         value: Option<&str>,
+    ) -> Result<()> {
+        self.feedback_impl(observation_id, action, value, None)
+    }
+
+    /// Optimistic review guard for file-based edits. A stale/replayed correction
+    /// cannot overwrite feedback recorded since the note was prepared.
+    pub fn feedback_checked(
+        &mut self,
+        observation_id: &str,
+        action: FeedbackAction,
+        value: Option<&str>,
+        expected_feedback_count: usize,
+    ) -> Result<()> {
+        self.feedback_impl(observation_id, action, value, Some(expected_feedback_count))
+    }
+
+    fn feedback_impl(
+        &mut self,
+        observation_id: &str,
+        action: FeedbackAction,
+        value: Option<&str>,
+        expected_feedback_count: Option<usize>,
     ) -> Result<()> {
         let _guard = self.projection_lock()?;
         ensure!(
@@ -316,6 +412,17 @@ impl Store {
             )
             .optional()?
             .context("observation not found; use discover --all to list observation IDs")?;
+        if let Some(expected) = expected_feedback_count {
+            let actual: i64 = transaction.query_row(
+                "SELECT count(*) FROM user_feedback WHERE observation_id = ?1",
+                [observation_id],
+                |row| row.get(0),
+            )?;
+            ensure!(
+                usize::try_from(actual).ok() == Some(expected),
+                "feedback conflict: note expected {expected} prior reviews, but archive has {actual}; review current knowledge before retrying"
+            );
+        }
         crate::privacy_store::enqueue_observation_files(
             &transaction,
             observation_id,

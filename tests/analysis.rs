@@ -21,6 +21,74 @@ fn process(store: &mut Store, processor: &Processor) -> Result<()> {
 }
 
 #[test]
+fn processor_replacement_retires_automatic_claims_but_preserves_human_review() -> Result<()> {
+    let temp = tempfile::tempdir()?;
+    let mut store = Store::init(&temp.path().join("data"))?;
+    let mut sources = fixture()?;
+    sources[0]
+        .messages
+        .iter_mut()
+        .find(|m| m.role == "user")
+        .unwrap()
+        .content
+        .push_str(" I prefer Rust.");
+    store.import(&sources)?;
+    let original = Processor::rules();
+    process(&mut store, &original)?;
+    let records = store.observations(false)?;
+    let confirmed_id = records
+        .iter()
+        .find(|r| r.observation.canonical_value == "prefer rust")
+        .unwrap()
+        .id
+        .clone();
+    let automatic_id = records
+        .iter()
+        .find(|r| r.id != confirmed_id)
+        .unwrap()
+        .id
+        .clone();
+    store.feedback(
+        &confirmed_id,
+        FeedbackAction::Correct,
+        Some("Rust for this project"),
+    )?;
+    let vault = temp.path().join("vault");
+    observr::knowledge::sync_vault(&mut store, &vault, "UTC")?;
+    let mut replacement = original.clone();
+    replacement.version = "new-version-returning-no-claims".into();
+    for target in store.analysis_targets(&replacement)? {
+        store.save_analysis(&target, &replacement, AnalysisOutput::default())?;
+    }
+    let remaining = store.observations(true)?;
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].id, confirmed_id);
+    assert_eq!(remaining[0].display_text(), "Rust for this project");
+    assert_eq!(remaining[0].feedback_count, 1);
+    assert!(
+        !vault
+            .join("Candidates")
+            .join(format!("{automatic_id}.md"))
+            .exists()
+    );
+    assert!(store.analysis_targets(&replacement)?.is_empty());
+    observr::knowledge::sync_vault(&mut store, &vault, "UTC")?;
+    assert!(std::fs::read_to_string(vault.join("Profile.md"))?.contains("Rust for this project"));
+    // History remains cached; selecting an already completed older run does
+    // not silently reactivate its retired automatic candidates.
+    process(&mut store, &original)?;
+    assert_eq!(store.observations(true)?.len(), 1);
+    drop(store);
+    assert_eq!(
+        Store::open(&temp.path().join("data"))?
+            .observations(true)?
+            .len(),
+        1
+    );
+    Ok(())
+}
+
+#[test]
 fn incremental_analysis_groups_distinct_sources_and_preserves_feedback() -> Result<()> {
     let temp = tempfile::tempdir()?;
     let mut store = Store::init(temp.path())?;

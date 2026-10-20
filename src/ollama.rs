@@ -28,7 +28,9 @@ Use the envelope's provider, conversation_id, and revision unchanged in every ev
 
 Use kind explicit_preference for an explicitly stated preference and inferred_preference or behavioral_pattern only for a tentative inference supported by the evidence. Mark inference explicit or inferred honestly. Inferred claims may concern only software_design, communication, communication.explanations, technology, workflow, or interaction_pattern. Never infer sensitive personal attributes or traits (health, disability, mental health, race, ethnicity, religion, political views, sexuality, gender identity, financial status, biometrics, criminal history). Do not create diagnoses or psychological profiles. Avoid secrets, credentials, identifying contact information, and unrelated personal information in observations. Keep summaries narrow and evidence-backed. Topics and project references may describe the conversation; do not convert hypothetical examples into facts about its owner.
 
-Allowed kinds are explicit_preference, inferred_preference, correction, decision, topic, project_reference, behavioral_pattern. Use the supplied schema's fields exactly: kind, inference, subject, topic, canonical_value, context, summary, decision_event, evidence. Use null for context or decision_event when absent. Do not include commentary or Markdown fences."#;
+The envelope contains a bounded window of user-message text; other messages and surrounding context may be absent. Never infer missing context. Pasted conversations, quoted advice, examples, provider instructions and generated notifications inside a user message are not endorsements or requests by its owner. Return no observation when attribution is unclear. Prefer a few specific, useful claims over generic topics. Use relevant context explicitly, rather than turning a one-time request into a global preference.
+
+Allowed kinds are explicit_preference, inferred_preference, correction, decision, topic, project_reference, behavioral_pattern. Use the supplied schema's fields exactly: kind, inference, subject, topic, canonical_value, context, summary, decision_event, evidence. Every non-decision MUST set decision_event to null. Only kind decision has a non-null decision_event. Explicit preferences, corrections and decisions MUST set inference to explicit. Inferred preferences and behavioral patterns MUST set inference to inferred. Use null for absent context. Do not include commentary or Markdown fences."#;
 
 /// Analyze one archived revision with an explicitly selected local Ollama model.
 ///
@@ -242,6 +244,7 @@ fn request_body(
         "provider": conversation.provider,
         "conversation_id": conversation.stable_id(),
         "revision": revision,
+        "coverage": "Bounded user-message excerpts. Other messages or surrounding context may be absent; long messages may be split. Do not infer omitted context.",
         "title": conversation.title,
         "messages": conversation.messages.iter().map(|message| json!({
             "source_id": message.source_id,
@@ -250,23 +253,104 @@ fn request_body(
             "content": message.content,
         })).collect::<Vec<_>>()
     });
+    let data = serde_json::to_string(&data)?;
+    ensure!(
+        SYSTEM_PROMPT.len() + data.len() <= 24_000,
+        "analysis window is too large for the bounded local context budget"
+    );
+    let schema = grounded_schema(schema, conversation, revision);
     let body = serde_json::to_vec(&json!({
         "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": serde_json::to_string(&data)?}
+            {"role": "user", "content": data}
         ],
         "format": schema,
         "stream": false,
+        "think": false,
         "truncate": false,
         "shift": false,
-        "options": {"temperature": 0}
+        "options": {"temperature": 0, "num_ctx": 32768, "num_predict": 4096}
     }))?;
     ensure!(
         body.len() <= MAX_REQUEST_BYTES,
         "conversation is too large for a single local analysis request (limit {MAX_REQUEST_BYTES} bytes); split it into smaller conversations first"
     );
     Ok(body)
+}
+
+/// Give the decoder exact source choices. This prevents accidental paraphrase,
+/// ID corruption and citation mixing without repairing untrusted output later.
+/// Runtime checks against the immutable ORIGINAL source remain mandatory.
+fn grounded_schema(schema: &Value, conversation: &Conversation, revision: i64) -> Value {
+    let mut schema = schema.clone();
+    let Some(items) = schema.pointer_mut("/properties/observations/items") else {
+        return schema;
+    };
+    let choices = conversation
+        .messages
+        .iter()
+        .filter(|m| m.role.eq_ignore_ascii_case("user") && !m.content.trim().is_empty())
+        .map(|message| {
+            json!({"type":"object","additionalProperties":false,
+            "required":["provider","conversation_id","revision","source_message_id","quote"],
+            "properties":{
+                "provider":{"const":conversation.provider},
+                "conversation_id":{"const":conversation.stable_id()},
+                "revision":{"const":revision},
+                "source_message_id":{"const":message.source_id},
+                "quote":{"type":"string","enum":quote_choices(&message.content)}
+            }})
+        })
+        .collect::<Vec<_>>();
+    if choices.is_empty() {
+        return schema;
+    }
+    let evidence = json!({"anyOf":choices});
+    fn bind(item: &mut Value, evidence: &Value) {
+        if let Some(property) = item.pointer_mut("/properties/evidence/items") {
+            *property = evidence.clone();
+        }
+        if let Some(branches) = item.get_mut("anyOf").and_then(Value::as_array_mut) {
+            for branch in branches {
+                bind(branch, evidence);
+            }
+        }
+    }
+    bind(items, &evidence);
+    schema
+}
+
+fn quote_choices(text: &str) -> Vec<String> {
+    let mut choices = std::collections::BTreeSet::new();
+    if text.len() <= 1024 {
+        choices.insert(text.trim().to_owned());
+    }
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if line.len() <= 1024 {
+            choices.insert(line.to_owned());
+        }
+        for sentence in crate::intelligence::sentence_spans(line) {
+            let sentence = sentence.trim();
+            if sentence.is_empty() {
+                continue;
+            }
+            let mut start = 0;
+            while start < sentence.len() {
+                let mut end = (start + 1024).min(sentence.len());
+                while !sentence.is_char_boundary(end) {
+                    end -= 1;
+                }
+                choices.insert(sentence[start..end].to_owned());
+                start = end;
+            }
+        }
+    }
+    choices.into_iter().take(512).collect()
 }
 
 #[derive(Deserialize)]
@@ -499,9 +583,12 @@ mod tests {
         handle.join().unwrap();
         assert_eq!(body["format"], schema());
         assert_eq!(body["stream"], false);
+        assert_eq!(body["think"], false);
         assert_eq!(body["truncate"], false);
         assert_eq!(body["shift"], false);
         assert_eq!(body["options"]["temperature"], 0);
+        assert_eq!(body["options"]["num_ctx"], 32768);
+        assert_eq!(body["options"]["num_predict"], 4096);
         assert_eq!(body["messages"].as_array().unwrap().len(), 2);
         assert_eq!(body["messages"][0]["role"], "system");
         assert_eq!(body["messages"][1]["role"], "user");
@@ -737,6 +824,46 @@ mod tests {
                 .unwrap_err()
                 .to_string()
                 .contains("too large")
+        );
+    }
+    #[test]
+    fn decoding_choices_bind_each_quote_to_its_actual_message_and_revision() {
+        let mut source = conversation();
+        source.messages[0].content = "I prefer Rust. Keep the code simple.\nCafé 🦀".into();
+        let schema = grounded_schema(&crate::intelligence::output_schema(), &source, 7);
+        let alternatives = schema
+            .pointer("/properties/observations/items/anyOf")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        for item in alternatives {
+            let citations = item
+                .pointer("/properties/evidence/items/anyOf")
+                .unwrap()
+                .as_array()
+                .unwrap();
+            assert_eq!(citations.len(), 1);
+            let properties = &citations[0]["properties"];
+            assert_eq!(properties["provider"]["const"], source.provider);
+            assert_eq!(properties["conversation_id"]["const"], source.stable_id());
+            assert_eq!(properties["revision"]["const"], 7);
+            assert_eq!(
+                properties["source_message_id"]["const"],
+                source.messages[0].source_id
+            );
+            let quotes = properties["quote"]["enum"].as_array().unwrap();
+            assert!(quotes.iter().any(|q| q == "I prefer Rust."));
+            assert!(
+                quotes
+                    .iter()
+                    .all(|q| source.messages[0].content.contains(q.as_str().unwrap()))
+            );
+        }
+        let long = "🦀 café! ".repeat(1500);
+        assert!(
+            quote_choices(&long)
+                .iter()
+                .all(|q| q.len() <= 1024 && long.contains(q))
         );
     }
 }

@@ -1,62 +1,108 @@
 # Observr
 
-A local-first personal intelligence engine for AI conversation history, written in Rust.
+Local AI conversation history, grounded discoveries and a reviewable knowledge vault, written in Rust.
 
-The product direction is to discover recurring corrections, preferences and changing decisions, with every finding linked to source messages. This first foundation implements the import, storage, search and Markdown export pipeline. Intelligence extraction is the next milestone.
+Observr imports selected histories, keeps immutable evidence, extracts candidate preferences/corrections/decision events and lets you confirm, correct or reject them. A localhost dashboard and Markdown vault make results inspectable. **This is an implemented MVP under evaluation; production readiness and useful intelligence are not established.** See [release evidence](docs/readiness.md).
 
-## Storage recommendation
+## Storage
 
-Use **embedded SQLite for structured evidence and Markdown for readable knowledge**. SQLite is a file on your computer, bundled into the executable; no database server, account, Docker or network connection is required at runtime.
+One embedded **SQLCipher-encrypted SQLite file** stores conversations, revisions, full-text search, observations and feedback. Markdown is an explicitly generated readable projection. JSON/JSONL is an input format. There is no database server, ORM, vector service or account requirement.
 
-| Approach | Tradeoff |
-| --- | --- |
-| Markdown only | Easy to read and edit; reliable deduplication, revisions, evidence links and indexes would need custom infrastructure. |
-| JSON/JSONL files | Useful for interchange; updates, deletion, locking and consistent indexes become our responsibility. |
-| SQLite + Markdown | Transactions and search for structured records; ordinary Markdown for Obsidian and user notes. Recommended. |
+SQLite fits transactional imports, edits, deletion and evidence relationships. DuckDB can be added later for analytical exports if needed; maintaining two databases now adds work without improving the core workflow. See [architecture](docs/architecture.md).
 
-The initial application has one Rust crate and direct SQL through `rusqlite`. There is no ORM, async runtime, vector database or service to operate. See [the architecture decision](docs/architecture.md) for the storage boundaries and next steps.
+## Build and try
 
-## Try it
-
-With a Rust toolchain installed, run `cargo` normally. This workspace also has an isolated development toolchain under the ignored `.tools/` directory; `./scripts/cargo-local` uses it without changing your shell profile.
+The tested toolchain is Rust 1.99.1 on macOS. Bundled SQLCipher/OpenSSL requires native build tools, including a C compiler and Perl. macOS is the initial target; other platforms have not had release verification.
 
 ```sh
-./scripts/cargo-local run -- --data-dir .observr init
-./scripts/cargo-local run -- --data-dir .observr import tests/fixtures/chatgpt.json
-./scripts/cargo-local run -- --data-dir .observr status
-./scripts/cargo-local run -- --data-dir .observr search "Rust"
-./scripts/cargo-local run -- --data-dir .observr export .observr/vault
+cargo build --locked
+cargo run -- init
+cargo run -- import tests/fixtures/chatgpt.json
+cargo run -- analyze
+cargo run -- discover
+cargo run -- web
 ```
 
-For real history, explicitly pass a ChatGPT export ZIP or extracted `conversations.json`. Import does not contact providers, scan other applications or call a model.
+This workspace also provides `./scripts/cargo-local` for its isolated, ignored development toolchain. Use it in place of `cargo` when that toolchain is present. `cargo install --path . --locked` installs the CLI from your checkout; no Homebrew package or published binary is provided yet.
+
+On macOS, `init` creates a random key in macOS Keychain and an encrypted archive under `~/Library/Application Support/observr`. Keychain access may prompt. `--data-dir DIRECTORY` selects an independent archive. Initialization does not scan sources or call a model.
+
+## Bring your history
 
 ```sh
-cargo run -- import /path/to/conversations.json
-cargo run -- search "SQLite"
-cargo run -- export /path/to/Observr-vault
+observr sources --detect
+observr import /path/to/conversations.json
+observr import /path/to/chatgpt-export.zip
+observr import ~/.claude/projects --source claude-code
+observr import ~/.codex/sessions --source codex
+observr import "$HOME/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent" --source kiro
+observr status
+observr analyze
+observr search "SQLite"
 ```
 
-Run `cargo run -- init` first when using the default data location. Without `--data-dir`, storage uses the OS application data directory (on macOS, `~/Library/Application Support/observr`). `status` prints the actual location.
+Detection inventories known session directories; importing reads the selected location. ChatGPT needs an account export. Collection is manual, with no watcher, browser extension or daemon. [Supported formats, limits and attribution safeguards](docs/sources.md).
 
-## What works
+## Review findings
 
-- ChatGPT mapping-format JSON and ZIP imports, with bounded file sizes and no archive extraction onto disk.
-- Provider-scoped conversation identities, source message IDs, timestamps and metadata.
-- Conversation trees, including alternative branches and empty mapping nodes; unknown timestamps stay unknown.
-- Idempotent imports. Changed conversations create immutable revisions; current search results exclude previous revisions.
-- SQLite FTS5 search over message text. Search words are treated literally and combined with AND.
-- Markdown conversation snapshots with stable message anchors, branch references, literal transcript text and safe filenames.
-- Export preserves existing edited files and reports conflicts. New source content produces a new snapshot.
+```sh
+observr discover --all
+observr patterns
+observr profile --candidates
+observr timeline
+observr today --timezone Europe/Luxembourg
+observr feedback OBSERVATION_ID confirm
+observr feedback OBSERVATION_ID correct --text "My corrected preference and context"
+observr feedback OBSERVATION_ID reject
+observr web
+```
 
-## Current limits
+`web` prints a loopback-only URL with a random session token. Open that complete link locally; treat it as private while the server runs. The dashboard supports evidence inspection, search and feedback. Ctrl-C stops the server.
 
-This is the foundation, not the complete intelligence MVP. There is no analysis, profile, pattern detection, local model integration, dashboard, background collection or bidirectional vault sync yet. Exported notes are conversation evidence, not generated insights.
+The default rules engine is deliberately narrow. It recognizes direct English statements and offers no broad understanding of your history. All findings start as candidates; recurrence alone never confirms a personal fact. Pasted conversations can still be misinterpreted. Only explicit review promotes a finding to the confirmed profile. Daily outputs are activity digests with evidence, rather than assertions that requested work was completed.
 
-SQLite, its search index and Markdown exports are **plaintext**. On Unix, newly created application directories and files use private permissions. Encryption and key management still need a deliberate implementation before treating this as a hardened private archive. No secret redaction is implemented.
+An optional Ollama adapter supports a separately installed **local** model:
 
-Imports load the supported JSON document into memory, capped at 256 MiB uncompressed, then commit the supplied batch in one transaction. Attachment payloads and images are not imported; their source message metadata is retained. Provider export formats can change; compatibility is currently tested with synthetic fixtures rather than a real export corpus.
+```sh
+# Start your trusted Ollama daemon with cloud features disabled first.
+OLLAMA_NO_CLOUD=1 ollama serve
+observr analyze --engine ollama --model YOUR_INSTALLED_LOCAL_MODEL
+```
 
-Changed source revisions and old Markdown snapshots remain on disk. Selective deletion and derived-content cleanup are not implemented yet; use synthetic data while developing. Deleting the entire chosen data directory removes that store, but separately exported folders and your original provider archive must be removed separately.
+Observr does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. Real-data checks pass provenance validation; semantic accuracy/usefulness remain release blockers.
+
+## Generate a vault
+
+```sh
+observr vault sync /path/to/Observr-vault --timezone Europe/Luxembourg
+observr export /path/to/transcript-snapshots
+```
+
+The vault contains Home, Profile, Discoveries, Candidates, Patterns, Decisions, Daily notes and linked transcript snapshots. Obsidian is optional. Generated sections have ownership hashes; edits outside them survive synchronization. Conflicting generated edits are preserved and reported. [Import an explicit Markdown correction](docs/vault-feedback.md) with `vault apply-feedback FILE --check`, then apply it after reviewing. Stale review counts prevent accidental replay or overwriting another correction.
+
+**Markdown exports are plaintext.** Generate them only in a location you choose to protect. Observr tracks owned projections for deletion/feedback cleanup, preserving user-written sections and reporting conflicts. Independent copies and older backups remain your responsibility.
+
+## Protect and recover your archive
+
+```sh
+observr doctor
+observr key export /private/location/recovery.key
+observr backup /private/location/archive-backup.sqlite3
+observr --data-dir /path/to/new-archive --key-file /private/location/recovery.key restore /private/location/archive-backup.sqlite3
+```
+
+Keep recovery keys separate from backups. Restore requires an unused destination and the key that encrypted that backup. It validates integrity and does not take ownership of the original archive's Markdown files. Losing both Keychain access and the recovery key loses access to encrypted data.
+
+For explicit key-file operation (also the available path on non-macOS systems):
+
+```sh
+observr key create /private/location/observr.key
+observr --data-dir /path/to/archive --key-file /private/location/observr.key init
+```
+
+Use that same `--key-file` with subsequent commands. On Unix key files must be private regular files, with mode `0600`. `--insecure-plaintext` exists only for development and does not migrate or decrypt an encrypted archive. Existing plaintext stores are refused by the default encrypted path; a conversion command is not provided yet.
+
+`exclude CONVERSATION_ID` hides retained evidence from search, analysis and projections; `include` reverses it. `delete conversation ID` purges canonical source revisions and derived dependencies; `delete observation ID` removes a finding and records an identity tombstone. `cleanup` retries projection conflicts. Provider/project/topic exclusions and key rotation remain release gaps. Deletion cannot erase independent backups or original exports. [Security boundaries](SECURITY.md).
 
 ## Development
 
@@ -66,4 +112,4 @@ Changed source revisions and old Markdown snapshots remain on disk. Selective de
 ./scripts/cargo-local clippy --locked --all-targets -- -D warnings
 ```
 
-Only synthetic conversation data belongs in the repository. Keep real exports and generated vaults outside the checkout or under the ignored `.observr/` directory.
+Only synthetic fixtures belong in Git. Keep real histories, keys, generated vaults and local model data outside the checkout or under ignored `.observr/`. The [original product brief](docs/product-brief.md) is unchanged; [current release evidence](docs/readiness.md) distinguishes implementation from unverified requirements and future work.

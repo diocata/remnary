@@ -60,6 +60,8 @@ enum Command {
         #[arg(long, value_enum, default_value_t = SourceFormat::Auto)]
         source: SourceFormat,
     },
+    /// Import a partial ChatGPT JSON view from Codex app; '-' reads one JSON line.
+    ImportAppSnapshot { file: PathBuf },
     /// Search current message text; all words must match within a message.
     Search {
         query: String,
@@ -159,6 +161,13 @@ enum Command {
 }
 #[derive(Subcommand)]
 enum VaultCommand {
+    /// Apply one user-authored review block outside generated Markdown.
+    ApplyFeedback {
+        file: PathBuf,
+        /// Validate and preview the action without saving feedback.
+        #[arg(long)]
+        check: bool,
+    },
     Sync {
         output: Option<PathBuf>,
         #[arg(long, default_value = "UTC")]
@@ -326,6 +335,14 @@ fn run() -> Result<()> {
             let summary = store.import(&read_source(&file, source)?)?;
             println!(
                 "Imported {} new, {} updated, {} unchanged, {} skipped conversations.",
+                summary.inserted, summary.updated, summary.unchanged, summary.skipped
+            );
+        }
+        Command::ImportAppSnapshot { file } => {
+            let conversation = observr::app_snapshot::read_snapshot(&file)?;
+            let summary = store.import(&[conversation])?;
+            println!(
+                "Imported partial app view: {} new, {} updated, {} unchanged, {} skipped conversations. Coverage and truncation remain recorded.",
                 summary.inserted, summary.updated, summary.unchanged, summary.skipped
             );
         }
@@ -532,6 +549,20 @@ fn run() -> Result<()> {
             print_json(&store.snapshot(&id, revision)?)?;
         }
         Command::Export { output } => export_transcripts(&mut store, &output)?,
+        Command::Vault {
+            command: VaultCommand::ApplyFeedback { file, check },
+        } => {
+            let feedback = observr::vault_feedback::read_feedback(&file)?;
+            observr::vault_feedback::check_feedback(&store, &feedback)?;
+            if check {
+                print_json(&feedback)?;
+            } else {
+                observr::vault_feedback::apply_feedback(&mut store, &feedback)?;
+                println!(
+                    "Feedback imported. Run `observr vault sync` to regenerate knowledge notes."
+                );
+            }
+        }
         Command::Vault {
             command: VaultCommand::Sync { output, timezone },
         } => {

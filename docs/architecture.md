@@ -1,57 +1,36 @@
-# Rust foundation and storage decision
+# Rust and embedded storage
 
-Status: provisional implementation choice for the first milestone. The supplied product brief establishes the product vision; this document narrows the starting implementation and replaces its proposed TypeScript stack with Rust.
-
-## Decision
-
-Build one Rust package with small modules: CLI, normalized models, ChatGPT import, SQLite store and Markdown export. Split into crates only when there is a concrete reason.
-
-Use SQLite as the canonical source of normalized conversation evidence. Produce Markdown as an export. Markdown remains a good format for human knowledge; source history requires stable IDs, transactional imports, revision history, querying and eventually evidence-to-observation relationships.
-
-SQLite is already a lightweight local storage solution. Markdown-only storage would trade a mature embedded engine for our own locking, recovery, indexing and referential-integrity implementation. JSON/JSONL can be added as a portable interchange format without making it a second source of truth.
+Observr is one Rust crate with direct SQL through `rusqlite`. SQLCipher bundles the encrypted SQLite engine and OpenSSL. There is no database service, ORM, async runtime or mandatory model service.
 
 ```text
-Explicitly selected ChatGPT export (JSON / ZIP)
-    → validate + normalize the conversation tree
-    → fingerprint + transactionally import
-    → embedded SQLite (source revisions + messages + FTS5)
-    → CLI search / immutable Markdown snapshots
+Selected local history → bounded normalization → atomic import / immutable revisions
+  → SQLCipher: messages, FTS5, analysis, observations, evidence, feedback
+     → review CLI / authenticated loopback dashboard
+     → explicitly generated Markdown vault
 ```
 
-SQLite's application-file rationale: https://www.sqlite.org/appfileformat.html
+SQLite handles frequent writes, foreign keys, transactions and full-text search. Markdown is a human-readable projection. JSON/JSONL is interchange/source input. DuckDB could query a future analytical export without becoming a second canonical store; adding it to ingestion currently adds packaging and consistency work.
 
-Rust embedded integration: https://github.com/rusqlite/rusqlite
+Conversation identity hashes `(provider, source_id)`; messages are scoped to `(conversation, revision, source_message_id)`. Fingerprints exclude import time. Changed input adds a revision; identical input does nothing; an older known update timestamp cannot replace a newer one. Missing times stay unknown. Branch relationships are preserved without implying a linear conversation. Original source metadata remains encrypted with normalized records.
 
-## Data integrity
+Schema version 3 follows transactional version-1/2 migrations. Foreign/newer/corrupt databases are rejected; empty interrupted initialization is recoverable. Foreign keys, bounded locking and rollback journaling protect canonical writes. Encrypted connections apply keys before schema reads; temporary SQL storage uses memory. Online encrypted backup validates integrity and publishes a private file without overwriting an existing destination.
 
-Conversation identity is `(provider, source_id)`, represented by a deterministic SHA-256 ID. Message identity is scoped to `(conversation_id, revision, source_id)`. A conversation content fingerprint covers normalized messages and retained metadata, excluding import time.
+## Analysis and review
 
-Reimporting an unchanged current snapshot makes no new revision. Changed source content appends a revision and updates the active pointer in the same transaction. Earlier source revisions remain available in SQLite, so future findings can cite exact evidence without silently mutating their source. Reimporting an older export can make that content current again; recency reconciliation needs explicit design before continuous collection.
+`analysis` checkpoints each source revision and processor/model/prompt version. Adapters receive the same best-effort redaction boundary with raw metadata removed. Strict output/evidence validation rejects missing fields, invented quotes, assistant-origin facts and disallowed sensitive inferences. Rules are conservative and incomplete; Ollama communicates only with a separately trusted loopback daemon. A quote proves provenance, not semantic truth.
 
-An import batch is atomic. Unique constraints prevent duplicate message identities; foreign keys and FTS triggers are enabled. Schema v1 initializes transactionally, and unsupported database versions are rejected. Future changes will add sequential transactional migrations rather than rebuilding databases implicitly.
+Deterministic observation identities preserve context, negation, kind and event type. Groups count distinct conversations and spans; revisions do not count as additional conversations. Feedback has durable history, authoritative display corrections and explicit lifecycle states. No automatic inference becomes a confirmed profile fact. Historical decision events do not imply the current choice.
 
-All source branches are kept. Parent references describe the tree; display order is not a claim that alternative assistant replies happened sequentially. Provider Unix timestamps stay as optional UTC epoch seconds. The importer preserves original message metadata, including unsupported content descriptors, but does not fetch referenced assets. Conversation metadata retains mapping nodes with the full message objects stored separately, preserving null roots, intermediate nodes and arbitrary node fields without duplicating message bodies.
+Reports resolve evidence against current, included source revisions. Daily digests use IANA timezones and explicitly report unknown times. Persistent active-run heads select the latest completed processor/prompt version per source revision/engine/model. Automatic evidence from replaced runs retires; grounded human review remains authoritative. Distinct selected engines/models can contribute candidates concurrently. Heads survive VACUUM and backup; old payloads remain history. Replaced projections enter durable cleanup.
 
-The store uses SQLite's default rollback journal, with a bounded lock wait. Back up a closed store for this initial CLI; if concurrent background writers are added, introduce an online backup path. WAL is not needed for the current single-command workflow.
+Local-model extraction uses user-only windows bounded to 8 KiB of text, with UTF-8-safe overlapping fragments for long messages. A conversation is limited to 256 windows and commits only after every window validates. Windows preserve original source IDs/revisions; citations are checked against both the submitted window and original source. Omitted context stays unknown. No-user conversations checkpoint an empty result without model calls. Each request has a 24,000-byte prompt/data cap, a 32K context request, 4K output cap and existing HTTP/response time/size bounds.
 
-## Markdown ownership
+## Files and deletion
 
-Export creates content-addressed snapshot filenames, so newer source revisions do not overwrite older notes. Each source message has a deterministic anchor and displays its source identity and parent relationship. Exports are evidence transcripts, with source text in literal fenced blocks, so source headings, image links and wiki links remain text.
+Transcripts use content-addressed filenames and stable message anchors. Source Markdown renders literally. Managed sections have body/whole-file hashes; unowned files and edited generated bodies are preserved as conflicts. User-authored bytes outside owned sections survive regeneration.
 
-An existing identical file is unchanged. A different file at the expected path is a conflict: preserve it and report a nonzero exit status. Exports never ingest edits or remove old snapshots. Interrupted writes can leave partial files; subsequent exports report those as conflicts rather than silently overwriting them. Full Obsidian synchronization will need manifests, atomic file updates, user-owned sections, correction import and deletion propagation.
+An advisory projection lock serializes publication with feedback, exclusion and deletion. Managed writes reserve destination/staging paths and dependencies in SQLite before writing. Private stages are synchronized and safely published. A durable cleanup outbox bridges transactions and filesystem changes. Cleanup removes owned generated material, preserves outside notes and retains conflicts for retry. Tombstones prevent silent resurrection.
 
-## Next milestone: prove useful discoveries
+Exports remain plaintext by explicit user choice. Original sources, independent copies, historical backups, operating-system memory and forensic erasure are outside canonical deletion's guarantees. Restore clears projection ownership so recovery cannot delete the original archive's external files.
 
-1. Add a local model adapter with validated structured output and an explicit `analyze` command.
-2. Extract a small set of candidate corrections and explicit preferences, each citing a source message **revision** and verified excerpt. Keep assistant suggestions distinct from user statements.
-3. Group repeated corrections across distinct conversations and expose them through `discover` with evidence.
-4. Add accept/reject/correct feedback and respect that feedback during reanalysis.
-5. Generate a small insight report in Markdown, keeping generated content separate from user edits.
-
-Evaluate a synthetic labeled dataset and a user-selected real corpus before expanding into daemon collection or a dashboard. Do not make psychological claims or promote inferred observations to established facts.
-
-## Before broader personal-data use
-
-Implement selective deletion across retained source revisions, FTS and exported projections; define encryption/key management and secret handling; test importer compatibility with real exports. SQLite and Markdown are plaintext by default, so local-first storage alone does not satisfy the brief's encryption requirement.
-
-Keep runtime networking opt-in when model integration arrives. No network client or telemetry exists in the foundation.
+The dashboard binds loopback, uses a random bearer token, checks Host/Origin and mutation types, serves a restrictive CSP and renders through text nodes. No telemetry, cloud account, remote extraction or watcher is implemented. Same-user malware and a hostile local model daemon are outside the protection boundary. See [sources](sources.md), [security](../SECURITY.md) and [release evidence](readiness.md).

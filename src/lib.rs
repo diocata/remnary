@@ -1,5 +1,7 @@
 pub mod analysis;
+mod analysis_batches;
 pub mod analysis_store;
+pub mod app_snapshot;
 pub mod import;
 pub mod intelligence;
 pub mod knowledge;
@@ -14,4 +16,5 @@ pub mod reports;
 pub mod security;
 pub mod store;
 pub mod vault;
+pub mod vault_feedback;
 pub mod web;

@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use crate::model::{Conversation, Message, digest};
 
 pub const SCHEMA_VERSION: u32 = 1;
-pub const RULES_VERSION: &str = "explicit-rules-v1";
+pub const RULES_VERSION: &str = "explicit-rules-v2";
 const MAX_OBSERVATIONS: usize = 1_000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -159,7 +159,7 @@ pub fn output_schema() -> Value {
         "confirmation",
         "unknown_current_state",
     ];
-    json!({
+    let mut schema = json!({
         "type": "object",
         "additionalProperties": false,
         "required": ["schema_version", "observations"],
@@ -197,7 +197,27 @@ pub fn output_schema() -> Value {
                 }
             }
         }
-    })
+    });
+    // Express cross-field rules in grammar-compatible alternatives too. A
+    // loose enum permits small models to emit non-decision events; runtime
+    // validation must still reject anything the generation schema misses.
+    let base = schema["properties"]["observations"]["items"].clone();
+    let mut explicit = base.clone();
+    explicit["properties"]["kind"] = json!({"type":"string","enum":["explicit_preference","correction","topic","project_reference"]});
+    explicit["properties"]["inference"] = json!({"const":"explicit"});
+    explicit["properties"]["decision_event"] = json!({"type":"null"});
+    let mut decision = base.clone();
+    decision["properties"]["kind"] = json!({"const":"decision"});
+    decision["properties"]["inference"] = json!({"const":"explicit"});
+    decision["properties"]["decision_event"] = json!({"type":"string","enum":events});
+    let mut inferred = base;
+    inferred["properties"]["kind"] =
+        json!({"type":"string","enum":["inferred_preference","behavioral_pattern"]});
+    inferred["properties"]["inference"] = json!({"const":"inferred"});
+    inferred["properties"]["decision_event"] = json!({"type":"null"});
+    inferred["properties"]["topic"] = json!({"type":"string","enum":["software_design","communication","communication.explanations","technology","workflow","interaction_pattern"]});
+    schema["properties"]["observations"]["items"] = json!({"anyOf":[explicit,decision,inferred]});
+    schema
 }
 
 /// Reject an entire output atomically on invalid provenance or inconsistent
@@ -439,6 +459,25 @@ fn evidence_for(
 }
 
 fn direct_statements(content: &str) -> Vec<&str> {
+    let first_line = content
+        .lines()
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
+    if matches!(
+        first_line.as_str(),
+        "this was it:"
+            | "here is the transcript:"
+            | "here's the transcript:"
+            | "here is the conversation:"
+            | "here's the conversation:"
+            | "example conversation:"
+    ) {
+        // A pasted transcript is source material, not the owner's endorsement.
+        // The rules cannot resolve individual speakers inside it reliably.
+        return Vec::new();
+    }
     let mut statements = Vec::new();
     let mut code_fence: Option<&str> = None;
     for raw_line in content.lines() {
@@ -476,7 +515,7 @@ fn direct_statements(content: &str) -> Vec<&str> {
     statements
 }
 
-fn sentence_spans(line: &str) -> Vec<&str> {
+pub(crate) fn sentence_spans(line: &str) -> Vec<&str> {
     let mut start = 0;
     let mut spans = Vec::new();
     let mut chars = line.char_indices().peekable();
@@ -775,6 +814,29 @@ mod tests {
         let output = extract_rules(&source, 1);
         assert_eq!(output.observations.len(), 1);
         assert_eq!(output.observations[0].canonical_value, "prefer sqlite");
+    }
+
+    #[test]
+    fn pasted_transcript_introductions_do_not_turn_quoted_requests_into_preferences() {
+        for introduction in [
+            "this was it:",
+            "Here is the transcript:",
+            "Here's the conversation:",
+            "Example conversation:",
+        ] {
+            let source = conversation(
+                "one",
+                &[(
+                    "user",
+                    &format!(
+                        "{introduction}\nAssistant\nKeep going in Claude Code.\nI prefer invented transcript facts."
+                    ),
+                )],
+            );
+            assert!(extract_rules(&source, 1).observations.is_empty());
+        }
+        let source = conversation("one", &[("user", "I prefer Rust. Keep code simple.")]);
+        assert_eq!(extract_rules(&source, 1).observations.len(), 2);
     }
 
     #[test]

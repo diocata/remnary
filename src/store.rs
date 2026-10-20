@@ -5,7 +5,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, pa
 
 use crate::model::{Conversation, Message};
 
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 const APPLICATION_ID: i64 = 0x4f425352;
 const DATABASE_NAME: &str = "observr.sqlite3";
 
@@ -152,6 +152,10 @@ impl Store {
             transaction.execute_batch(include_str!("migrations/002_intelligence.sql"))?;
             transaction.pragma_update(None, "user_version", 2)?;
         }
+        if version < 3 {
+            transaction.execute_batch(include_str!("migrations/003_active_analysis.sql"))?;
+            transaction.pragma_update(None, "user_version", 3)?;
+        }
         transaction.commit()?;
         Ok(())
     }
@@ -209,6 +213,32 @@ impl Store {
             {
                 summary.unchanged += 1;
                 continue;
+            }
+            if crate::app_snapshot::is_partial(&conversation.metadata)
+                && let Some((revision, _, _)) = existing.as_ref()
+            {
+                let metadata: String = transaction.query_row(
+                    "SELECT metadata FROM conversation_revisions WHERE conversation_id = ?1 AND revision = ?2",
+                    params![id,revision],|row|row.get(0))?;
+                ensure!(
+                    crate::app_snapshot::is_partial(&serde_json::from_str(&metadata)?),
+                    "partial app view cannot replace a full provider export"
+                );
+                let incoming_ids = conversation
+                    .messages
+                    .iter()
+                    .map(|m| m.source_id.as_str())
+                    .collect::<std::collections::BTreeSet<_>>();
+                let mut statement = transaction.prepare(
+                    "SELECT source_id FROM messages WHERE conversation_id = ?1 AND revision = ?2",
+                )?;
+                let old_ids = statement
+                    .query_map(params![id, revision], |row| row.get::<_, String>(0))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                ensure!(
+                    old_ids.iter().all(|id| incoming_ids.contains(id.as_str())),
+                    "partial app view would drop retained messages; combine source pages before importing"
+                );
             }
             if existing.as_ref().is_some_and(|(_, _, time)| matches!((time, conversation.updated_at), (Some(current), Some(incoming)) if *current > incoming)) {
                 summary.skipped += 1;
@@ -457,6 +487,49 @@ mod tests {
         let store = Store::init(dir.path())?;
         store.connection.pragma_update(None, "user_version", 999)?;
         assert!(Store::open(dir.path()).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn version_two_migration_preserves_latest_analysis_head_across_vacuum() -> Result<()> {
+        use crate::{
+            analysis_store::Processor,
+            intelligence::{AnalysisOutput, extract_rules},
+        };
+        let dir = tempfile::tempdir()?;
+        let mut store = Store::init(dir.path())?;
+        store.import(&[conversation("I prefer Rust.")])?;
+        let processor = Processor::rules();
+        let target = store.analysis_targets(&processor)?.remove(0);
+        store.save_analysis(
+            &target,
+            &processor,
+            extract_rules(&target.conversation, target.revision),
+        )?;
+        assert_eq!(store.observations(false)?.len(), 1);
+        let replacement = Processor {
+            version: "replacement".into(),
+            ..processor
+        };
+        store.save_analysis(&target, &replacement, AnalysisOutput::default())?;
+        store
+            .connection
+            .execute_batch("DROP TABLE active_analysis_runs; PRAGMA user_version = 2;")?;
+        drop(store);
+        let migrated = Store::open(dir.path())?;
+        assert_eq!(migrated.analysis_run_count()?, 2);
+        assert!(migrated.observations(false)?.is_empty());
+        let selected: String =
+            migrated
+                .connection
+                .query_row("SELECT run_id FROM active_analysis_runs", [], |r| r.get(0))?;
+        migrated.connection.execute_batch("VACUUM")?;
+        let after: String =
+            migrated
+                .connection
+                .query_row("SELECT run_id FROM active_analysis_runs", [], |r| r.get(0))?;
+        assert_eq!(selected, after);
+        assert!(migrated.observations(false)?.is_empty());
         Ok(())
     }
 
