@@ -157,6 +157,11 @@ enum Command {
     Exclude { id: String },
     /// Include a previously excluded conversation again.
     Include { id: String },
+    /// Manage persistent provider, project, directory and literal-topic exclusions.
+    Privacy {
+        #[command(subcommand)]
+        command: PrivacyCommand,
+    },
     /// Delete source data or an observation and its generated projections.
     Delete {
         #[command(subcommand)]
@@ -165,6 +170,37 @@ enum Command {
     /// Retry pending projection cleanup; edited generated sections conflict.
     Cleanup,
 }
+#[derive(Subcommand)]
+enum PrivacyCommand {
+    /// Show persistent exclusion rules (retained source data is not printed).
+    List,
+    /// Add an exclusion for retained sources and future imports.
+    Add {
+        #[arg(value_enum)]
+        scope: PrivacyScope,
+        value: String,
+    },
+    /// Remove one rule by ID; manual/overlapping exclusions remain.
+    Remove { id: String },
+}
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum PrivacyScope {
+    Provider,
+    Project,
+    Directory,
+    Topic,
+}
+impl From<PrivacyScope> for observr::exclusions::ExclusionScope {
+    fn from(scope: PrivacyScope) -> Self {
+        match scope {
+            PrivacyScope::Provider => Self::Provider,
+            PrivacyScope::Project => Self::Project,
+            PrivacyScope::Directory => Self::Directory,
+            PrivacyScope::Topic => Self::Topic,
+        }
+    }
+}
+
 #[derive(Subcommand)]
 enum VaultCommand {
     /// Apply one user-authored review block outside generated Markdown.
@@ -620,8 +656,28 @@ fn run() -> Result<()> {
         }
         Command::Include { id } => {
             store.exclude_conversation(&id, false)?;
-            println!("Conversation {id} included.");
+            println!(
+                "Manual exclusion removed for {id}. Provider/project/directory/topic rules still apply."
+            );
         }
+        Command::Privacy { command } => match command {
+            PrivacyCommand::List => print_json(&store.exclusion_rules()?)?,
+            PrivacyCommand::Add { scope, value } => {
+                let rule = observr::exclusions::ExclusionRule::new(scope.into(), &value)?;
+                let affected = store.add_exclusion_rule(&rule)?;
+                println!(
+                    "Exclusion {} saved; {affected} retained conversations newly excluded. Future matching imports will be skipped.",
+                    rule.id
+                );
+                report_cleanup(&mut store)?;
+            }
+            PrivacyCommand::Remove { id } => {
+                store.remove_exclusion_rule(&id)?;
+                println!(
+                    "Rule removed. Other rules and manual exclusions still apply. Regenerate projections explicitly."
+                );
+            }
+        },
         Command::Delete { target } => {
             let summary = match target {
                 DeleteTarget::Conversation { id } => store.delete_conversation(&id)?,

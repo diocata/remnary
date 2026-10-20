@@ -43,12 +43,12 @@ impl Store {
         if excluded {
             enqueue_source_files(&transaction, stable_id, "source_excluded")?;
             transaction.execute(
-                "INSERT OR IGNORE INTO excluded_sources (conversation_id) VALUES (?1)",
+                "INSERT OR IGNORE INTO manual_excluded_sources (conversation_id) VALUES (?1)",
                 [stable_id],
             )?;
         } else {
             transaction.execute(
-                "DELETE FROM excluded_sources WHERE conversation_id = ?1",
+                "DELETE FROM manual_excluded_sources WHERE conversation_id = ?1",
                 [stable_id],
             )?;
         }
@@ -128,7 +128,7 @@ impl Store {
             [stable_id],
         )?;
         transaction.execute(
-            "DELETE FROM excluded_sources WHERE conversation_id = ?1",
+            "DELETE FROM manual_excluded_sources WHERE conversation_id = ?1",
             [stable_id],
         )?;
         // Source revisions/messages, runs, extraction payloads and evidence
@@ -388,7 +388,11 @@ fn require_source(transaction: &Transaction<'_>, id: &str) -> Result<()> {
     Ok(())
 }
 
-fn enqueue_source_files(transaction: &Transaction<'_>, id: &str, reason: &str) -> Result<()> {
+pub(crate) fn enqueue_source_files(
+    transaction: &Transaction<'_>,
+    id: &str,
+    reason: &str,
+) -> Result<()> {
     transaction.execute(
         "INSERT OR IGNORE INTO file_cleanup (path, content_hash, generated_hash, reason)
          SELECT f.path, f.content_hash, f.generated_hash, ?2 FROM managed_files f WHERE

@@ -305,7 +305,7 @@ mod tests {
         // Reproduce a schema-2 backup produced before active heads existed.
         store
             .connection
-            .execute_batch("DROP TABLE active_analysis_runs; PRAGMA user_version=2;")?;
+            .execute_batch("DROP VIEW excluded_sources; ALTER TABLE manual_excluded_sources RENAME TO excluded_sources; DROP TABLE exclusion_rules; DROP TABLE active_analysis_runs; PRAGMA user_version=2;")?;
         let backup = temp.path().join("old-backup.sqlite3");
         store.backup_to(&backup, Some(&key))?;
         let original = fs::read(&backup)?;

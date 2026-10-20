@@ -5,7 +5,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, pa
 
 use crate::model::{Conversation, Message};
 
-pub(crate) const SCHEMA_VERSION: i64 = 3;
+pub(crate) const SCHEMA_VERSION: i64 = 4;
 pub(crate) const APPLICATION_ID: i64 = 0x4f425352;
 const DATABASE_NAME: &str = "observr.sqlite3";
 
@@ -156,6 +156,10 @@ impl Store {
             transaction.execute_batch(include_str!("migrations/003_active_analysis.sql"))?;
             transaction.pragma_update(None, "user_version", 3)?;
         }
+        if version < 4 {
+            transaction.execute_batch(include_str!("migrations/004_exclusion_rules.sql"))?;
+            transaction.pragma_update(None, "user_version", 4)?;
+        }
         transaction.commit()?;
         Ok(())
     }
@@ -203,6 +207,7 @@ impl Store {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let mut summary = ImportSummary::default();
+        let rules = crate::exclusions::read_rules(&transaction)?;
         for conversation in conversations {
             ensure!(
                 !conversation.provider.is_empty() && !conversation.source_id.is_empty(),
@@ -214,7 +219,7 @@ impl Store {
                                UNION ALL SELECT 1 FROM excluded_sources WHERE conversation_id = ?1)",
                 [&id], |r| r.get(0),
             )?;
-            if suppressed {
+            if suppressed || rules.iter().any(|rule| rule.matches(conversation)) {
                 summary.skipped += 1;
                 continue;
             }
@@ -533,7 +538,7 @@ mod tests {
         store.save_analysis(&target, &replacement, AnalysisOutput::default())?;
         store
             .connection
-            .execute_batch("DROP TABLE active_analysis_runs; PRAGMA user_version = 2;")?;
+            .execute_batch("DROP VIEW excluded_sources; ALTER TABLE manual_excluded_sources RENAME TO excluded_sources; DROP TABLE exclusion_rules; DROP TABLE active_analysis_runs; PRAGMA user_version = 2;")?;
         drop(store);
         let migrated = Store::open(dir.path())?;
         assert_eq!(migrated.analysis_run_count()?, 2);

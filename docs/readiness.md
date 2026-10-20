@@ -2,13 +2,13 @@
 
 Updated 2026-10-20. **Production readiness is not established.** The unchanged [product brief](product-brief.md) controls scope. The detailed [initial baseline](readiness-baseline.md) is preserved; its missing-feature rows describe the initial foundation, not the current tree.
 
-The latest full local run passed **132 tests**: 121 library, five analysis and six CLI/source integration tests. Formatting and all-target Clippy with warnings denied passed on macOS with the pinned Rust 1.99.1 toolchain. An optimized build also succeeded. CI is configured but has not run remotely; no independent security audit has been observed.
+The latest full local run passed **138 tests**: 126 library, five analysis and seven CLI/source integration tests. Formatting and all-target Clippy with warnings denied passed on macOS with the pinned Rust 1.99.1 toolchain. An optimized build also succeeded. CI is configured but has not run remotely; no independent security audit has been observed.
 
 | Mandatory v0.1 capability | Current evidence / limits |
 | --- | --- |
 | CLI | Init/import/search/analyze/review/reports/vault/dashboard/privacy/backup commands integration-tested. Installed optimized binary smoke-tested through encrypted import/analysis/search/backup/restore/doctor. |
 | ChatGPT export | Synthetic JSON/ZIP, branches, null roots, bounds and reconstruction tests. Real export compatibility unverified. |
-| Storage / SQLite | Immutable revisions, identities, schema-3 migrations, foreign keys/locking tested. SQLCipher and macOS Keychain init/unlock exercised. |
+| Storage / SQLite | Immutable revisions, identities, schema-4 migrations, foreign keys/locking tested. SQLCipher and macOS Keychain init/unlock exercised. |
 | Deduplication / search | Unchanged/older imports, atomic failure, current FTS, tombstones/exclusion tested. Real local reimports exercised. |
 | Extraction | Strict schema, source-constrained decoder choices, original-user evidence and versioned runs tested. Real local-model pipeline completed 35 conversations; semantic quality remains insufficient. |
 | Patterns | Conservative grouping, distinct-conversation counts and labeled synthetic tests. Useful real recurrence not established. |
@@ -34,7 +34,7 @@ Schema 3 now persists active analysis heads per source revision/engine/model. Pr
 ## Open release gates
 
 - Real ChatGPT compatibility, broader history and human accuracy/usefulness ratings.
-- Provider/project/directory/topic exclusions. Conversation controls exist; pause becomes applicable with collection.
+- Collection-session pause becomes applicable with a future collector. Provider/project/directory/literal-topic exclusions now persist, apply to retained sources and future imports, preserve overlapping/manual controls and invalidate generated content. Read [matching semantics and parser-memory limits](privacy.md).
 - Recovery interruption evidence and supported-platform policy. New-key encrypted backup/restore and plaintext-to-encrypted copy now have CLI and old-schema preservation tests.
 - Full browser acceptance and additional concurrency/crash checks. Local release installation and encrypted recovery checks passed; broader platform/release packaging remains. A reproducible [2,000-conversation performance check](performance.md) passed.
 - Observed CI results, full native/transitive dependency/license review, release artifacts/checksums and release instructions. The toolchain and contribution guide are now declared. Cargo-audit 0.22.2 found zero advisories/warnings in 190 locked dependencies against RustSec commit `999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b` (2026-10-17). ZIP was upgraded to 9.0.5 to resolve three reported extraction advisories; Observr does not extract archives to disk. This does not audit bundled native libraries or prove security.

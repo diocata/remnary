@@ -13,7 +13,7 @@ SQLite handles frequent writes, foreign keys, transactions and full-text search.
 
 Conversation identity hashes `(provider, source_id)`; messages are scoped to `(conversation, revision, source_message_id)`. Fingerprints exclude import time. Changed input adds a revision; identical input does nothing; an older known update timestamp cannot replace a newer one. Missing times stay unknown. Branch relationships are preserved without implying a linear conversation. Original source metadata remains encrypted with normalized records.
 
-Schema version 3 follows transactional version-1/2 migrations. Foreign/newer/corrupt databases are rejected; empty interrupted initialization is recoverable. Foreign keys, bounded locking and rollback journaling protect canonical writes. Encrypted connections apply keys before schema reads; temporary SQL storage uses memory. Online encrypted backup validates integrity and publishes a private file without overwriting an existing destination.
+Schema version 4 follows transactional version-1/2/3 migrations. Foreign/newer/corrupt databases are rejected; empty interrupted initialization is recoverable. Foreign keys, bounded locking and rollback journaling protect canonical writes. Encrypted connections apply keys before schema reads; temporary SQL storage uses memory. Online encrypted backup validates integrity and publishes a private file without overwriting an existing destination.
 
 ## Analysis and review
 
@@ -28,6 +28,8 @@ Local-model extraction uses user-only windows bounded to 8 KiB of text, with UTF
 ## Files and deletion
 
 Transcripts use content-addressed filenames and stable message anchors. Source Markdown renders literally. Managed sections have body/whole-file hashes; unowned files and edited generated bodies are preserved as conflicts. User-authored bytes outside owned sections survive regeneration.
+
+Persistent exclusion rules and manual exclusions feed a single effective-source view, used by all evidence/read paths. Rules also filter incoming normalized conversations before persistence. Literal topic/path semantics are documented in [privacy controls](privacy.md). Adding a rule atomically enqueues projection cleanup; removing one cannot undo independent rules/manual exclusions.
 
 An advisory projection lock serializes publication with feedback, exclusion and deletion. Managed writes reserve destination/staging paths and dependencies in SQLite before writing. Private stages are synchronized and safely published. A durable cleanup outbox bridges transactions and filesystem changes. Cleanup removes owned generated material, preserves outside notes and retains conflicts for retry. Tombstones prevent silent resurrection.
 

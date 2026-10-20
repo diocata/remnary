@@ -2,6 +2,7 @@ pub mod analysis;
 mod analysis_batches;
 pub mod analysis_store;
 pub mod app_snapshot;
+pub mod exclusions;
 pub mod import;
 pub mod intelligence;
 pub mod knowledge;

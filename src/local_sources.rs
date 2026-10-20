@@ -378,7 +378,7 @@ fn new_session(provider: &str, id: String, path: &Path, format: &str) -> Convers
         title: None,
         created_at: None,
         updated_at: None,
-        metadata: json!({"source_format":format,"source_path":path.to_string_lossy()}),
+        metadata: json!({"source_format":format,"source_path":std::path::absolute(path).unwrap_or_else(|_|path.to_path_buf()).to_string_lossy()}),
         messages: Vec::new(),
     }
 }
