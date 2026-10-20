@@ -46,6 +46,15 @@ impl Processor {
         }
     }
 
+    pub fn ollama_resolved(model: &str, identity: &crate::ollama::ModelIdentity) -> Self {
+        let mut processor = Self::ollama(model);
+        processor.version = format!(
+            "{}:{}:ollama-{}",
+            processor.version, identity.digest, identity.daemon_version
+        );
+        processor
+    }
+
     fn run_id(&self, target: &AnalysisTarget) -> Result<String> {
         Ok(digest(&serde_json::to_vec(&(
             target.conversation.stable_id(),

@@ -74,23 +74,8 @@ pub fn analyze_json(
     )
 }
 
-fn analyze_with_limits(
-    endpoint: &str,
-    model: &str,
-    schema: &Value,
-    conversation: &Conversation,
-    revision: i64,
-    timeout: Duration,
-    max_response_bytes: u64,
-) -> Result<Value> {
+fn local_client(endpoint: &str, timeout: Duration) -> Result<(Client, Url)> {
     let (url, loopback) = local_endpoint(endpoint)?;
-    validate_model(model)?;
-    ensure!(revision > 0, "conversation revision must be positive");
-    ensure!(
-        schema.is_object(),
-        "analysis output schema must be an object"
-    );
-    let body = request_body(model, schema, conversation, revision)?;
     let mut builder = Client::builder()
         .timeout(timeout)
         .connect_timeout(CONNECT_TIMEOUT.min(timeout))
@@ -110,6 +95,116 @@ fn analyze_with_limits(
     let client = builder
         .build()
         .context("creating local Ollama HTTP client")?;
+    Ok((client, url))
+}
+
+/// The model manifest and daemon version are part of analysis provenance.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelIdentity {
+    pub digest: String,
+    pub daemon_version: String,
+}
+
+pub fn model_identity(endpoint: &str, model: &str) -> Result<ModelIdentity> {
+    validate_model(model)?;
+    let (client, mut url) = local_client(endpoint, REQUEST_TIMEOUT)?;
+    let mut documents = Vec::new();
+    for path in ["/api/tags", "/api/version"] {
+        url.set_path(path);
+        let response = client
+            .get(url.clone())
+            .send()
+            .map_err(|error| transport_error(&error, model))?;
+        let bytes = read_bounded(response, model, MAX_RESPONSE_BYTES)?;
+        documents.push(
+            serde_json::from_slice::<Value>(&bytes)
+                .map_err(|_| anyhow::anyhow!("local Ollama returned invalid identity metadata"))?,
+        );
+    }
+    let normalized = if model
+        .rsplit('/')
+        .next()
+        .is_some_and(|part| part.contains(':'))
+    {
+        model.to_owned()
+    } else {
+        format!("{model}:latest")
+    };
+    let entries = documents[0]["models"]
+        .as_array()
+        .context("local Ollama returned no installed model inventory")?;
+    let matches: Vec<_> = entries
+        .iter()
+        .filter(|entry| {
+            ["name", "model"].iter().any(|field| {
+                entry[*field]
+                    .as_str()
+                    .is_some_and(|name| name == model || name == normalized)
+            })
+        })
+        .collect();
+    ensure!(
+        matches.len() == 1,
+        "selected model must resolve to exactly one installed local manifest; check `ollama list`"
+    );
+    let digest = matches[0]["digest"].as_str().unwrap_or_default();
+    ensure!(
+        digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit()),
+        "local Ollama returned an invalid model manifest digest"
+    );
+    let version = documents[1]["version"].as_str().unwrap_or_default();
+    ensure!(
+        !version.is_empty()
+            && version.len() <= 128
+            && version
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b".-+_".contains(&b)),
+        "local Ollama returned an invalid daemon version"
+    );
+    Ok(ModelIdentity {
+        digest: digest.to_ascii_lowercase(),
+        daemon_version: version.into(),
+    })
+}
+
+pub fn analyze_pinned_json(
+    endpoint: &str,
+    model: &str,
+    identity: &ModelIdentity,
+    schema: &Value,
+    conversation: &Conversation,
+    revision: i64,
+) -> Result<Value> {
+    ensure!(
+        &model_identity(endpoint, model)? == identity,
+        "local model or daemon changed during analysis; retry with the current installed model"
+    );
+    let output = analyze_json(endpoint, model, schema, conversation, revision)?;
+    ensure!(
+        &model_identity(endpoint, model)? == identity,
+        "local model or daemon changed during generation; no analysis was accepted"
+    );
+    Ok(output)
+}
+
+fn analyze_with_limits(
+    endpoint: &str,
+    model: &str,
+    schema: &Value,
+    conversation: &Conversation,
+    revision: i64,
+    timeout: Duration,
+    max_response_bytes: u64,
+) -> Result<Value> {
+    let (url, _) = local_endpoint(endpoint)?;
+    validate_model(model)?;
+    ensure!(revision > 0, "conversation revision must be positive");
+    ensure!(
+        schema.is_object(),
+        "analysis output schema must be an object"
+    );
+    let body = request_body(model, schema, conversation, revision)?;
+    let (client, _) = local_client(endpoint, timeout)?;
     let mut show_url = url.clone();
     show_url.set_path("/api/show");
     let details = send_bounded(
@@ -118,6 +213,7 @@ fn analyze_with_limits(
         model,
         serde_json::to_vec(&json!({"model": model}))?,
         max_response_bytes,
+        timeout,
     )?;
     let details: Value = serde_json::from_slice(&details).map_err(|_| {
         anyhow::anyhow!(
@@ -127,11 +223,11 @@ fn analyze_with_limits(
     validate_local_model(&details)?;
     // Enable reasoning only when this local model advertises that capability.
     // Ordinary completion-only models retain their compatible request shape.
-    let body = if details
+    let thinking = details
         .get("capabilities")
         .and_then(Value::as_array)
-        .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")))
-    {
+        .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")));
+    let body = if thinking {
         let mut request: Value = serde_json::from_slice(&body)?;
         request["think"] = json!(true);
         request["options"]["num_predict"] = json!(8192);
@@ -139,7 +235,21 @@ fn analyze_with_limits(
     } else {
         body
     };
-    let bytes = send_bounded(&client, url, model, body, max_response_bytes)?;
+    // Reasoning models receive twice the token budget and request deadline.
+    // Metadata calls remain short and every generation still has a hard bound.
+    let generation_timeout = if thinking {
+        timeout.saturating_mul(2)
+    } else {
+        timeout
+    };
+    let bytes = send_bounded(
+        &client,
+        url,
+        model,
+        body,
+        max_response_bytes,
+        generation_timeout,
+    )?;
     let envelope: ChatResponse = serde_json::from_slice(&bytes)
         .map_err(|_| anyhow::anyhow!("local Ollama returned an invalid JSON chat response"))?;
     ensure!(
@@ -290,13 +400,23 @@ fn send_bounded(
     model: &str,
     body: Vec<u8>,
     max_response_bytes: u64,
+    timeout: Duration,
 ) -> Result<Vec<u8>> {
     let response = client
         .post(url)
+        .timeout(timeout)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .body(body)
         .send()
         .map_err(|error| transport_error(&error, model))?;
+    read_bounded(response, model, max_response_bytes)
+}
+
+fn read_bounded(
+    response: reqwest::blocking::Response,
+    model: &str,
+    max_response_bytes: u64,
+) -> Result<Vec<u8>> {
     let status = response.status();
     if status.is_redirection() {
         bail!(
@@ -646,7 +766,7 @@ mod tests {
         let headers = String::from_utf8_lossy(&received[..body_start]);
         let request_line = headers.lines().next().unwrap();
         let path = request_line.split(' ').nth(1).unwrap().to_owned();
-        assert!(request_line.starts_with("POST "));
+        assert!(request_line.starts_with("POST ") || request_line.starts_with("GET "));
         let length = headers
             .lines()
             .find_map(|line| {
@@ -654,7 +774,7 @@ mod tests {
                 name.eq_ignore_ascii_case("content-length")
                     .then(|| value.trim().parse::<usize>().unwrap())
             })
-            .unwrap();
+            .unwrap_or(0);
         while received.len() < body_start + length {
             let mut buffer = [0; 1024];
             let size = stream.read(&mut buffer).unwrap();
@@ -663,7 +783,11 @@ mod tests {
         }
         (
             path,
-            serde_json::from_slice(&received[body_start..body_start + length]).unwrap(),
+            if length == 0 {
+                Value::Null
+            } else {
+                serde_json::from_slice(&received[body_start..body_start + length]).unwrap()
+            },
         )
     }
 
@@ -1013,6 +1137,112 @@ mod tests {
             .unwrap_err();
             assert!(error.to_string().contains("safety limit"));
             request.recv_timeout(Duration::from_secs(3)).unwrap();
+            handle.join().unwrap();
+        }
+    }
+
+    fn tags(digit: char) -> String {
+        reply(&json!({"models":[{"name":"local-model:latest","digest":digit.to_string().repeat(64)}]}).to_string())
+    }
+
+    #[test]
+    fn manifest_resolution_requires_a_valid_installed_digest_and_daemon_version() {
+        let (endpoint, requests, handle) = responses_server(vec![
+            ("/api/tags", tags('a')),
+            ("/api/version", reply(r#"{"version":"0.40.6"}"#)),
+        ]);
+        let identity = model_identity(&endpoint, "local-model").unwrap();
+        assert_eq!(identity.digest, "a".repeat(64));
+        assert_eq!(identity.daemon_version, "0.40.6");
+        for _ in 0..2 {
+            assert_eq!(
+                requests.recv_timeout(Duration::from_secs(3)).unwrap(),
+                Value::Null
+            );
+        }
+        handle.join().unwrap();
+        for invalid in ["missing", "", "sha256:abc"] {
+            let response = reply(
+                &json!({"models":[{"name":"local-model:latest","digest":invalid}]}).to_string(),
+            );
+            let (endpoint, _requests, handle) = responses_server(vec![
+                ("/api/tags", response),
+                ("/api/version", reply(r#"{"version":"0.40.6"}"#)),
+            ]);
+            assert!(model_identity(&endpoint, "local-model").is_err());
+            handle.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn model_change_before_or_during_generation_rejects_the_result() {
+        let identity = ModelIdentity {
+            digest: "a".repeat(64),
+            daemon_version: "0.40.6".into(),
+        };
+        for change_before in [true, false] {
+            let mut responses = vec![
+                ("/api/tags", tags(if change_before { 'b' } else { 'a' })),
+                ("/api/version", reply(r#"{"version":"0.40.6"}"#)),
+            ];
+            if !change_before {
+                responses.extend([
+                    ("/api/show", reply(&local_metadata().to_string())),
+                    ("/api/chat", reply(&envelope(r#"{"observations":[]}"#))),
+                    ("/api/tags", tags('b')),
+                    ("/api/version", reply(r#"{"version":"0.40.6"}"#)),
+                ]);
+            }
+            let (endpoint, _requests, handle) = responses_server(responses);
+            let error = analyze_pinned_json(
+                &endpoint,
+                "local-model",
+                &identity,
+                &schema(),
+                &conversation(),
+                1,
+            )
+            .unwrap_err();
+            assert!(error.to_string().contains("changed during"));
+            handle.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn reasoning_generation_has_a_longer_but_bounded_deadline() {
+        for thinking in [false, true] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let endpoint = format!("http://{}", listener.local_addr().unwrap());
+            let handle = thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                read_request(&mut stream);
+                let mut details = local_metadata();
+                if thinking {
+                    details["capabilities"] = json!(["thinking"]);
+                }
+                stream
+                    .write_all(reply(&details.to_string()).as_bytes())
+                    .unwrap();
+                drop(stream);
+                let (mut stream, _) = listener.accept().unwrap();
+                read_request(&mut stream);
+                thread::sleep(Duration::from_millis(600));
+                let _ = stream.write_all(reply(&envelope(r#"{"observations":[]}"#)).as_bytes());
+            });
+            let result = analyze_with_limits(
+                &endpoint,
+                "local-model",
+                &schema(),
+                &conversation(),
+                1,
+                Duration::from_millis(400),
+                MAX_RESPONSE_BYTES,
+            );
+            if thinking {
+                assert!(result.is_ok(), "{result:?}");
+            } else {
+                assert!(result.unwrap_err().to_string().contains("timed out"));
+            }
             handle.join().unwrap();
         }
     }

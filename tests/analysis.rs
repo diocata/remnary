@@ -327,35 +327,48 @@ fn progress_reports_completed_and_failed_sources_without_exposing_payloads() -> 
     ));
     events.clear();
     // Remote endpoints fail locally before any network request or content send.
-    let summary = analyze_with_progress(
+    let error = analyze_with_progress(
         &mut store,
         AnalysisEngine::Ollama {
             endpoint: "https://example.invalid",
             model: "synthetic",
         },
         |event| events.push(event),
-    )?;
-    assert_eq!(summary.processed, 0);
-    assert_eq!(summary.failures.len(), 2);
-    assert_eq!(
-        events
-            .iter()
-            .filter(|event| matches!(event, AnalysisProgress::Window { .. }))
-            .count(),
-        2
-    );
-    assert_eq!(
-        events
-            .iter()
-            .filter(|event| matches!(event, AnalysisProgress::Finished { success: false, .. }))
-            .count(),
-        2
-    );
+    )
+    .unwrap_err();
+    assert!(!error.to_string().is_empty());
+    assert!(events.is_empty());
     assert_eq!(
         store
             .analysis_targets(&Processor::ollama("synthetic"))?
             .len(),
         2
     );
+    Ok(())
+}
+
+#[test]
+fn replacing_weights_or_daemon_invalidates_cached_runs() -> Result<()> {
+    use observr::ollama::ModelIdentity;
+    let temp = tempfile::tempdir()?;
+    let mut store = Store::init(temp.path())?;
+    store.import(&fixture()?)?;
+    let mut identity = ModelIdentity {
+        digest: "a".repeat(64),
+        daemon_version: "0.40.6".into(),
+    };
+    let first = Processor::ollama_resolved("same-tag", &identity);
+    process(&mut store, &first)?;
+    assert!(store.analysis_targets(&first)?.is_empty());
+    identity.digest = "b".repeat(64);
+    let replaced = Processor::ollama_resolved("same-tag", &identity);
+    assert_eq!(store.analysis_targets(&replaced)?.len(), 2);
+    process(&mut store, &replaced)?;
+    assert!(store.analysis_targets(&replaced)?.is_empty());
+    identity.daemon_version = "0.40.7".into();
+    let upgraded = Processor::ollama_resolved("same-tag", &identity);
+    assert_eq!(store.analysis_targets(&upgraded)?.len(), 2);
+    // Historical runs are still reusable by their exact provenance.
+    assert!(store.analysis_targets(&first)?.is_empty());
     Ok(())
 }

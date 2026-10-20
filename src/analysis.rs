@@ -10,13 +10,14 @@ use crate::{
         AnalysisOutput, extract_rules, group_observations, model_output_schema,
         validate_model_output,
     },
-    ollama::analyze_json,
+    ollama::{analyze_pinned_json, model_identity},
     privacy::redact_conversation,
     store::Store,
 };
 
 #[derive(Debug, Default, Serialize)]
 pub struct AnalysisSummary {
+    pub processor: Option<Processor>,
     pub processed: usize,
     pub observations: usize,
     pub failures: Vec<String>,
@@ -57,12 +58,21 @@ pub fn analyze_with_progress(
     engine: AnalysisEngine<'_>,
     mut progress: impl FnMut(AnalysisProgress),
 ) -> Result<AnalysisSummary> {
+    let identity = match &engine {
+        AnalysisEngine::Rules => None,
+        AnalysisEngine::Ollama { endpoint, model } => Some(model_identity(endpoint, model)?),
+    };
     let processor = match &engine {
         AnalysisEngine::Rules => Processor::rules(),
-        AnalysisEngine::Ollama { model, .. } => Processor::ollama(model),
+        AnalysisEngine::Ollama { model, .. } => {
+            Processor::ollama_resolved(model, identity.as_ref().expect("model identity resolved"))
+        }
     };
     let targets = store.analysis_targets(&processor)?;
-    let mut summary = AnalysisSummary::default();
+    let mut summary = AnalysisSummary {
+        processor: Some(processor.clone()),
+        ..AnalysisSummary::default()
+    };
     let total = targets.len();
     for (index, target) in targets.into_iter().enumerate() {
         let current = index + 1;
@@ -83,9 +93,10 @@ pub fn analyze_with_progress(
                             current: window + 1,
                             total: windows,
                         });
-                        let json = analyze_json(
+                        let json = analyze_pinned_json(
                             endpoint,
                             model,
+                            identity.as_ref().expect("model identity resolved"),
                             &model_output_schema(),
                             &batch,
                             target.revision,

@@ -512,10 +512,11 @@ fn run() -> Result<()> {
                 summary.failures.len()
             );
             if replace_other_models {
-                let processor = observr::analysis_store::Processor::ollama(
-                    model.as_deref().expect("Ollama model checked"),
-                );
-                let retired = store.select_model_results(&processor)?;
+                let processor = summary
+                    .processor
+                    .as_ref()
+                    .expect("analysis processor resolved");
+                let retired = store.select_model_results(processor)?;
                 println!(
                     "Selected model results; retired {retired} other active result sets. Human review and historical runs are preserved."
                 );
