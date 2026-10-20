@@ -381,7 +381,8 @@ fn unreconciled_paraphrases_cannot_bypass_an_existing_rejection() -> Result<()> 
     sources.truncate(1);
     sources[0].messages.retain(|message| message.role == "user");
     sources[0].messages.truncate(1);
-    sources[0].messages[0].content = "I prefer Rust for local command-line tools.".into();
+    sources[0].messages[0].content =
+        "I prefer Rust for local command-line tools. SQLite is another option.".into();
     store.import(&sources)?;
     let mut processor = Processor::ollama("synthetic");
     processor.version = "review-identity-a".into();
@@ -395,6 +396,8 @@ fn unreconciled_paraphrases_cannot_bypass_an_existing_rejection() -> Result<()> 
     paraphrase.observations[0].canonical_value =
         "favor Rust when making local CLI applications".into();
     paraphrase.observations[0].summary = "User favors Rust for local CLI applications.".into();
+    paraphrase.observations[0].kind = observr::intelligence::ExtractionKind::Topic;
+    paraphrase.observations[0].evidence[0].quote = target.conversation.messages[0].content.clone();
     processor.version = "review-identity-b".into();
     let error = store
         .save_analysis(&target, &processor, paraphrase)
@@ -406,5 +409,126 @@ fn unreconciled_paraphrases_cannot_bypass_an_existing_rejection() -> Result<()> 
         ObservationStatus::UserRejected
     );
     assert_eq!(store.analysis_targets(&processor)?.len(), 1);
+    Ok(())
+}
+
+#[test]
+fn deleted_spans_block_paraphrases_after_restore_without_hiding_other_facts() -> Result<()> {
+    let temp = tempfile::tempdir()?;
+    let key = observr::security::SecretKey::generate()?;
+    let mut store = Store::init_encrypted(&temp.path().join("source"), &key)?;
+    let mut sources = fixture()?;
+    sources.truncate(1);
+    sources[0].messages.retain(|message| message.role == "user");
+    sources[0].messages.truncate(1);
+    sources[0].messages[0].content = "I prefer 🦀 Rust. I prefer SQLite.".into();
+    store.import(&sources)?;
+    let mut processor = Processor::ollama("synthetic");
+    processor.version = "deleted-span-a".into();
+    let target = store.analysis_targets(&processor)?.remove(0);
+    let output = extract_rules(&target.conversation, target.revision);
+    assert_eq!(output.observations.len(), 2);
+    store.save_analysis(&target, &processor, output)?;
+    let deleted_id = store
+        .observations(false)?
+        .iter()
+        .find(|record| record.observation.canonical_value.contains("rust"))
+        .unwrap()
+        .id
+        .clone();
+    store.delete_observation(&deleted_id)?;
+    let backup = temp.path().join("backup.sqlite3");
+    store.backup_to(&backup, Some(&key))?;
+    let mut restored = Store::restore_new(&temp.path().join("restored"), &backup, Some(&key))?;
+    // An unrelated message changes the conversation revision; the cited user
+    // message stays unchanged, so its deletion provenance must still apply.
+    sources[0].messages.push(observr::model::Message {
+        source_id: "new-response".into(),
+        parent_source_id: None,
+        role: "assistant".into(),
+        content: "A new response.".into(),
+        created_at: None,
+        metadata: Default::default(),
+    });
+    restored.import(&sources)?;
+    processor.version = "deleted-span-b".into();
+    let target = restored.analysis_targets(&processor)?.remove(0);
+    assert_eq!(target.revision, 2);
+    let mut output = extract_rules(&target.conversation, target.revision);
+    let paraphrase = output
+        .observations
+        .iter_mut()
+        .find(|observation| observation.canonical_value.contains("rust"))
+        .unwrap();
+    paraphrase.canonical_value = "Rust tooling topic".into();
+    paraphrase.summary = "User discusses Rust tooling.".into();
+    paraphrase.kind = observr::intelligence::ExtractionKind::Topic;
+    paraphrase.evidence[0].quote = "Rust".into(); // shorter overlapping UTF-8 span
+    assert_eq!(restored.save_analysis(&target, &processor, output)?, 1);
+    let visible = restored.observations(false)?;
+    assert_eq!(visible.len(), 1);
+    assert!(visible[0].observation.canonical_value.contains("sqlite"));
+    assert!(
+        restored.snapshot(&sources[0].stable_id(), None)?.messages[0]
+            .content
+            .contains("Rust")
+    );
+    // New user text is a new source statement, rather than an old extraction.
+    sources[0].messages[0].content = "I prefer Python. I prefer SQLite.".into();
+    restored.import(&sources)?;
+    let target = restored.analysis_targets(&processor)?.remove(0);
+    let output = extract_rules(&target.conversation, target.revision);
+    assert_eq!(restored.save_analysis(&target, &processor, output)?, 2);
+    assert!(
+        restored
+            .observations(false)?
+            .iter()
+            .any(|record| record.observation.canonical_value.contains("python"))
+    );
+    let health = restored.doctor()?;
+    assert!(health.database_integrity && health.foreign_keys_valid);
+    assert_eq!(health.pending_projection_cleanup, 0);
+    Ok(())
+}
+
+#[test]
+fn prior_review_does_not_block_a_distinct_nonoverlapping_statement() -> Result<()> {
+    let temp = tempfile::tempdir()?;
+    let mut store = Store::init(temp.path())?;
+    let mut sources = fixture()?;
+    sources.truncate(1);
+    sources[0].messages.retain(|message| message.role == "user");
+    sources[0].messages.truncate(1);
+    sources[0].messages[0].content = "I prefer Rust. I prefer SQLite.".into();
+    store.import(&sources)?;
+    let mut processor = Processor::ollama("synthetic");
+    processor.version = "nonoverlap-a".into();
+    let target = store.analysis_targets(&processor)?.remove(0);
+    let mut output = extract_rules(&target.conversation, target.revision);
+    output
+        .observations
+        .retain(|observation| observation.canonical_value.contains("rust"));
+    store.save_analysis(&target, &processor, output)?;
+    let id = store.observations(false)?[0].id.clone();
+    store.feedback(&id, FeedbackAction::Reject, None)?;
+    let mut output = extract_rules(&target.conversation, target.revision);
+    output
+        .observations
+        .retain(|observation| observation.canonical_value.contains("sqlite"));
+    processor.version = "nonoverlap-b".into();
+    assert_eq!(store.save_analysis(&target, &processor, output)?, 1);
+    assert_eq!(store.observations(false)?.len(), 1);
+    assert!(
+        store.observations(false)?[0]
+            .observation
+            .canonical_value
+            .contains("sqlite")
+    );
+    assert!(
+        store
+            .observations(true)?
+            .iter()
+            .any(|record| record.id == id && record.status == ObservationStatus::UserRejected)
+    );
     Ok(())
 }

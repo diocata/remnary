@@ -30,6 +30,85 @@ pub struct CleanupSummary {
     pub conflicts: usize,
 }
 
+fn remember_deleted_evidence_spans(transaction: &Transaction<'_>, id: &str) -> Result<()> {
+    let mut query = transaction.prepare(
+        "SELECT e.conversation_id,e.message_id,e.quote,m.content
+        FROM evidence e JOIN messages m ON m.conversation_id=e.conversation_id
+        AND m.revision=e.revision AND m.source_id=e.message_id WHERE e.observation_id=?1",
+    )?;
+    let mut rows = query.query([id])?;
+    while let Some(row) = rows.next()? {
+        let conversation: String = row.get(0)?;
+        let message: String = row.get(1)?;
+        let quote: String = row.get(2)?;
+        let content: String = row.get(3)?;
+        ensure!(!quote.is_empty(), "stored deletion evidence is empty");
+        let fingerprint = digest(content.as_bytes());
+        for (start, _) in content.match_indices(&quote) {
+            transaction.execute("INSERT OR IGNORE INTO deleted_evidence_spans
+                (conversation_id,message_id,message_digest,start_offset,end_offset) VALUES (?1,?2,?3,?4,?5)",
+                params![conversation,message,fingerprint,start as i64,(start+quote.len()) as i64])?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) type DeletedSpanCache = std::collections::BTreeMap<String, Vec<(i64, i64)>>;
+
+pub(crate) fn reuses_deleted_evidence(
+    transaction: &Transaction<'_>,
+    source: &crate::model::Conversation,
+    evidence: &crate::intelligence::EvidenceRef,
+    cache: &mut DeletedSpanCache,
+) -> Result<bool> {
+    let message = source
+        .messages
+        .iter()
+        .find(|message| message.source_id == evidence.source_message_id)
+        .context("analysis references a missing source message")?;
+    if !cache.contains_key(&message.source_id) {
+        let has_spans: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM deleted_evidence_spans
+            WHERE conversation_id=?1 AND message_id=?2)",
+            params![evidence.conversation_id, evidence.source_message_id],
+            |row| row.get(0),
+        )?;
+        let ranges = if has_spans {
+            let fingerprint = digest(message.content.as_bytes());
+            let mut query = transaction.prepare(
+                "SELECT start_offset,end_offset FROM deleted_evidence_spans
+                WHERE conversation_id=?1 AND message_id=?2 AND message_digest=?3",
+            )?;
+            query
+                .query_map(
+                    params![
+                        evidence.conversation_id,
+                        evidence.source_message_id,
+                        fingerprint
+                    ],
+                    |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+                )?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        } else {
+            Vec::new()
+        };
+        cache.insert(message.source_id.clone(), ranges);
+    }
+    for &(deleted_start, deleted_end) in &cache[&message.source_id] {
+        if message
+            .content
+            .match_indices(&evidence.quote)
+            .any(|(start, _)| {
+                (start as i64) < deleted_end
+                    && ((start + evidence.quote.len()) as i64) > deleted_start
+            })
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 impl Store {
     /// Exclusion keeps canonical evidence but hides the source and its evidence
     /// from search, extraction and generated knowledge. Existing projections
@@ -70,7 +149,8 @@ impl Store {
     }
 
     /// Delete a claim, its evidence, extraction payloads and feedback while
-    /// retaining an identity-only tombstone that prevents silent rediscovery.
+    /// retaining opaque identity/span tombstones to suppress re-extraction from
+    /// the cited unchanged source spans, including under new canonical wording.
     pub fn delete_observation(&mut self, id: &str) -> Result<CleanupSummary> {
         let _guard = self.projection_lock()?;
         let transaction = self
@@ -83,6 +163,7 @@ impl Store {
         )?;
         ensure!(exists, "observation not found");
         enqueue_observation_files(&transaction, id, "observation_deleted")?;
+        remember_deleted_evidence_spans(&transaction, id)?;
         transaction.execute(
             "INSERT OR IGNORE INTO deleted_observations (observation_id) VALUES (?1)",
             [id],
@@ -134,6 +215,12 @@ impl Store {
         // Source revisions/messages, runs, extraction payloads and evidence
         // cascade through schema foreign keys. The FTS deletion trigger removes
         // the source from queries; this is not a forensic-erasure guarantee.
+        // Once the source itself is gone, its whole-source tombstone is
+        // sufficient. Retain no unnecessary message hashes or range metadata.
+        transaction.execute(
+            "DELETE FROM deleted_evidence_spans WHERE conversation_id = ?1",
+            [stable_id],
+        )?;
         transaction.execute("DELETE FROM conversations WHERE id = ?1", [stable_id])?;
         for id in &orphan_ids {
             transaction.execute("DELETE FROM observations WHERE id = ?1", [id])?;
@@ -620,6 +707,23 @@ mod tests {
             .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
                 row.get::<_, i64>(0)
             })? as usize)
+    }
+
+    #[test]
+    fn source_deletion_removes_no_longer_needed_span_metadata() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let mut store = Store::init(directory.path())?;
+        let source = source("one", "I prefer Rust.");
+        let source_id = source.stable_id();
+        store.import(&[source])?;
+        process(&mut store, &Processor::rules())?;
+        let observation_id = store.observations(false)?[0].id.clone();
+        store.delete_observation(&observation_id)?;
+        assert_eq!(count(&store, "deleted_evidence_spans")?, 1);
+        store.delete_conversation(&source_id)?;
+        assert_eq!(count(&store, "deleted_evidence_spans")?, 0);
+        assert_eq!(count(&store, "deleted_sources")?, 1);
+        Ok(())
     }
 
     #[test]

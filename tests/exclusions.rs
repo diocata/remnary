@@ -53,5 +53,5 @@ fn encrypted_cli_exclusions_survive_backup_and_keep_manual_controls_independent(
     run(&restored, &["include", id]);
     let visible: Value = serde_json::from_str(&run(&restored, &["sources", "--json"])).unwrap();
     assert_eq!(visible.as_array().unwrap().len(), 2);
-    assert!(run(&restored, &["doctor"]).contains("\"schema_version\": 4"));
+    assert!(run(&restored, &["doctor"]).contains("\"schema_version\": 5"));
 }

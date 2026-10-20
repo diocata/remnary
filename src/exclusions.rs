@@ -416,7 +416,7 @@ mod tests {
         let c = source("one", "codex", json!({}), "I prefer Rust.");
         store.import(std::slice::from_ref(&c))?;
         store.exclude_conversation(&c.stable_id(), true)?;
-        store.connection.execute_batch("DROP VIEW excluded_sources; ALTER TABLE manual_excluded_sources RENAME TO excluded_sources; DROP TABLE exclusion_rules; PRAGMA user_version=3;")?;
+        store.connection.execute_batch("DROP TABLE deleted_evidence_spans; DROP VIEW excluded_sources; ALTER TABLE manual_excluded_sources RENAME TO excluded_sources; DROP TABLE exclusion_rules; PRAGMA user_version=3;")?;
         drop(store);
         let mut store = Store::open(&tmp.path().join("data"))?;
         assert_eq!(store.excluded_conversations()?, vec![c.stable_id()]);

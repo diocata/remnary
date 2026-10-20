@@ -212,25 +212,46 @@ impl Store {
             "conversation changed while analysis ran; rerun analysis on its current revision"
         );
         // A new canonical wording must not silently bypass a human review
-        // attached to the exact same cited statement. Without an explicit
+        // attached to an overlapping cited span, including a changed kind. Without an explicit
         // identity reconciliation, leave this source pending rather than
         // treating the paraphrase as a new, unreviewed fact.
         for observation in &output.observations {
             let id = observation.stable_id();
-            let kind = enum_name(&observation.kind)?;
             for evidence in &observation.evidence {
-                let conflict: bool = transaction.query_row(
-                    "SELECT EXISTS(SELECT 1 FROM observations o JOIN evidence e ON e.observation_id = o.id
-                     WHERE o.id != ?1 AND o.kind = ?2 AND e.conversation_id = ?3 AND e.message_id = ?4
-                       AND e.quote = ?5 AND o.status IN ('user_confirmed','user_rejected','dismissed','superseded')
-                       AND EXISTS(SELECT 1 FROM user_feedback f WHERE f.observation_id = o.id))",
-                    params![id,kind,evidence.conversation_id,evidence.source_message_id,evidence.quote],
-                    |row|row.get(0),
+                let message = target
+                    .conversation
+                    .messages
+                    .iter()
+                    .find(|message| message.source_id == evidence.source_message_id)
+                    .context("analysis references a missing source message")?;
+                let mut reviewed = transaction.prepare(
+                    "SELECT DISTINCT e.quote FROM observations o JOIN evidence e ON e.observation_id=o.id
+                     WHERE o.id != ?1 AND e.conversation_id=?2 AND e.message_id=?3
+                       AND o.status IN ('user_confirmed','user_rejected','dismissed','superseded')
+                       AND EXISTS(SELECT 1 FROM user_feedback f WHERE f.observation_id=o.id)")?;
+                let quotes = reviewed.query_map(
+                    params![id, evidence.conversation_id, evidence.source_message_id],
+                    |row| row.get::<_, String>(0),
                 )?;
-                ensure!(
-                    !conflict,
-                    "new claim wording conflicts with an existing review of the same source statement; canonical identity reconciliation is required"
-                );
+                for quote in quotes {
+                    let quote = quote?;
+                    if quote.is_empty() {
+                        continue;
+                    }
+                    let overlap = message.content.match_indices(&quote).any(|(old_start, _)| {
+                        message
+                            .content
+                            .match_indices(&evidence.quote)
+                            .any(|(new_start, _)| {
+                                new_start < old_start + quote.len()
+                                    && new_start + evidence.quote.len() > old_start
+                            })
+                    });
+                    ensure!(
+                        !overlap,
+                        "new claim wording conflicts with an existing review of an overlapping source statement; canonical identity reconciliation is required"
+                    );
+                }
             }
         }
         let run_id = processor.run_id(target)?;
@@ -280,6 +301,7 @@ impl Store {
             )?;
         }
         let groups = group_observations(&output.observations);
+        let mut deleted_span_cache = crate::privacy_store::DeletedSpanCache::new();
         let mut count = 0;
         for group in groups {
             let observation = group.observation;
@@ -290,6 +312,21 @@ impl Store {
                 |row| row.get(0),
             )?;
             if deleted {
+                continue;
+            }
+            let mut blocked_span = false;
+            for evidence in &observation.evidence {
+                if crate::privacy_store::reuses_deleted_evidence(
+                    &transaction,
+                    &target.conversation,
+                    evidence,
+                    &mut deleted_span_cache,
+                )? {
+                    blocked_span = true;
+                    break;
+                }
+            }
+            if blocked_span {
                 continue;
             }
             count += 1;

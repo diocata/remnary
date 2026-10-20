@@ -5,7 +5,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, pa
 
 use crate::model::{Conversation, Message};
 
-pub(crate) const SCHEMA_VERSION: i64 = 4;
+pub(crate) const SCHEMA_VERSION: i64 = 5;
 pub(crate) const APPLICATION_ID: i64 = 0x4f425352;
 const DATABASE_NAME: &str = "observr.sqlite3";
 
@@ -159,6 +159,10 @@ impl Store {
         if version < 4 {
             transaction.execute_batch(include_str!("migrations/004_exclusion_rules.sql"))?;
             transaction.pragma_update(None, "user_version", 4)?;
+        }
+        if version < 5 {
+            transaction.execute_batch(include_str!("migrations/005_deleted_evidence_spans.sql"))?;
+            transaction.pragma_update(None, "user_version", 5)?;
         }
         transaction.commit()?;
         Ok(())
@@ -538,7 +542,7 @@ mod tests {
         store.save_analysis(&target, &replacement, AnalysisOutput::default())?;
         store
             .connection
-            .execute_batch("DROP VIEW excluded_sources; ALTER TABLE manual_excluded_sources RENAME TO excluded_sources; DROP TABLE exclusion_rules; DROP TABLE active_analysis_runs; PRAGMA user_version = 2;")?;
+            .execute_batch("DROP TABLE deleted_evidence_spans; DROP VIEW excluded_sources; ALTER TABLE manual_excluded_sources RENAME TO excluded_sources; DROP TABLE exclusion_rules; DROP TABLE active_analysis_runs; PRAGMA user_version = 2;")?;
         drop(store);
         let migrated = Store::open(dir.path())?;
         assert_eq!(migrated.analysis_run_count()?, 2);
