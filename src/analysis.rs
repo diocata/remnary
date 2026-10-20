@@ -87,7 +87,7 @@ pub fn analyze_with_progress(
                 AnalysisEngine::Rules => extract_rules(&redacted, target.revision),
                 AnalysisEngine::Ollama { endpoint, model } => {
                     let mut observations = Vec::new();
-                    let batches = model_batches(&redacted)?;
+                    let batches = model_batches(&redacted, target.revision)?;
                     let windows = batches.len();
                     for (window, batch) in batches.into_iter().enumerate() {
                         progress(AnalysisProgress::Window {

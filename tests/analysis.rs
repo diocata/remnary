@@ -532,3 +532,53 @@ fn prior_review_does_not_block_a_distinct_nonoverlapping_statement() -> Result<(
     );
     Ok(())
 }
+
+#[test]
+fn verified_reprocessing_refreshes_unreviewed_wording_and_preserves_owner_text() -> Result<()> {
+    let temp = tempfile::tempdir()?;
+    let mut store = Store::init(temp.path())?;
+    let mut sources = fixture()?;
+    sources.truncate(1);
+    sources[0].messages.retain(|message| message.role == "user");
+    sources[0].messages.truncate(1);
+    sources[0].messages[0].content = "I prefer Rust.".into();
+    store.import(&sources)?;
+    let mut processor = Processor::ollama("synthetic");
+    processor.version = "wording-a".into();
+    let target = store.analysis_targets(&processor)?.remove(0);
+    let current = extract_rules(&target.conversation, target.revision);
+    let expected = current.observations[0].summary.clone();
+    let mut legacy = current.clone();
+    legacy.observations[0].summary = "An old automatic interpretation.".into();
+    store.save_analysis(&target, &processor, legacy)?;
+    let id = store.observations(false)?[0].id.clone();
+    processor.version = "wording-b".into();
+    store.save_analysis(&target, &processor, current.clone())?;
+    assert_eq!(store.observations(false)?[0].id, id);
+    assert_eq!(store.observations(false)?[0].observation.summary, expected);
+    store.feedback(&id, FeedbackAction::Confirm, None)?;
+    let mut revised = current.clone();
+    revised.observations[0].summary = "A new automatic paraphrase.".into();
+    processor.version = "wording-c".into();
+    store.save_analysis(&target, &processor, revised.clone())?;
+    assert_eq!(store.observations(false)?[0].observation.summary, expected);
+    store.feedback(
+        &id,
+        FeedbackAction::Correct,
+        Some("Owner's authoritative wording"),
+    )?;
+    processor.version = "wording-d".into();
+    store.save_analysis(&target, &processor, revised.clone())?;
+    assert_eq!(
+        store.observations(false)?[0].display_text(),
+        "Owner's authoritative wording"
+    );
+    store.feedback(&id, FeedbackAction::Reset, None)?;
+    processor.version = "wording-e".into();
+    store.save_analysis(&target, &processor, revised)?;
+    assert_eq!(
+        store.observations(false)?[0].observation.summary,
+        "A new automatic paraphrase."
+    );
+    Ok(())
+}

@@ -47,6 +47,8 @@ Distinguish these cases carefully:
 - Repeated user evidence about a workflow can support a tentative behavioral pattern, labeled inferred; a one-time command cannot. Inferred preferences and behavioral patterns must cite at least two distinct user-message IDs; repeating two quotes from the same message is insufficient.
 Only record a correction when text actually corrects/restricts assistant behavior. A question about a simpler solution is not by itself a correction. Keep a decision event separate from an enduring preference. Quotes must establish the summary: "I like what it shows" does not establish a preference for a clean/simple interface, and "What if I have many friends?" does not establish a requested profile/search feature. Do not fill in those missing meanings from assumptions. Quoted transcripts and assistant advice supply no personal preference.
 
+The identity fields (kind, inference, subject, topic, context, canonical_value, decision_event) must encode the complete narrow claim. Summary must be a readable paraphrase of that identity, with no extra facts, named entities or restrictions. For a reversal, preserve direction unambiguously: after changing their mind about option X, the user selected option Y instead. Do not say they reversed an intent to select Y when Y is the NEW choice. Do not imply implementation, migration or deployment unless the quotations say it happened. If the former option is unknown, do not invent one.
+
 Category priority: a named option proposed, considered, chosen, reconsidered, reversed or confirmed for a project belongs to kind decision, even when it concerns a technical topic. Use topic for substantive exploration of a subject that is not such an option event. Preserve the event stage: an explicit change of mind is reversal/reconsideration, not merely a decision stating the new choice. A named ongoing project with a concrete purpose supports a narrow project_reference even when mentioned in only one conversation; do not discard this as a generic biographical fact. Do not turn a project-specific choice into a global preference.
 
 Allowed kinds are explicit_preference, inferred_preference, correction, decision, topic, project_reference, behavioral_pattern. Use the supplied schema's fields exactly. Observation fields use ordered protocol names: a_kind, b_inference, c_decision_event, d_evidence, e_subject, f_topic, g_context, h_canonical_value, i_summary. These mean kind, inference, decision_event, evidence, subject, topic, context, canonical_value and summary respectively. Classify first, choose supporting evidence next, then summarize only what it establishes. Every non-decision MUST set decision_event to null. Only kind decision has a non-null decision_event. Explicit preferences, corrections and decisions MUST set inference to explicit. Inferred preferences and behavioral patterns MUST set inference to inferred. Use null for absent context. Do not include commentary or Markdown fences."#;
@@ -276,28 +278,19 @@ fn chat_body_with_limits(
         )
     })?;
     validate_local_model(&details)?;
-    // Enable reasoning only when this local model advertises that capability.
-    // Ordinary completion-only models retain their compatible request shape.
+    // Qwen 3.5 classification uses the evaluated non-thinking path: the
+    // reasoning profile was slower and introduced a reversed summary. Other
+    // advertised thinking families retain their compatible request policy.
     let thinking = allow_thinking
         && details
             .get("capabilities")
             .and_then(Value::as_array)
-            .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")));
+            .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")))
+        && details.pointer("/details/family").and_then(Value::as_str) != Some("qwen35");
     let body = if thinking {
         let mut request: Value = serde_json::from_slice(&body)?;
         request["think"] = json!(true);
         request["options"]["num_predict"] = json!(8192);
-        if details.pointer("/details/family").and_then(Value::as_str) == Some("qwen35") {
-            // Qwen's documented general thinking profile avoids greedy
-            // repetition. The processor version fingerprints this policy.
-            request["options"]["temperature"] = json!(1.0);
-            request["options"]["top_p"] = json!(0.95);
-            request["options"]["top_k"] = json!(20);
-            request["options"]["min_p"] = json!(0.0);
-            request["options"]["presence_penalty"] = json!(1.5);
-            request["options"]["repeat_penalty"] = json!(1.0);
-            request["options"]["seed"] = json!(42);
-        }
         serde_json::to_vec(&request)?
     } else {
         body
@@ -554,12 +547,7 @@ fn has_remote_metadata(value: &Value) -> bool {
     }
 }
 
-fn request_body(
-    model: &str,
-    schema: &Value,
-    conversation: &Conversation,
-    revision: i64,
-) -> Result<Vec<u8>> {
+fn analysis_data(conversation: &Conversation, revision: i64) -> Result<String> {
     // Raw metadata is intentionally omitted: source exports may contain
     // credentials or attachment information unrelated to text extraction.
     let data = json!({
@@ -575,7 +563,20 @@ fn request_body(
             "content": message.content,
         })).collect::<Vec<_>>()
     });
-    let data = serde_json::to_string(&data)?;
+    Ok(serde_json::to_string(&data)?)
+}
+
+pub(crate) fn analysis_input_fits(conversation: &Conversation, revision: i64) -> Result<bool> {
+    Ok(SYSTEM_PROMPT.len() + analysis_data(conversation, revision)?.len() <= 24_000)
+}
+
+fn request_body(
+    model: &str,
+    schema: &Value,
+    conversation: &Conversation,
+    revision: i64,
+) -> Result<Vec<u8>> {
+    let data = analysis_data(conversation, revision)?;
     ensure!(
         SYSTEM_PROMPT.len() + data.len() <= 24_000,
         "analysis window is too large for the bounded local context budget"
@@ -1012,7 +1013,7 @@ mod tests {
     }
 
     #[test]
-    fn qwen_generation_uses_sampling_but_verification_stays_non_reasoning() {
+    fn qwen_generation_and_verification_avoid_automatic_reasoning() {
         for verification in [false, true] {
             let mut metadata = local_metadata();
             metadata["details"]["family"] = json!("qwen35");
@@ -1035,18 +1036,12 @@ mod tests {
             }
             requests.recv_timeout(Duration::from_secs(3)).unwrap();
             let body = requests.recv_timeout(Duration::from_secs(3)).unwrap();
-            assert_eq!(body["think"], !verification);
+            assert_eq!(body["think"], false);
             assert_eq!(body["truncate"], false);
             assert_eq!(body["format"], schema());
-            if verification {
-                assert_eq!(body["options"]["temperature"], 0);
-                assert_eq!(body["options"]["num_predict"], 4096);
-            } else {
-                assert_eq!(body["options"]["temperature"], 1.0);
-                assert_eq!(body["options"]["presence_penalty"], 1.5);
-                assert_eq!(body["options"]["seed"], 42);
-                assert_eq!(body["options"]["num_predict"], 8192);
-            }
+            assert_eq!(body["options"]["temperature"], 0);
+            assert_eq!(body["options"]["num_predict"], 4096);
+            assert!(body["options"].get("seed").is_none());
             handle.join().unwrap();
         }
     }

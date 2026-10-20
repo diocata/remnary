@@ -40,9 +40,9 @@ impl Processor {
     pub fn ollama(model: &str) -> Self {
         Self {
             engine: "ollama".into(),
-            version: "12".into(),
+            version: "13".into(),
             model: model.into(),
-            prompt_version: "12".into(),
+            prompt_version: "13".into(),
         }
     }
 
@@ -338,6 +338,23 @@ impl Store {
                     observation.topic, observation.canonical_value, observation.context, observation.summary,
                     observation.decision_event.as_ref().map(enum_name).transpose()?],
             )?;
+            // Refresh unreviewed automatic wording when a verified processor
+            // replaces the old interpretation under the same semantic key.
+            // Explicit reviews (including rejected/dismissed wording) remain
+            // authoritative; reset is the only opt-in back to automatic text.
+            let refreshed = transaction.execute(
+                "UPDATE observations SET summary=?1 WHERE id=?2 AND summary!=?1
+                 AND status IN ('candidate','supported') AND user_value IS NULL
+                 AND COALESCE((SELECT action FROM user_feedback WHERE observation_id=?2 ORDER BY id DESC LIMIT 1),'reset')='reset'",
+                params![observation.summary,id],
+            )?;
+            if refreshed > 0 {
+                crate::privacy_store::enqueue_observation_files(
+                    &transaction,
+                    &id,
+                    "analysis_wording_updated",
+                )?;
+            }
             transaction.execute(
                 "INSERT INTO observation_extractions (analysis_run_id, observation_id, payload) VALUES (?1, ?2, ?3)",
                 params![run_id, id, serde_json::to_string(&observation)?],

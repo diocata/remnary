@@ -183,5 +183,43 @@
     "summary": "User prefers Rust.",
     "context": null,
     "expected_supported": false
+  },
+  {
+    "id": "supported-reversal-direction",
+    "kind": "decision",
+    "topic": "technology",
+    "decision_event": "reversal",
+    "quotes": [
+      "I changed my mind about PebbleDB. I chose SQLite for this prototype instead."
+    ],
+    "canonical_value": "selected SQLite instead of PebbleDB",
+    "summary": "After changing their mind about PebbleDB, user chose SQLite for the prototype.",
+    "context": "this prototype",
+    "expected_supported": true
+  },
+  {
+    "id": "inverted-reversal-summary",
+    "kind": "decision",
+    "topic": "technology",
+    "decision_event": "reversal",
+    "quotes": [
+      "I changed my mind about PebbleDB. I chose SQLite for this prototype instead."
+    ],
+    "canonical_value": "selected SQLite instead of PebbleDB",
+    "summary": "User reversed their previous intent to select SQLite for the prototype.",
+    "context": "this prototype",
+    "expected_supported": false
+  },
+  {
+    "id": "true-extra-fact-missing-from-identity",
+    "kind": "explicit_preference",
+    "topic": "technology",
+    "quotes": [
+      "I prefer Rust for CLI tools. I prefer Python for data analysis."
+    ],
+    "canonical_value": "prefers Rust for CLI tools",
+    "summary": "User prefers Rust for CLI tools and Python for data analysis.",
+    "context": "local CLI development",
+    "expected_supported": false
   }
 ]
