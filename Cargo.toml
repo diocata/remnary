@@ -16,7 +16,7 @@ fs2 = "0.4"
 getrandom = "0.4"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "json"] }
 regex = "1"
-rusqlite = { version = "0.40", features = ["bundled-sqlcipher-vendored-openssl", "backup"] }
+rusqlite = { git = "https://github.com/rusqlite/rusqlite", rev = "661107f6eb5d7477c61be1221744de3ad96c53e7", features = ["bundled-sqlcipher", "backup"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 sha2 = "0.10"

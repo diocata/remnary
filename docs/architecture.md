@@ -1,6 +1,6 @@
 # Rust and embedded storage
 
-Observr is one Rust crate with direct SQL through `rusqlite`. SQLCipher bundles the encrypted SQLite engine and OpenSSL. There is no database service, ORM, async runtime or mandatory model service.
+Observr is one Rust crate with direct SQL through `rusqlite`. SQLCipher bundles the encrypted SQLite engine; the macOS build uses Apple CommonCrypto. There is no database service, ORM, async runtime or mandatory model service.
 
 ```text
 Selected local history → bounded normalization → atomic import / immutable revisions

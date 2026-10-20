@@ -11,7 +11,7 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo build --release --locked
 ```
 
-`./scripts/cargo-local` uses this checkout's isolated development toolchain when present. Native SQLCipher/OpenSSL compilation needs a C compiler and Perl. macOS is the initial supported target; mark other platforms unverified until their full runtime workflow is tested.
+`./scripts/cargo-local` uses this checkout's isolated development toolchain when present. Native SQLCipher compilation needs a C compiler; macOS uses CommonCrypto. The supported validation target is Apple Silicon macOS 27.0.1. See [platform policy](docs/platforms.md) and [native dependency baseline](docs/native-dependencies.md) before changing targets or dependency pins.
 
 Use synthetic fixtures only. Do not commit account exports, session logs, database/backup files, model caches, keys, bearer tokens or screenshots of real histories. Keep private evaluation material under ignored `.observr/` or outside the repository. Review staged changes before committing.
 

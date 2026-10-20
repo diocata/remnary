@@ -23,6 +23,7 @@ pub struct HealthReport {
     pub schema_version: i64,
     pub sqlite_version: String,
     pub cipher_version: String,
+    pub cipher_provider: String,
     pub pending_projection_cleanup: usize,
 }
 
@@ -155,7 +156,10 @@ impl Store {
                 .query_row("SELECT sqlite_version()", [], |r| r.get(0))?,
             cipher_version: self
                 .connection
-                .pragma_query_value(None, "cipher_version", |r| r.get(0))?,
+                .query_row("PRAGMA cipher_version", [], |r| r.get(0))?,
+            cipher_provider: self
+                .connection
+                .query_row("PRAGMA cipher_provider", [], |r| r.get(0))?,
             pending_projection_cleanup: self.pending_cleanup_count()?,
         })
     }

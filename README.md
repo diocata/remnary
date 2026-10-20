@@ -12,7 +12,7 @@ SQLite fits transactional imports, edits, deletion and evidence relationships. D
 
 ## Build and try
 
-The tested toolchain is Rust 1.99.1 on macOS. Bundled SQLCipher/OpenSSL requires native build tools, including a C compiler and Perl. macOS is the initial target; other platforms have not had release verification.
+The tested toolchain is Rust 1.99.1 on Apple Silicon macOS 27.0.1. Bundled SQLCipher uses Apple CommonCrypto and needs native C build tools. [Platform policy](docs/platforms.md) · [Native dependency baseline](docs/native-dependencies.md).
 
 ```sh
 cargo build --locked

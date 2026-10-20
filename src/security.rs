@@ -190,8 +190,10 @@ pub fn apply_key(connection: &Connection, key: &SecretKey) -> Result<()> {
         result == rusqlite::ffi::SQLITE_OK,
         "SQLCipher refused the encryption key"
     );
+    // SQLCipher pragmas are not listed in SQLite pragma_pragma_list. Use
+    // fixed SQL literals; rusqlite validates dynamic pragma names against that list.
     let version: String = connection
-        .pragma_query_value(None, "cipher_version", |row| row.get(0))
+        .query_row("PRAGMA cipher_version", [], |row| row.get(0))
         .map_err(|_| {
             anyhow!("SQLCipher encryption is unavailable; an encrypted build is required")
         })?;
@@ -200,19 +202,19 @@ pub fn apply_key(connection: &Connection, key: &SecretKey) -> Result<()> {
         "SQLCipher encryption is unavailable; an encrypted build is required"
     );
     connection
-        .pragma_update(None, "cipher_memory_security", true)
+        .execute_batch("PRAGMA cipher_memory_security = ON;")
         .map_err(|_| anyhow!("cannot enable SQLCipher memory protection"))?;
     connection
         .pragma_update(None, "temp_store", "MEMORY")
         .map_err(|_| anyhow!("cannot restrict SQLite temporary storage to memory"))?;
     let memory: String = connection
-        .pragma_query_value(None, "cipher_memory_security", |row| row.get(0))
+        .query_row("PRAGMA cipher_memory_security", [], |row| row.get(0))
         .map_err(|_| anyhow!("cannot verify SQLCipher memory protection"))?;
     let temporary: i64 = connection
         .pragma_query_value(None, "temp_store", |row| row.get(0))
         .map_err(|_| anyhow!("cannot verify SQLite temporary storage policy"))?;
     let plaintext_header: String = connection
-        .pragma_query_value(None, "cipher_plaintext_header_size", |row| row.get(0))
+        .query_row("PRAGMA cipher_plaintext_header_size", [], |row| row.get(0))
         .map_err(|_| anyhow!("cannot verify SQLCipher encrypted-header policy"))?;
     ensure!(
         memory == "1" && temporary == 2 && plaintext_header == "0",
