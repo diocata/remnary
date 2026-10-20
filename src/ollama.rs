@@ -307,7 +307,7 @@ fn grounded_schema(schema: &Value, conversation: &Conversation, revision: i64) -
                 "conversation_id":{"const":conversation.stable_id()},
                 "revision":{"const":revision},
                 "source_message_id":{"const":message.source_id},
-                "quote":{"type":"string","enum":quote_choices(&message.content)}
+                "quote":{"type":"string","enum":crate::intelligence::personal_evidence_spans(message).into_iter().flat_map(quote_choices).collect::<std::collections::BTreeSet<_>>()}
             }})
         })
                 .collect::<Vec<_>>();

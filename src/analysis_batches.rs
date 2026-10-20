@@ -16,19 +16,22 @@ pub(crate) fn model_batches(source: &Conversation) -> Result<Vec<Conversation>> 
     }
     let template = batch.clone();
     let mut bytes = 0;
-    for message in source
-        .messages
-        .iter()
-        .filter(|m| crate::intelligence::eligible_personal_evidence(m))
-    {
+    for (message, span) in source.messages.iter().flat_map(|m| {
+        crate::intelligence::personal_evidence_spans(m)
+            .into_iter()
+            .map(move |span| (m, span))
+    }) {
         let mut start = 0;
-        while start < message.content.len() {
-            let end = boundary(
-                &message.content,
-                (start + MAX_TEXT_BYTES).min(message.content.len()),
-            );
-            let text = &message.content[start..end];
-            if !batch.messages.is_empty() && bytes + text.len() > MAX_TEXT_BYTES {
+        while start < span.len() {
+            let end = boundary(span, (start + MAX_TEXT_BYTES).min(span.len()));
+            let text = &span[start..end];
+            if !batch.messages.is_empty()
+                && (bytes + text.len() > MAX_TEXT_BYTES
+                    || batch
+                        .messages
+                        .iter()
+                        .any(|m| m.source_id == message.source_id))
+            {
                 batches.push(batch);
                 ensure!(
                     batches.len() < MAX_BATCHES,
@@ -42,7 +45,7 @@ pub(crate) fn model_batches(source: &Conversation) -> Result<Vec<Conversation>> 
             excerpt.metadata = serde_json::json!({});
             bytes += text.len();
             batch.messages.push(excerpt);
-            if end == message.content.len() {
+            if end == span.len() {
                 break;
             }
             // Flush each long-message fragment: source message identities may
@@ -54,7 +57,7 @@ pub(crate) fn model_batches(source: &Conversation) -> Result<Vec<Conversation>> 
             );
             batch = template.clone();
             bytes = 0;
-            start = boundary(&message.content, end - OVERLAP_BYTES);
+            start = boundary(span, end - OVERLAP_BYTES);
         }
     }
     if !batch.messages.is_empty() {
@@ -93,6 +96,20 @@ mod tests {
                 metadata: json!({"raw":"omitted"}),
             }],
         }
+    }
+
+    #[test]
+    fn separate_panel_answers_keep_exact_spans_without_duplicate_message_ids() -> Result<()> {
+        let text = r#"<send_user_message_question_reply>[{"question":"Assistant-only assertion","answer":"I prefer Rust."},{"answer":"Keep code simple."}]</send_user_message_question_reply>"#;
+        let original = source(text.into());
+        let batches = model_batches(&original)?;
+        assert_eq!(batches.len(), 2);
+        assert_eq!(batches[0].messages[0].content, "I prefer Rust.");
+        assert_eq!(batches[1].messages[0].content, "Keep code simple.");
+        for batch in batches {
+            assert!(text.contains(&batch.messages[0].content));
+        }
+        Ok(())
     }
 
     #[test]

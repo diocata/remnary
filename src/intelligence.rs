@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use crate::model::{Conversation, Message, digest};
 
 pub const SCHEMA_VERSION: u32 = 1;
-pub const RULES_VERSION: &str = "explicit-rules-v2";
+pub const RULES_VERSION: &str = "explicit-rules-v3";
 const MAX_OBSERVATIONS: usize = 1_000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -351,8 +351,10 @@ pub fn validate_output(
                 "evidence quote is not an exact source substring"
             );
             ensure!(
-                eligible_personal_evidence(message),
-                "personal intelligence requires direct user evidence, not a quoted transcript or another role"
+                personal_evidence_spans(message)
+                    .iter()
+                    .any(|span| span.contains(&evidence.quote)),
+                "personal intelligence requires direct user evidence, not a quoted question, transcript or another role"
             );
         }
         observation.evidence.sort();
@@ -466,7 +468,10 @@ pub fn extract_rules(conversation: &Conversation, revision: i64) -> AnalysisOutp
         if !eligible_personal_evidence(message) {
             continue;
         }
-        for quote in direct_statements(&message.content) {
+        for quote in personal_evidence_spans(message)
+            .into_iter()
+            .flat_map(direct_statements)
+        {
             if let Some(mut observation) = classify_statement(quote) {
                 if check_text(&observation.canonical_value, "canonical_value", 4096).is_err()
                     || check_text(&observation.summary, "summary", 4096).is_err()
@@ -512,9 +517,50 @@ fn evidence_for(
 }
 
 pub(crate) fn eligible_personal_evidence(message: &Message) -> bool {
-    message.role.eq_ignore_ascii_case("user")
-        && !message.content.trim().is_empty()
-        && !declared_transcript(&message.content)
+    !personal_evidence_spans(message).is_empty()
+}
+
+/// UI question replies contain an assistant-authored question beside the user's
+/// answer. Only the raw JSON string interiors of answer fields supply evidence.
+/// Keeping the original escapes preserves exact source byte attribution.
+pub(crate) fn personal_evidence_spans(message: &Message) -> Vec<&str> {
+    let content = message.content.trim();
+    if !message.role.eq_ignore_ascii_case("user")
+        || content.is_empty()
+        || declared_transcript(content)
+    {
+        return Vec::new();
+    }
+    const START: &str = "<send_user_message_question_reply>";
+    const END: &str = "</send_user_message_question_reply>";
+    if !content.starts_with(START) {
+        return vec![&message.content];
+    }
+    #[derive(Deserialize)]
+    struct Reply<'a> {
+        #[serde(borrow)]
+        answer: &'a serde_json::value::RawValue,
+    }
+    let Some(payload) = content
+        .strip_prefix(START)
+        .and_then(|s| s.strip_suffix(END))
+    else {
+        return Vec::new();
+    };
+    let Ok(replies) = serde_json::from_str::<Vec<Reply<'_>>>(payload) else {
+        return Vec::new();
+    };
+    replies
+        .into_iter()
+        .filter_map(|reply| {
+            let raw = reply.answer.get();
+            let decoded: String = serde_json::from_str(raw).ok()?;
+            if decoded.trim().is_empty() || declared_transcript(&decoded) {
+                return None;
+            }
+            raw.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
+        })
+        .collect()
 }
 
 fn declared_transcript(content: &str) -> bool {
@@ -892,6 +938,54 @@ mod tests {
         source.messages[0].content = "Here is the transcript:\nAssistant: I prefer Rust.".into();
         output.observations[0].evidence[0].quote = "I prefer Rust.".into();
         assert!(validate_output(&source, 1, output).is_err());
+    }
+
+    #[test]
+    fn structured_question_replies_cite_only_user_answers_and_preserve_raw_escapes() {
+        let (mut source, mut output) = explicit();
+        source.messages[0].content = r#"<send_user_message_question_reply>
+[{"question":"I prefer Python.","answer":"I prefer Rust."},{"question":"I prefer Ruby.","answer":"Keep code simple."}]
+</send_user_message_question_reply>"#.into();
+        let spans = personal_evidence_spans(&source.messages[0]);
+        assert_eq!(spans, vec!["I prefer Rust.", "Keep code simple."]);
+        output.observations[0].evidence[0].quote = "I prefer Python.".into();
+        assert!(validate_output(&source, 1, output.clone()).is_err());
+        output.observations[0].evidence[0].quote = "I prefer Rust.".into();
+        assert!(validate_output(&source, 1, output).is_ok());
+        let rules = extract_rules(&source, 1);
+        assert_eq!(rules.observations.len(), 2);
+        assert!(
+            rules
+                .observations
+                .iter()
+                .all(|o| !o.summary.contains("Python") && !o.summary.contains("Ruby"))
+        );
+        source.messages[0].content = r#"<send_user_message_question_reply>[{"answer":"I prefer \"small\" tools.\nNo extras."}]</send_user_message_question_reply>"#.into();
+        let spans = personal_evidence_spans(&source.messages[0]);
+        assert_eq!(spans.len(), 1);
+        assert!(spans[0].contains(r#"\"small\""#));
+        assert!(source.messages[0].content.contains(spans[0]));
+    }
+
+    #[test]
+    fn malformed_or_nontext_question_answers_never_supply_personal_evidence() {
+        let (mut source, _) = explicit();
+        for payload in [
+            "broken",
+            "[{\"question\":\"I prefer Ruby.\"}]",
+            "[{\"answer\":true}]",
+            "[{\"answer\":\"\"}]",
+            "[{\"answer\":\"Here is the transcript:\\nAssistant: I prefer Ruby.\"}]",
+        ] {
+            source.messages[0].content = format!(
+                "<send_user_message_question_reply>{payload}</send_user_message_question_reply>"
+            );
+            assert!(personal_evidence_spans(&source.messages[0]).is_empty());
+            assert!(extract_rules(&source, 1).observations.is_empty());
+        }
+        source.messages[0].content =
+            "<send_user_message_question_reply>[{\"answer\":\"I prefer Ruby.\"}]".into();
+        assert!(!eligible_personal_evidence(&source.messages[0]));
     }
 
     #[test]

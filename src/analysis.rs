@@ -34,9 +34,9 @@ pub fn analyze(store: &mut Store, engine: AnalysisEngine<'_>) -> Result<Analysis
         AnalysisEngine::Rules => Processor::rules(),
         AnalysisEngine::Ollama { model, .. } => Processor {
             engine: "ollama".into(),
-            version: "4".into(),
+            version: "5".into(),
             model: (*model).into(),
-            prompt_version: "4".into(),
+            prompt_version: "5".into(),
         },
     };
     let targets = store.analysis_targets(&processor)?;
