@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use crate::model::{Conversation, Message, digest};
 
 pub const SCHEMA_VERSION: u32 = 1;
-pub const RULES_VERSION: &str = "explicit-rules-v3";
+pub const RULES_VERSION: &str = "explicit-rules-v4";
 const MAX_OBSERVATIONS: usize = 1_000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -214,6 +214,7 @@ pub fn output_schema() -> Value {
     inferred["properties"]["kind"] =
         json!({"type":"string","enum":["inferred_preference","behavioral_pattern"]});
     inferred["properties"]["inference"] = json!({"const":"inferred"});
+    inferred["properties"]["evidence"]["minItems"] = json!(2);
     inferred["properties"]["decision_event"] = json!({"type":"null"});
     inferred["properties"]["topic"] = json!({"type":"string","enum":["software_design","communication","communication.explanations","technology","workflow","interaction_pattern"]});
     schema["properties"]["observations"]["items"] = json!({"anyOf":[explicit,decision,inferred]});
@@ -319,15 +320,24 @@ pub fn validate_output(
         ) {
             ensure!(
                 observation.evidence.iter().any(|e| {
-                    !is_option_question(&e.quote)
-                        && messages
-                            .get(&e.source_message_id)
-                            .is_some_and(|message| !is_option_question(&message.content))
+                    messages.get(&e.source_message_id).is_some_and(|message| {
+                        statement_quote_supported(message, &e.quote, observation.kind)
+                    })
                 }),
                 "exploratory option questions cannot establish an explicit preference or correction"
             );
         }
         if observation.inference == InferenceType::Inferred {
+            ensure!(
+                observation
+                    .evidence
+                    .iter()
+                    .map(|e| &e.source_message_id)
+                    .collect::<BTreeSet<_>>()
+                    .len()
+                    >= 2,
+                "inferred preferences and patterns require at least two distinct user messages"
+            );
             validate_inference_domain(observation)?;
         }
         for evidence in &observation.evidence {
@@ -526,6 +536,19 @@ pub(crate) fn personal_evidence_spans(message: &Message) -> Vec<&str> {
     if !message.role.eq_ignore_ascii_case("user")
         || content.is_empty()
         || declared_transcript(content)
+    {
+        return Vec::new();
+    }
+    let first_line = content.lines().next().unwrap_or("").to_ascii_lowercase();
+    if [
+        "<environment_context>",
+        "<codex_internal_context",
+        "<permissions instructions>",
+        "<app-context>",
+        "# agents.md instructions for ",
+    ]
+    .iter()
+    .any(|prefix| first_line.starts_with(prefix))
     {
         return Vec::new();
     }
@@ -756,6 +779,27 @@ fn canonical_correction(statement: &str) -> Option<(&'static str, &'static str)>
     }
 }
 
+/// Check the sentence containing a quotation, instead of excluding a whole
+/// mixed message because its opening sentence asks about an option. Questions
+/// can be rhetorical corrections; ordinary questions cannot state preferences.
+pub(crate) fn statement_quote_supported(
+    message: &Message,
+    quote: &str,
+    kind: ExtractionKind,
+) -> bool {
+    personal_evidence_spans(message)
+        .into_iter()
+        .flat_map(str::lines)
+        .flat_map(sentence_spans)
+        .any(|sentence| {
+            let sentence = sentence.trim();
+            !sentence.is_empty()
+                && !is_option_question(sentence)
+                && !(kind == ExtractionKind::ExplicitPreference && sentence.ends_with('?'))
+                && (sentence.contains(quote) || quote.contains(sentence))
+        })
+}
+
 pub(crate) fn is_option_question(quote: &str) -> bool {
     let quote = normalize_key(quote);
     [
@@ -925,6 +969,21 @@ mod tests {
     }
 
     #[test]
+    fn mixed_questions_keep_real_preferences_and_rhetorical_corrections() {
+        let (mut source, mut output) = explicit();
+        source.messages[0].content = "What about DuckDB? I prefer Rust for this CLI.".into();
+        output.observations[0].evidence[0].quote = "I prefer Rust for this CLI.".into();
+        assert!(validate_output(&source, 1, output.clone()).is_ok());
+        output.observations[0].evidence[0].quote = "DuckDB".into();
+        assert!(validate_output(&source, 1, output.clone()).is_err());
+        source.messages[0].content = "Why do you keep adding unwanted dependencies?".into();
+        output.observations[0].evidence[0].quote = source.messages[0].content.clone();
+        assert!(validate_output(&source, 1, output.clone()).is_err());
+        output.observations[0].kind = ExtractionKind::Correction;
+        assert!(validate_output(&source, 1, output).is_ok());
+    }
+
+    #[test]
     fn shortened_quotes_cannot_turn_an_option_question_into_a_statement() {
         let (mut source, mut output) = explicit();
         source.messages[0].content = "What about DuckDB plus JSON files?".into();
@@ -963,6 +1022,29 @@ mod tests {
         assert_eq!(spans.len(), 1);
         assert!(spans[0].contains(r#"\"small\""#));
         assert!(source.messages[0].content.contains(spans[0]));
+    }
+
+    #[test]
+    fn provider_control_frames_are_not_personal_evidence_even_with_a_user_role() {
+        let (mut source, mut output) = explicit();
+        for frame in [
+            "<environment_context>",
+            "<codex_internal_context source=\"goal\">",
+            "<permissions instructions>",
+            "<app-context>",
+            "# AGENTS.md instructions for /synthetic/project",
+        ] {
+            source.messages[0].content =
+                format!("{frame}\nI prefer invented provider instructions.");
+            output.observations[0].evidence[0].quote =
+                "I prefer invented provider instructions.".into();
+            assert!(!eligible_personal_evidence(&source.messages[0]));
+            assert!(extract_rules(&source, 1).observations.is_empty());
+            assert!(validate_output(&source, 1, output.clone()).is_err());
+        }
+        source.messages[0].content = "My project has an AGENTS.md file. I prefer Rust.".into();
+        assert!(eligible_personal_evidence(&source.messages[0]));
+        assert_eq!(extract_rules(&source, 1).observations.len(), 1);
     }
 
     #[test]
@@ -1134,6 +1216,24 @@ mod tests {
         assert!(events.contains(&DecisionEventType::Reversal));
         assert!(events.contains(&DecisionEventType::Consideration));
         assert!(events.contains(&DecisionEventType::Decision));
+    }
+
+    #[test]
+    fn inferred_preferences_need_distinct_messages_not_repeated_quotes() {
+        let (mut source, mut output) = explicit();
+        let observation = &mut output.observations[0];
+        observation.kind = ExtractionKind::InferredPreference;
+        observation.inference = InferenceType::Inferred;
+        observation.topic = "technology".into();
+        assert!(validate_output(&source, 1, output.clone()).is_err());
+        let duplicate = output.observations[0].evidence[0].clone();
+        output.observations[0].evidence.push(duplicate);
+        assert!(validate_output(&source, 1, output.clone()).is_err());
+        let mut second = source.messages[0].clone();
+        second.source_id = "another".into();
+        source.messages.push(second);
+        output.observations[0].evidence[1].source_message_id = "another".into();
+        assert!(validate_output(&source, 1, output).is_ok());
     }
 
     #[test]

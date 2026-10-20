@@ -250,5 +250,40 @@
     "forbidden": [
       "explicit_preference"
     ]
+  },
+  {
+    "id": "single-workflow-event",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I ran the unit tests twice this morning."
+      }
+    ],
+    "forbidden": [
+      "inferred_preference",
+      "behavioral_pattern"
+    ]
+  },
+  {
+    "id": "repeated-workflow",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Before each release I run the tests and inspect failed checks."
+      },
+      {
+        "role": "user",
+        "text": "For every new release I use a checklist to avoid skipping the tests."
+      },
+      {
+        "role": "user",
+        "text": "That checklist-and-tests routine is my standard release workflow across projects."
+      }
+    ],
+    "required": [
+      {
+        "kind": "behavioral_pattern"
+      }
+    ]
   }
 ]

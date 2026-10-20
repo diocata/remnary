@@ -41,6 +41,12 @@ The model wire protocol orders classification/event/evidence before dependent su
 
 Long runs show counters automatically in interactive terminals. Use `--progress` to receive the same conversation/window progress on stderr in scripted runs. These events contain no source text/titles/quotes. Completed sources remain checkpointed; failed sources remain pending. Model tag contents can change without their name changing; weight-digest cache identity is still an open release concern.
 
+The subsequent v8 targeted rerun passed 3/3 and its full 18-case development run passed 18/18 in 375.5 seconds. This is development evidence, not an independent accuracy estimate. The current producer v10 additionally excludes recognized provider control frames, checks statement support at sentence level so mixed messages retain genuine preferences, and requires at least two distinct user-message IDs for inferred preferences/patterns. Duplicate quotes from one message do not establish recurrence. The broad typed contract still supports all seven kinds; narrow rhetorical corrections remain eligible. The expanded fixture now also checks one-off versus repeated workflows.
+
+`evaluate-model.py --case CASE_ID` supports targeted reruns. Full reports include the loaded fixture SHA-256 and a frozen tested-executable SHA-256, so concurrent local rebuilds do not silently change an evaluation's binary. The twenty-case current rerun remains in progress. Model-weight/daemon identity for mutable-tag cache invalidation remains a release concern.
+
+Discovery ranking now favors explicit corrections/preferences/decisions over generic topics when recurrence and human-confirmation status tie, before recency/hash ordering. It never fabricates timestamps or confirmation. The consumer-history trial exposed this unknown-date ranking problem; revised source-based usefulness review is still required.
+
 When switching models, explicitly retire older automatic results after a successful run:
 
 ```sh

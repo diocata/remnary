@@ -39,8 +39,10 @@ Distinguish these cases carefully:
 - "I prefer concise explanations for work messages" -> an explicit scoped preference.
 - "You added dependencies after I asked you not to. Stop adding dependencies to this CLI" -> a scoped correction.
 - "For the SignalLog project, I'm comparing full-text ranking and revision indexing" -> a project reference or technical topic; not a personal preference.
-- Repeated user evidence about a workflow can support a tentative behavioral pattern, labeled inferred; a one-time command cannot.
+- Repeated user evidence about a workflow can support a tentative behavioral pattern, labeled inferred; a one-time command cannot. Inferred preferences and behavioral patterns must cite at least two distinct user-message IDs; repeating two quotes from the same message is insufficient.
 Only record a correction when text actually corrects/restricts assistant behavior. A question about a simpler solution is not by itself a correction. Keep a decision event separate from an enduring preference. Quotes must establish the summary: "I like what it shows" does not establish a preference for a clean/simple interface, and "What if I have many friends?" does not establish a requested profile/search feature. Do not fill in those missing meanings from assumptions. Quoted transcripts and assistant advice supply no personal preference.
+
+Category priority: a named option proposed, considered, chosen, reconsidered, reversed or confirmed for a project belongs to kind decision, even when it concerns a technical topic. Use topic for substantive exploration of a subject that is not such an option event. Preserve the event stage: an explicit change of mind is reversal/reconsideration, not merely a decision stating the new choice. A named ongoing project with a concrete purpose supports a narrow project_reference even when mentioned in only one conversation; do not discard this as a generic biographical fact. Do not turn a project-specific choice into a global preference.
 
 Allowed kinds are explicit_preference, inferred_preference, correction, decision, topic, project_reference, behavioral_pattern. Use the supplied schema's fields exactly. Observation fields use ordered protocol names: a_kind, b_inference, c_decision_event, d_evidence, e_subject, f_topic, g_context, h_canonical_value, i_summary. These mean kind, inference, decision_event, evidence, subject, topic, context, canonical_value and summary respectively. Classify first, choose supporting evidence next, then summarize only what it establishes. Every non-decision MUST set decision_event to null. Only kind decision has a non-null decision_event. Explicit preferences, corrections and decisions MUST set inference to explicit. Inferred preferences and behavioral patterns MUST set inference to inferred. Use null for absent context. Do not include commentary or Markdown fences."#;
 
@@ -425,26 +427,41 @@ fn grounded_schema(schema: &Value, conversation: &Conversation, revision: i64) -
     };
     fn bind(item: &mut Value, conversation: &Conversation, revision: i64) -> bool {
         if item.pointer("/properties/evidence/items").is_some() {
-            let needs_statement = matches!(
-                item.pointer("/properties/kind/const")
-                    .and_then(Value::as_str),
-                Some("explicit_preference" | "correction")
-            );
-            let choices=conversation.messages.iter()
-                .filter(|m|crate::intelligence::eligible_personal_evidence(m)
-                    && !(needs_statement && crate::intelligence::is_option_question(&m.content)))
-                .map(|message| {
-            json!({"type":"object","additionalProperties":false,
-            "required":["provider","conversation_id","revision","source_message_id","quote"],
-            "properties":{
-                "provider":{"const":conversation.provider},
-                "conversation_id":{"const":conversation.stable_id()},
-                "revision":{"const":revision},
-                "source_message_id":{"const":message.source_id},
-                "quote":{"type":"string","enum":crate::intelligence::personal_evidence_spans(message).into_iter().flat_map(quote_choices).collect::<std::collections::BTreeSet<_>>()}
-            }})
-        })
-                .collect::<Vec<_>>();
+            let kind = item
+                .pointer("/properties/kind/const")
+                .and_then(Value::as_str);
+            if matches!(kind, Some("inferred_preference" | "behavioral_pattern"))
+                && conversation
+                    .messages
+                    .iter()
+                    .filter(|m| crate::intelligence::eligible_personal_evidence(m))
+                    .map(|m| &m.source_id)
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len()
+                    < 2
+            {
+                return false;
+            }
+            let choices = conversation.messages.iter()
+                .filter(|message| crate::intelligence::eligible_personal_evidence(message))
+                .filter_map(|message| {
+                    let quotes = crate::intelligence::personal_evidence_spans(message).into_iter()
+                        .flat_map(quote_choices).filter(|quote| match kind {
+                            Some("explicit_preference") => crate::intelligence::statement_quote_supported(message, quote, crate::intelligence::ExtractionKind::ExplicitPreference),
+                            Some("correction") => crate::intelligence::statement_quote_supported(message, quote, crate::intelligence::ExtractionKind::Correction),
+                            _ => true,
+                        }).collect::<std::collections::BTreeSet<_>>();
+                    if quotes.is_empty() { return None; }
+                    Some(json!({"type":"object","additionalProperties":false,
+                        "required":["provider","conversation_id","revision","source_message_id","quote"],
+                        "properties":{
+                            "provider":{"const":conversation.provider},
+                            "conversation_id":{"const":conversation.stable_id()},
+                            "revision":{"const":revision},
+                            "source_message_id":{"const":message.source_id},
+                            "quote":{"type":"string","enum":quotes}
+                        }}))
+                }).collect::<Vec<_>>();
             if choices.is_empty() {
                 return false;
             }
@@ -1060,7 +1077,7 @@ mod tests {
             .unwrap()
             .as_array()
             .unwrap();
-        assert_eq!(branches.len(), 5);
+        assert_eq!(branches.len(), 3);
         assert!(branches.iter().all(|branch| !matches!(
             branch["properties"]["kind"]["const"].as_str(),
             Some("explicit_preference" | "correction")

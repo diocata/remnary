@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     analysis_store::{AnalysisTarget, ObservationRecord, ObservationStatus},
-    intelligence::EvidenceRef,
+    intelligence::{EvidenceRef, ExtractionKind},
     model::Message,
 };
 
@@ -241,11 +241,28 @@ pub fn rank_discoveries(
                 (right.status == ObservationStatus::UserConfirmed)
                     .cmp(&(left.status == ObservationStatus::UserConfirmed))
             })
+            .then_with(|| {
+                discovery_kind_priority(right.observation.kind)
+                    .cmp(&discovery_kind_priority(left.observation.kind))
+            })
             .then_with(|| compare_time_desc(left.last_seen, right.last_seen))
             .then_with(|| left.id.cmp(&right.id))
     });
     observations.truncate(limit);
     observations
+}
+
+// The MVP centers on actionable preferences/corrections/decisions. Generic
+// topics should not win an unknown-date tie merely through their hash value.
+fn discovery_kind_priority(kind: ExtractionKind) -> u8 {
+    match kind {
+        ExtractionKind::Correction => 5,
+        ExtractionKind::ExplicitPreference => 4,
+        ExtractionKind::Decision => 3,
+        ExtractionKind::ProjectReference => 2,
+        ExtractionKind::InferredPreference | ExtractionKind::BehavioralPattern => 1,
+        ExtractionKind::Topic => 0,
+    }
 }
 
 fn set_evidence_counts(record: &mut ObservationRecord) {
@@ -508,6 +525,31 @@ mod tests {
         assert_eq!(snippet.chars().count(), SNIPPET_CHARS);
         assert!(text.starts_with(snippet));
         assert_eq!(exact_snippet("small"), "small");
+    }
+
+    #[test]
+    fn discovery_ties_prioritize_explicit_insights_over_generic_topics() {
+        let mut records = Vec::new();
+        for (id, kind) in [
+            ("a", ExtractionKind::Topic),
+            ("b", ExtractionKind::ProjectReference),
+            ("c", ExtractionKind::Decision),
+            ("d", ExtractionKind::ExplicitPreference),
+            ("e", ExtractionKind::Correction),
+        ] {
+            let mut record = observations(&target()).remove(0);
+            record.id = id.into();
+            record.observation.kind = kind;
+            record.last_seen = None;
+            records.push(record);
+        }
+        assert_eq!(
+            rank_discoveries(records, 5)
+                .iter()
+                .map(|r| r.id.as_str())
+                .collect::<Vec<_>>(),
+            ["e", "d", "c", "b", "a"]
+        );
     }
 
     #[test]
