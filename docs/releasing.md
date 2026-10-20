@@ -18,4 +18,4 @@ Extract the archive into a directory you own and run `./observr --version` there
 shasum -a 256 -c observr-VERSION-evaluation-COMMIT-aarch64-apple-darwin.tar.gz.sha256
 ```
 
-The local package is unsigned and unnotarized. Public distribution, code signing, notarization, hosted CI evidence and a repository-specific private security reporting channel require separate release setup. This script performs no publication, signing, installation or model download.
+The binary has the Apple Silicon linker’s ad-hoc signature, which the recipe verifies. It has no Developer ID distribution signature and is unnotarized. Public distribution, code signing, notarization, hosted CI evidence and a repository-specific private security reporting channel require separate release setup. This script performs no publication, signing, installation or model download.

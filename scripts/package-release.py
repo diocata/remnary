@@ -54,6 +54,10 @@ def main():
         "--target-dir", "target/package-build", env=env)
     binary = ROOT / "target/package-build" / target / "release/observr"
     run(str(binary), "--version")
+    run("codesign", "--verify", "--strict", str(binary))
+    signature = run("codesign", "-dv", str(binary), capture_output=True, text=True).stderr
+    if "Signature=adhoc" not in signature or "TeamIdentifier=not set" not in signature:
+        raise SystemExit("Expected the linker's ad-hoc signature without a distribution identity.")
     # Exercise the packaged binary against a fresh encrypted archive, not real data.
     with tempfile.TemporaryDirectory(prefix="observr-release-smoke-") as temporary:
         base = Path(temporary)
@@ -78,7 +82,8 @@ def main():
         "status": "evaluation; production readiness not established",
         "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
         "cargo_lock_sha256": hashlib.sha256((ROOT / "Cargo.lock").read_bytes()).hexdigest(),
-        "minimum_macos": "27.0.1", "signed": False, "notarized": False,
+        "minimum_macos": "27.0.1", "code_signing": "linker-ad-hoc",
+        "developer_id_signed": False, "notarized": False,
     }
     files = [("observr", binary)]
     for selected in ["README.md", "LICENSE", "SECURITY.md", "docs", "third_party"]:
