@@ -372,3 +372,39 @@ fn replacing_weights_or_daemon_invalidates_cached_runs() -> Result<()> {
     assert!(store.analysis_targets(&first)?.is_empty());
     Ok(())
 }
+
+#[test]
+fn unreconciled_paraphrases_cannot_bypass_an_existing_rejection() -> Result<()> {
+    let temp = tempfile::tempdir()?;
+    let mut store = Store::init(temp.path())?;
+    let mut sources = fixture()?;
+    sources.truncate(1);
+    sources[0].messages.retain(|message| message.role == "user");
+    sources[0].messages.truncate(1);
+    sources[0].messages[0].content = "I prefer Rust for local command-line tools.".into();
+    store.import(&sources)?;
+    let mut processor = Processor::ollama("synthetic");
+    processor.version = "review-identity-a".into();
+    let target = store.analysis_targets(&processor)?.remove(0);
+    let output = extract_rules(&target.conversation, target.revision);
+    assert_eq!(output.observations.len(), 1);
+    store.save_analysis(&target, &processor, output.clone())?;
+    let reviewed = store.observations(false)?.remove(0);
+    store.feedback(&reviewed.id, FeedbackAction::Reject, None)?;
+    let mut paraphrase = output;
+    paraphrase.observations[0].canonical_value =
+        "favor Rust when making local CLI applications".into();
+    paraphrase.observations[0].summary = "User favors Rust for local CLI applications.".into();
+    processor.version = "review-identity-b".into();
+    let error = store
+        .save_analysis(&target, &processor, paraphrase)
+        .unwrap_err();
+    assert!(error.to_string().contains("identity reconciliation"));
+    assert!(store.observations(false)?.is_empty());
+    assert_eq!(
+        store.observations(true)?[0].status,
+        ObservationStatus::UserRejected
+    );
+    assert_eq!(store.analysis_targets(&processor)?.len(), 1);
+    Ok(())
+}

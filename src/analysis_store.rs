@@ -211,6 +211,28 @@ impl Store {
             active.0 == target.revision && active.1 == target.conversation.fingerprint()?,
             "conversation changed while analysis ran; rerun analysis on its current revision"
         );
+        // A new canonical wording must not silently bypass a human review
+        // attached to the exact same cited statement. Without an explicit
+        // identity reconciliation, leave this source pending rather than
+        // treating the paraphrase as a new, unreviewed fact.
+        for observation in &output.observations {
+            let id = observation.stable_id();
+            let kind = enum_name(&observation.kind)?;
+            for evidence in &observation.evidence {
+                let conflict: bool = transaction.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM observations o JOIN evidence e ON e.observation_id = o.id
+                     WHERE o.id != ?1 AND o.kind = ?2 AND e.conversation_id = ?3 AND e.message_id = ?4
+                       AND e.quote = ?5 AND o.status IN ('user_confirmed','user_rejected','dismissed','superseded')
+                       AND EXISTS(SELECT 1 FROM user_feedback f WHERE f.observation_id = o.id))",
+                    params![id,kind,evidence.conversation_id,evidence.source_message_id,evidence.quote],
+                    |row|row.get(0),
+                )?;
+                ensure!(
+                    !conflict,
+                    "new claim wording conflicts with an existing review of the same source statement; canonical identity reconciliation is required"
+                );
+            }
+        }
         let run_id = processor.run_id(target)?;
         let inserted = transaction.execute(
             "INSERT OR IGNORE INTO analysis_runs (id, conversation_id, revision, engine, processor_version, model, prompt_version)
