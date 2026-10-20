@@ -84,8 +84,21 @@ The store now stops an unreconciled candidate when a different canonical identit
 
 ## Producer v13: bounded requests and consistent summaries
 
-Producer and prompt version 13 disable automatic reasoning for the evaluated `qwen35` family, using `think: false`, 4,096 output tokens and a 120-second request deadline. Other families retain capability-based behavior. The slower v12 reversal diagnostic justified this change; its separate targeted comparison is not a full-pipeline accuracy result. The complete v13 development extraction run is pending.
+Producer and prompt version 13 disable automatic reasoning for the evaluated `qwen35` family, using `think: false`, 4,096 output tokens and a 120-second request deadline. Other families retain capability-based behavior. The slower v12 reversal diagnostic justified this change; its separate targeted comparison is not a full-pipeline accuracy result. The complete v13 development extraction run passed 20/20 in 184.33 seconds with twelve candidate extractions. Its frozen binary SHA-256 is `9a3b4b9667eb5a60823e106f15038c7e3d7a65e275f2af0f0febdf5962b4347d`. This is development evidence, not independent accuracy or usefulness acceptance.
 
 Generation and verification now require the summary to paraphrase the full canonical identity without adding facts absent from that identity, even when those facts appear elsewhere in a citation. Directional reversals must identify which choice was abandoned and which was selected. The expanded synthetic verifier check passed 18/18 in 19.09 seconds (six supported controls and twelve rejected errors); these are development regressions rather than an independent accuracy estimate.
 
 Window sizing includes the actual serialized analysis envelope, source identifiers, JSON escaping and quote choices. Oversized text fragments split at UTF-8 boundaries with bounded overlap; many short messages also split before exceeding the envelope budget. A successfully reverified extraction may refresh an unreviewed automatic summary under its unchanged canonical ID. Human review and corrected text stay authoritative; an explicit reset returns wording to automatic management.
+
+
+## Producer v14: conservative canonical identity reuse
+
+Version 14 adds bounded semantic matching against existing identities, followed by source entailment of every proposed reused identity. Explicit pairwise distinction can resolve separate facts sharing a reviewed quotation. Uncertain/ambiguous reviewed overlaps stay pending. The database rechecks a knowledge/review snapshot before committing. [Identity and transaction rules](architecture.md#canonical-identity-reuse).
+
+Offline tests cover strict relation decoding, persistent rejection under paraphrase, distinct facts with shared quotes, concurrent feedback/deletion, real conversation recurrence without confirmation and failed-reuse fallback retaining exact evidence. The local-model semantic identity fixture must be run separately from offline tests:
+
+```sh
+./scripts/cargo-local test --locked --lib reconciliation::local_model -- --ignored --nocapture
+```
+
+The ten cases check paraphrases, task/project scope, consideration versus choice, negation, distinct facts, general versus scoped preferences and reversal direction. Its model result and the complete v14 pipeline evaluation remain pending; code-level tests alone do not establish semantic quality.

@@ -13,7 +13,7 @@ SQLite handles frequent writes, foreign keys, transactions and full-text search.
 
 Conversation identity hashes `(provider, source_id)`; messages are scoped to `(conversation, revision, source_message_id)`. Fingerprints exclude import time. Changed input adds a revision; identical input does nothing; an older known update timestamp cannot replace a newer one. Missing times stay unknown. Branch relationships are preserved without implying a linear conversation. Original source metadata remains encrypted with normalized records.
 
-Schema version 4 follows transactional version-1/2/3 migrations. Foreign/newer/corrupt databases are rejected; empty interrupted initialization is recoverable. Foreign keys, bounded locking and rollback journaling protect canonical writes. Encrypted connections apply keys before schema reads; temporary SQL storage uses memory. Online encrypted backup validates integrity and publishes a private file without overwriting an existing destination.
+Schema version 5 follows transactional version-1/2/3/4 migrations. Foreign/newer/corrupt databases are rejected; empty interrupted initialization is recoverable. Foreign keys, bounded locking and rollback journaling protect canonical writes. Encrypted connections apply keys before schema reads; temporary SQL storage uses memory. Online encrypted backup validates integrity and publishes a private file without overwriting an existing destination.
 
 ## Analysis and review
 
@@ -23,7 +23,7 @@ Deterministic observation identities preserve context, negation, kind and event 
 
 Reports resolve evidence against current, included source revisions. Daily digests use IANA timezones and explicitly report unknown times. Persistent active-run heads select the latest completed processor/prompt version per source revision/engine/model. Automatic evidence from replaced runs retires; grounded human review remains authoritative. Distinct selected engines/models can contribute candidates concurrently. Heads survive VACUUM and backup; old payloads remain history. Replaced projections enter durable cleanup.
 
-Local-model extraction uses user-only windows bounded to 8 KiB of text, with UTF-8-safe overlapping fragments for long messages. A conversation is limited to 256 windows and commits only after every window validates. Windows preserve original source IDs/revisions; citations are checked against both the submitted window and original source. Omitted context stays unknown. No-user conversations checkpoint an empty result without model calls. Each request has a 24,000-byte prompt/data cap, a 32K context request, a 4K completion cap (8K total when the local model advertises reasoning) and existing HTTP/response time/size bounds.
+Local-model extraction uses user-only windows bounded to 8 KiB of text, with UTF-8-safe overlapping fragments for long messages. Window sizing additionally accounts for the complete serialized prompt/data envelope, including quote choices and escaped source identifiers. A conversation is limited to 256 windows and commits only after every window validates. Windows preserve original source IDs/revisions; citations are checked against both the submitted window and original source. Omitted context stays unknown. No-user conversations checkpoint an empty result without model calls. Each request has a 24,000-byte prompt/data cap, a 32K context request, a 4K completion cap (8K total for compatible reasoning families; the evaluated Qwen family uses non-thinking generation) and existing HTTP/response time/size bounds.
 
 ## Files and deletion
 
@@ -36,3 +36,12 @@ An advisory projection lock serializes publication with feedback, exclusion and 
 Exports remain plaintext by explicit user choice. Original sources, independent copies, historical backups, operating-system memory and forensic erasure are outside canonical deletion's guarantees. Restore clears projection ownership so recovery cannot delete the original archive's external files.
 
 The dashboard binds loopback, uses a random bearer token, checks Host/Origin and mutation types, serves a restrictive CSP and renders through text nodes. No telemetry, cloud account, remote extraction or watcher is implemented. Same-user malware and a hostile local model daemon are outside the protection boundary. See [sources](sources.md), [security](../SECURITY.md) and [release evidence](readiness.md).
+
+
+## Canonical identity reuse
+
+Producer v14 compares a new verified claim with a bounded catalog of existing identities. Retrieval prioritizes overlapping citations and shared claim words, includes same-kind alternatives and caps comparisons at twelve roots per candidate. Catalog identities are possible labels, never evidence; identifying text recognized by the redactor excludes a root from model matching. Review text and status are not sent to the model.
+
+A single unambiguous semantic equivalent may reuse the existing complete canonical identity and automatic summary. Kind, explicit/inferred status and decision stage must remain identical. The reused claim then passes the independent entailment check using only the new window's exact user quotations. If reuse fails this check, the original separately verified claim remains separate. Multiple equivalent proposals and uncertain matches do not merge. This is conservative bounded retrieval, not exhaustive entity resolution.
+
+A reviewed overlapping citation can also contain a distinct fact. Only an explicit pairwise distinct verdict permits that new claim through the overlap guard. The receipt hashes canonical identities, evidence, feedback history, deletion tombstones, source revisions/exclusions and active analysis heads; the write transaction rechecks it. A change while matching leaves the source pending. Existing review status, corrections and history remain authoritative. There are no alias chains or rewritten source messages. Recurrence counts only actual distinct included conversations; semantic matching never confirms a profile fact.

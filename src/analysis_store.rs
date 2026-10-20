@@ -40,9 +40,9 @@ impl Processor {
     pub fn ollama(model: &str) -> Self {
         Self {
             engine: "ollama".into(),
-            version: "13".into(),
+            version: "14".into(),
             model: model.into(),
-            prompt_version: "13".into(),
+            prompt_version: "14".into(),
         }
     }
 
@@ -194,12 +194,35 @@ impl Store {
         processor: &Processor,
         output: AnalysisOutput,
     ) -> Result<usize> {
+        self.save_analysis_impl(target, processor, output, None)
+    }
+
+    pub(crate) fn save_reconciled_analysis(
+        &mut self,
+        target: &AnalysisTarget,
+        processor: &Processor,
+        output: AnalysisOutput,
+        receipt: &crate::reconciliation::Receipt,
+    ) -> Result<usize> {
+        self.save_analysis_impl(target, processor, output, Some(receipt))
+    }
+
+    fn save_analysis_impl(
+        &mut self,
+        target: &AnalysisTarget,
+        processor: &Processor,
+        output: AnalysisOutput,
+        receipt: Option<&crate::reconciliation::Receipt>,
+    ) -> Result<usize> {
         let output = validate_output(&target.conversation, target.revision, output)?;
         let source_id = target.conversation.stable_id();
         let _projection_guard = self.projection_lock()?;
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(receipt) = receipt {
+            receipt.check(&transaction)?;
+        }
         let active: Option<(i64, String)> = transaction.query_row(
             "SELECT c.current_revision, r.fingerprint FROM conversations c JOIN conversation_revisions r
              ON r.conversation_id = c.id AND r.revision = c.current_revision
@@ -225,16 +248,19 @@ impl Store {
                     .find(|message| message.source_id == evidence.source_message_id)
                     .context("analysis references a missing source message")?;
                 let mut reviewed = transaction.prepare(
-                    "SELECT DISTINCT e.quote FROM observations o JOIN evidence e ON e.observation_id=o.id
+                    "SELECT DISTINCT o.id,e.quote FROM observations o JOIN evidence e ON e.observation_id=o.id
                      WHERE o.id != ?1 AND e.conversation_id=?2 AND e.message_id=?3
                        AND o.status IN ('user_confirmed','user_rejected','dismissed','superseded')
                        AND EXISTS(SELECT 1 FROM user_feedback f WHERE f.observation_id=o.id)")?;
                 let quotes = reviewed.query_map(
                     params![id, evidence.conversation_id, evidence.source_message_id],
-                    |row| row.get::<_, String>(0),
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
                 )?;
                 for quote in quotes {
-                    let quote = quote?;
+                    let (reviewed_id, quote) = quote?;
+                    if receipt.is_some_and(|receipt| receipt.permits_distinct(&id, &reviewed_id)) {
+                        continue;
+                    }
                     if quote.is_empty() {
                         continue;
                     }

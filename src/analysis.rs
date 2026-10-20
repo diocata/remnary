@@ -80,6 +80,7 @@ pub fn analyze_with_progress(
         progress(AnalysisProgress::Conversation { current, total });
         let result = (|| -> Result<(usize, usize)> {
             let mut rejected_candidates = 0;
+            let mut reconciliation: Option<crate::reconciliation::Receipt> = None;
             // No raw message metadata or obvious credentials cross the analysis
             // boundary, including when using deterministic local rules.
             let redacted = redact_conversation(&target.conversation)?;
@@ -120,6 +121,45 @@ pub fn analyze_with_progress(
                             grounded,
                         )?;
                         rejected_candidates += rejected;
+                        let (reconciled, receipt) = crate::reconciliation::reconcile(
+                            store,
+                            endpoint,
+                            model,
+                            identity.as_ref().expect("model identity resolved"),
+                            &batch,
+                            verified.clone(),
+                        )?;
+                        let verified = if reconciled != verified {
+                            // Recheck the existing canonical claim against only
+                            // this bounded window's NEW supporting citations.
+                            let changes = AnalysisOutput {
+                                observations: verified
+                                    .observations
+                                    .iter()
+                                    .zip(&reconciled.observations)
+                                    .filter(|(old, new)| old != new)
+                                    .map(|(_, new)| new.clone())
+                                    .collect(),
+                                ..AnalysisOutput::default()
+                            };
+                            let (supported, _) = crate::verification::verify_observations(
+                                endpoint,
+                                model,
+                                identity.as_ref().expect("model identity resolved"),
+                                &batch,
+                                changes,
+                            )?;
+                            crate::reconciliation::retain_supported_bindings(
+                                verified, reconciled, supported,
+                            )?
+                        } else {
+                            reconciled
+                        };
+                        if let Some(previous) = &mut reconciliation {
+                            previous.merge(receipt)?;
+                        } else {
+                            reconciliation = Some(receipt);
+                        }
                         observations.extend(verified.observations);
                     }
                     AnalysisOutput {
@@ -134,10 +174,12 @@ pub fn analyze_with_progress(
             // Source identity is unchanged by redaction. Quotes must still be
             // exact spans in the ORIGINAL revision, so a redaction placeholder
             // cannot become fabricated supporting evidence.
-            Ok((
-                store.save_analysis(&target, &processor, output)?,
-                rejected_candidates,
-            ))
+            let count = if let Some(receipt) = reconciliation {
+                store.save_reconciled_analysis(&target, &processor, output, &receipt)?
+            } else {
+                store.save_analysis(&target, &processor, output)?
+            };
+            Ok((count, rejected_candidates))
         })();
         progress(AnalysisProgress::Finished {
             conversation: current,
