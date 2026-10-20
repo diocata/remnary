@@ -184,11 +184,61 @@ fn declared_preference(quote: &str) -> bool {
     })
 }
 
-fn filter_unstated_preferences(mut output: AnalysisOutput) -> (AnalysisOutput, usize) {
+fn routine_command(quote: &str) -> bool {
+    let text = quote.trim().to_lowercase().replace('’', "'");
+    // Mixed messages may contain an actual choice/preference in addition to a
+    // command; keep those for semantic checking instead of hiding that evidence.
+    if declared_preference(quote)
+        || [
+            " chose ",
+            " decided ",
+            " considering ",
+            " instead of ",
+            " rather than ",
+            " because ",
+        ]
+        .iter()
+        .any(|marker| text.contains(marker))
+    {
+        return false;
+    }
+    if crate::intelligence::sentence_spans(&text).len() > 1 {
+        return false;
+    }
+    [
+        "create a new file ",
+        "create new file ",
+        "make a new file ",
+        "add a new file ",
+        "write a file ",
+        "place this draft ",
+        "place the draft ",
+        "put this draft ",
+        "put the draft ",
+        "save this file ",
+        "save the file ",
+        "open this file ",
+        "open the file ",
+        "push the commits",
+        "push commits",
+        "git push",
+        "install this app",
+        "uninstall this app",
+    ]
+    .iter()
+    .any(|prefix| text.starts_with(prefix))
+        || matches!(
+            text.trim_end_matches(['.', '!']),
+            "continue" | "proceed" | "go ahead" | "do it"
+        )
+}
+
+fn filter_ineligible_claims(mut output: AnalysisOutput) -> (AnalysisOutput, usize) {
     let before = output.observations.len();
     output.observations.retain(|o| {
-        o.kind != crate::intelligence::ExtractionKind::ExplicitPreference
-            || o.evidence.iter().any(|e| declared_preference(&e.quote))
+        !o.evidence.iter().all(|e| routine_command(&e.quote))
+            && (o.kind != crate::intelligence::ExtractionKind::ExplicitPreference
+                || o.evidence.iter().any(|e| declared_preference(&e.quote)))
     });
     let rejected = before - output.observations.len();
     (output, rejected)
@@ -235,7 +285,7 @@ pub fn verify_observations(
     );
     // Check provenance before filtering, including for an all-omitted batch.
     cited_context(source, &output)?;
-    let (output, omitted) = filter_unstated_preferences(output);
+    let (output, omitted) = filter_ineligible_claims(output);
     if output.observations.is_empty() {
         return Ok((output, omitted));
     }
@@ -412,12 +462,35 @@ mod preference_gate_tests {
             json!({"schema_version":1,"observations":[{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"files","context":null,"canonical_value":"prefers puzzle game files","summary":"Prefers puzzle game files.","decision_event":null,"evidence":[{"provider":"synthetic","conversation_id":source.stable_id(),"revision":1,"source_message_id":"m","quote":source.messages[0].content}]}]}),
         )?;
         assert!(cited_context(&source, &output).is_ok());
-        let (filtered, count) = filter_unstated_preferences(output.clone());
+        let (filtered, count) = filter_ineligible_claims(output.clone());
         assert!(filtered.observations.is_empty());
         assert_eq!(count, 1);
         let mut invalid = output;
         invalid.observations[0].evidence[0].quote = "fabricated".into();
         assert!(cited_context(&source, &invalid).is_err());
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod routine_gate_tests {
+    use super::*;
+    #[test]
+    fn routine_file_task_cannot_escape_as_decision_but_mixed_choice_is_retained() {
+        let mut output:AnalysisOutput=serde_json::from_value(json!({"schema_version":1,"observations":[{"kind":"decision","inference":"explicit","subject":"user","topic":"file creation","context":null,"canonical_value":"proposes a puzzle file","summary":"Proposes creating a puzzle file.","decision_event":"proposal","evidence":[{"provider":"synthetic","conversation_id":"one","revision":1,"source_message_id":"m","quote":"Create a new file with a puzzle game."}]}]})).unwrap();
+        let (filtered, omitted) = filter_ineligible_claims(output.clone());
+        assert!(filtered.observations.is_empty());
+        assert_eq!(omitted, 1);
+        for quote in [
+            "Create a new file for the parser. I prefer Rust for this tool.",
+            "I chose Rust instead of Python for LumenLog.",
+            "Create a new file in Rust because I chose it over Python.",
+            "I am building LumenLog, a JSONL browser.",
+        ] {
+            output.observations[0].evidence[0].quote = quote.into();
+            let (kept, omitted) = filter_ineligible_claims(output.clone());
+            assert_eq!(kept.observations.len(), 1, "{quote}");
+            assert_eq!(omitted, 0);
+        }
     }
 }

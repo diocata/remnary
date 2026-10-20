@@ -113,3 +113,10 @@ V15 requires a recognizable English/Portuguese first-person preference declarati
 Support verification now receives only claims and their citations. Survivors receive a separate context check if any citation omits surrounding source text. The second pass may invalidate a claim but can never restore one the first pass rejected. The initial expanded verifier development check passed 23/23 in 18.06 seconds, including the ordinary-request failures. A further expansion adds product ownership, one appointment, an unnamed project, a named project control and an unsupported book-interest claim; that 28-case result remains pending.
 
 The v14 identity-only model check had failed the general-versus-scoped case. V15 adds an independent structural boundary for null versus non-null context and makes the prompt's scope rule explicit. Its ten identity development cases now pass in 16.77 seconds. The full extraction fixture has expanded from twenty to twenty-six cases, including genuine declared shopping preference as a positive control. Its v15 result and the clean real-corpus run remain pending.
+
+
+## Producer v16: routine-command type bypass
+
+The v15 full extraction development run completed all 26 sources in 364.61 seconds and scored 25/26. Its sole failure reclassified a routine file-creation command as a decision proposal, bypassing the preference-only gate. No v15 real run was started.
+
+V16 filters common routine file/draft/push/continuation commands across all kinds. It retains mixed messages containing a separate preference/choice or multiple sentences for semantic checking. This is a conservative list, not a complete multilingual intent classifier. The targeted file-creation case now passes with no observation. All 182 offline tests pass (163 library, twelve analysis, seven CLI/source); the 28-case verifier and complete 26-case pipeline checks are pending.
