@@ -298,3 +298,64 @@ fn explicit_model_selection_retires_only_completed_source_results_and_keeps_revi
     assert!(store.select_model_results(&Processor::rules()).is_err());
     Ok(())
 }
+
+#[test]
+fn progress_reports_completed_and_failed_sources_without_exposing_payloads() -> Result<()> {
+    use observr::analysis::{AnalysisEngine, AnalysisProgress, analyze_with_progress};
+    let temp = tempfile::tempdir()?;
+    let mut store = Store::init(temp.path())?;
+    store.import(&fixture()?)?;
+    let mut events = Vec::new();
+    let summary = analyze_with_progress(&mut store, AnalysisEngine::Rules, |event| {
+        events.push(event)
+    })?;
+    assert_eq!(summary.processed, 2);
+    assert_eq!(events.len(), 4);
+    assert!(matches!(
+        events[0],
+        AnalysisProgress::Conversation {
+            current: 1,
+            total: 2
+        }
+    ));
+    assert!(matches!(
+        events[1],
+        AnalysisProgress::Finished {
+            conversation: 1,
+            success: true
+        }
+    ));
+    events.clear();
+    // Remote endpoints fail locally before any network request or content send.
+    let summary = analyze_with_progress(
+        &mut store,
+        AnalysisEngine::Ollama {
+            endpoint: "https://example.invalid",
+            model: "synthetic",
+        },
+        |event| events.push(event),
+    )?;
+    assert_eq!(summary.processed, 0);
+    assert_eq!(summary.failures.len(), 2);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, AnalysisProgress::Window { .. }))
+            .count(),
+        2
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, AnalysisProgress::Finished { success: false, .. }))
+            .count(),
+        2
+    );
+    assert_eq!(
+        store
+            .analysis_targets(&Processor::ollama("synthetic"))?
+            .len(),
+        2
+    );
+    Ok(())
+}

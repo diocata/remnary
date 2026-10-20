@@ -7,8 +7,8 @@ use crate::{
     analysis_batches::model_batches,
     analysis_store::Processor,
     intelligence::{
-        AnalysisOutput, extract_rules, focused_output_schema, group_observations,
-        validate_focused_output,
+        AnalysisOutput, extract_rules, group_observations, model_output_schema,
+        validate_model_output,
     },
     ollama::analyze_json,
     privacy::redact_conversation,
@@ -27,16 +27,46 @@ pub enum AnalysisEngine<'a> {
     Ollama { endpoint: &'a str, model: &'a str },
 }
 
+/// Payload-free progress for long local-model runs. No titles, message text,
+/// quotes or source metadata are exposed through this callback.
+#[derive(Debug, Clone, Copy)]
+pub enum AnalysisProgress {
+    Conversation {
+        current: usize,
+        total: usize,
+    },
+    Window {
+        conversation: usize,
+        current: usize,
+        total: usize,
+    },
+    Finished {
+        conversation: usize,
+        success: bool,
+    },
+}
+
 /// Completed conversations commit independently. A failed conversation remains
 /// pending and can be retried without repeating successful work.
 pub fn analyze(store: &mut Store, engine: AnalysisEngine<'_>) -> Result<AnalysisSummary> {
+    analyze_with_progress(store, engine, |_| {})
+}
+
+pub fn analyze_with_progress(
+    store: &mut Store,
+    engine: AnalysisEngine<'_>,
+    mut progress: impl FnMut(AnalysisProgress),
+) -> Result<AnalysisSummary> {
     let processor = match &engine {
         AnalysisEngine::Rules => Processor::rules(),
         AnalysisEngine::Ollama { model, .. } => Processor::ollama(model),
     };
     let targets = store.analysis_targets(&processor)?;
     let mut summary = AnalysisSummary::default();
-    for target in targets {
+    let total = targets.len();
+    for (index, target) in targets.into_iter().enumerate() {
+        let current = index + 1;
+        progress(AnalysisProgress::Conversation { current, total });
         let result = (|| -> Result<usize> {
             // No raw message metadata or obvious credentials cross the analysis
             // boundary, including when using deterministic local rules.
@@ -45,11 +75,18 @@ pub fn analyze(store: &mut Store, engine: AnalysisEngine<'_>) -> Result<Analysis
                 AnalysisEngine::Rules => extract_rules(&redacted, target.revision),
                 AnalysisEngine::Ollama { endpoint, model } => {
                     let mut observations = Vec::new();
-                    for batch in model_batches(&redacted)? {
+                    let batches = model_batches(&redacted)?;
+                    let windows = batches.len();
+                    for (window, batch) in batches.into_iter().enumerate() {
+                        progress(AnalysisProgress::Window {
+                            conversation: current,
+                            current: window + 1,
+                            total: windows,
+                        });
                         let json = analyze_json(
                             endpoint,
                             model,
-                            &focused_output_schema(),
+                            &model_output_schema(),
                             &batch,
                             target.revision,
                         )?;
@@ -62,7 +99,7 @@ pub fn analyze(store: &mut Store, engine: AnalysisEngine<'_>) -> Result<Analysis
                         // Validate against the window actually sent, then the
                         // original immutable source again before committing.
                         observations.extend(
-                            validate_focused_output(&batch, target.revision, output)?.observations,
+                            validate_model_output(&batch, target.revision, output)?.observations,
                         );
                     }
                     AnalysisOutput {
@@ -79,6 +116,10 @@ pub fn analyze(store: &mut Store, engine: AnalysisEngine<'_>) -> Result<Analysis
             // cannot become fabricated supporting evidence.
             store.save_analysis(&target, &processor, output)
         })();
+        progress(AnalysisProgress::Finished {
+            conversation: current,
+            success: result.is_ok(),
+        });
         match result {
             Ok(count) => {
                 summary.processed += 1;

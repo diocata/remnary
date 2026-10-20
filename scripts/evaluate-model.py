@@ -56,6 +56,11 @@ def main():
         for case in cases:
             claims = [r["observation"] for r in records if any(e["conversation_id"] == identities[case["id"]] for e in r["observation"]["evidence"])]
             issues = []
+            if result.returncode and (identities[case["id"]] in result.stderr or not any(identity in result.stderr for identity in identities.values())):
+                issues.append("analysis did not complete for this source")
+            forbidden_values = case.get("forbidden_values", [])
+            if any(word.casefold() in (c["summary"]+" "+c["canonical_value"]).casefold() for c in claims for word in forbidden_values):
+                issues.append("unsupported meaning added to the source")
             if case.get("empty") and claims:
                 issues.append("expected no personal observation")
             if any(c["kind"] in case.get("forbidden", []) for c in claims):

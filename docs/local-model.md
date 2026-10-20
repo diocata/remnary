@@ -35,6 +35,12 @@ Processor v5 isolates the answer fields in structured question-panel replies, in
 
 A larger local comparator, `qwen3.5:9b-q4_K_M`, is installed (6,550,825,550 bytes; digest `sha256:56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90`). With v5 it passed the same ten development cases in 54.2 seconds. The subsequent real-history run completed all 35 sources with 45 candidates (42 preferences, three corrections) and retired the 35 older Ollama result sets in the evaluation copy. It still mislabeled execution requests and inferred more than some quoted spans established; no recurring claim had two sources. A larger non-reasoning model therefore did not close the quality gate. Both installed models remain local; neither is automatically downloaded by Observr.
 
+Processor v7 restores all seven typed extraction kinds, with at most eight candidates per window. It requests reasoning only when `/api/show` advertises `thinking`, increasing that request's total token budget to 8,192 while preserving the 120-second HTTP timeout and strict response bounds. Completion-only models retain 4,096 tokens and `think: false`.
+
+The model wire protocol orders classification/event/evidence before dependent summary fields using `a_kind` through `i_summary`. The adapter performs only a strict bijective field-name decode; missing, unknown or mixed fields fail. Values, quotes, categories and events are never repaired. Canonical records/dashboard/API field names are unchanged. This avoids generating an event placeholder before choosing its semantic kind when grammar properties are alphabetically ordered; [upstream ordering discussion](https://github.com/ollama/ollama/issues/18717). The v6 broad/reasoning experiment scored 15/18 on the expanded development set; v7 also scored 15/18 (385.8 seconds), with remaining option/reversal/project classification errors. Neither score is independent validation.
+
+Long runs show counters automatically in interactive terminals. Use `--progress` to receive the same conversation/window progress on stderr in scripted runs. These events contain no source text/titles/quotes. Completed sources remain checkpointed; failed sources remain pending. Model tag contents can change without their name changing; weight-digest cache identity is still an open release concern.
+
 When switching models, explicitly retire older automatic results after a successful run:
 
 ```sh

@@ -220,41 +220,39 @@ pub fn output_schema() -> Value {
     schema
 }
 
-/// Limit MVP generation to explicit choices and corrections. The broader
-/// contract remains available to future topic/project/inference processors.
-pub fn focused_output_schema() -> Value {
+/// Bound a window while retaining every MVP extraction kind. Separate const
+/// branches let citation constraints depend on the proposed classification.
+pub fn model_output_schema() -> Value {
     let mut schema = output_schema();
     let branches = schema["properties"]["observations"]["items"]["anyOf"]
         .as_array()
         .expect("owned schema alternatives")
         .clone();
-    let mut preference = branches[0].clone();
-    preference["properties"]["kind"] = json!({"const":"explicit_preference"});
-    let mut correction = branches[0].clone();
-    correction["properties"]["kind"] = json!({"const":"correction"});
-    schema["properties"]["observations"]["items"]["anyOf"] =
-        json!([preference, correction, branches[1]]);
-    schema["properties"]["observations"]["maxItems"] = json!(5);
+    let mut expanded = Vec::new();
+    for branch in branches {
+        if let Some(kinds) = branch["properties"]["kind"]["enum"].as_array() {
+            for kind in kinds {
+                let mut item = branch.clone();
+                item["properties"]["kind"] = json!({"const":kind});
+                expanded.push(item);
+            }
+        } else {
+            expanded.push(branch);
+        }
+    }
+    schema["properties"]["observations"]["items"]["anyOf"] = json!(expanded);
+    schema["properties"]["observations"]["maxItems"] = json!(8);
     schema
 }
 
-pub(crate) fn validate_focused_output(
+pub(crate) fn validate_model_output(
     conversation: &Conversation,
     revision: i64,
     output: AnalysisOutput,
 ) -> Result<AnalysisOutput> {
     ensure!(
-        output.observations.len() <= 5,
-        "focused extraction permits at most five observations per window"
-    );
-    ensure!(
-        output.observations.iter().all(|o| matches!(
-            o.kind,
-            ExtractionKind::ExplicitPreference
-                | ExtractionKind::Correction
-                | ExtractionKind::Decision
-        )),
-        "focused extraction permits only explicit preferences, corrections and decision events"
+        output.observations.len() <= 8,
+        "model extraction permits at most eight observations per window"
     );
     validate_output(conversation, revision, output)
 }
@@ -919,11 +917,11 @@ mod tests {
         assert!(validate_output(&source, 1, output.clone()).is_err());
         output.observations[0].kind = ExtractionKind::Decision;
         output.observations[0].decision_event = Some(DecisionEventType::Consideration);
-        assert!(validate_focused_output(&source, 1, output).is_ok());
+        assert!(validate_model_output(&source, 1, output).is_ok());
         let (source, mut output) = explicit();
         output.observations[0].kind = ExtractionKind::Topic;
         assert!(validate_output(&source, 1, output.clone()).is_ok());
-        assert!(validate_focused_output(&source, 1, output).is_err());
+        assert!(validate_model_output(&source, 1, output).is_ok());
     }
 
     #[test]

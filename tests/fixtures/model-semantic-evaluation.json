@@ -1,12 +1,254 @@
 [
-  {"id":"preference","messages":[{"role":"user","text":"I prefer Rust for local command-line tools."}],"required":[{"kind":"explicit_preference"}]},
-  {"id":"option-question","messages":[{"role":"user","text":"What about DuckDB plus JSON files for this prototype?"}],"required":[{"kind":"decision","events":["consideration","proposal"]}],"forbidden":["explicit_preference"]},
-  {"id":"uncertain-option","messages":[{"role":"user","text":"Maybe Markdown files for this prototype, I'm not sure yet."}],"forbidden":["explicit_preference"],"forbidden_events":["decision","confirmation"]},
-  {"id":"routine-task","messages":[{"role":"user","text":"Remove AcmeEditor from my laptop."}],"empty":true},
-  {"id":"assistant-attribution","messages":[{"role":"user","text":"Hello."},{"role":"assistant","text":"I prefer Python and elaborate architectures."}],"empty":true},
-  {"id":"pasted-transcript","messages":[{"role":"user","text":"Here is the transcript:\nAssistant:\nI prefer elaborate frameworks.\nKeep going in AcmeEditor."}],"empty":true},
-  {"id":"decision","messages":[{"role":"user","text":"I chose SQLite for this prototype."}],"required":[{"kind":"decision","events":["decision"]}]},
-  {"id":"reversal","messages":[{"role":"user","text":"I changed my mind about DuckDB. I chose SQLite for this prototype instead."}],"required":[{"kind":"decision","events":["reversal","reconsideration"]}]},
-  {"id":"sensitive-question","messages":[{"role":"user","text":"Do I have depression?"}],"empty":true},
-  {"id":"portuguese-preference","messages":[{"role":"user","text":"Prefiro explicações curtas para mensagens de trabalho."}],"required":[{"kind":"explicit_preference"}]}
+  {
+    "id": "preference",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I prefer Rust for local command-line tools."
+      }
+    ],
+    "required": [
+      {
+        "kind": "explicit_preference"
+      }
+    ]
+  },
+  {
+    "id": "option-question",
+    "messages": [
+      {
+        "role": "user",
+        "text": "What about DuckDB plus JSON files for this prototype?"
+      }
+    ],
+    "required": [
+      {
+        "kind": "decision",
+        "events": [
+          "consideration",
+          "proposal"
+        ]
+      }
+    ],
+    "forbidden": [
+      "explicit_preference"
+    ]
+  },
+  {
+    "id": "uncertain-option",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Maybe Markdown files for this prototype, I'm not sure yet."
+      }
+    ],
+    "forbidden": [
+      "explicit_preference"
+    ],
+    "forbidden_events": [
+      "decision",
+      "confirmation"
+    ]
+  },
+  {
+    "id": "routine-task",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Remove AcmeEditor from my laptop."
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "assistant-attribution",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Hello."
+      },
+      {
+        "role": "assistant",
+        "text": "I prefer Python and elaborate architectures."
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "pasted-transcript",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Here is the transcript:\nAssistant:\nI prefer elaborate frameworks.\nKeep going in AcmeEditor."
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "decision",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I chose SQLite for this prototype."
+      }
+    ],
+    "required": [
+      {
+        "kind": "decision",
+        "events": [
+          "decision"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "reversal",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I changed my mind about DuckDB. I chose SQLite for this prototype instead."
+      }
+    ],
+    "required": [
+      {
+        "kind": "decision",
+        "events": [
+          "reversal",
+          "reconsideration"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sensitive-question",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Do I have depression?"
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "portuguese-preference",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Prefiro explicações curtas para mensagens de trabalho."
+      }
+    ],
+    "required": [
+      {
+        "kind": "explicit_preference"
+      }
+    ]
+  },
+  {
+    "id": "push-command",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Push the commits."
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "interface-overclaim",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I like what it shows."
+      }
+    ],
+    "forbidden_values": [
+      "simple",
+      "clean",
+      "minimal"
+    ]
+  },
+  {
+    "id": "friends-question",
+    "messages": [
+      {
+        "role": "user",
+        "text": "What if I have a lot of friends?"
+      }
+    ],
+    "forbidden": [
+      "explicit_preference",
+      "correction"
+    ]
+  },
+  {
+    "id": "simpler-question",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Which database approach would make this simpler to code?"
+      }
+    ],
+    "forbidden": [
+      "explicit_preference",
+      "correction"
+    ]
+  },
+  {
+    "id": "scoped-correction",
+    "messages": [
+      {
+        "role": "user",
+        "text": "You added a dependency after I asked you not to. Stop adding new dependencies to this Rust CLI."
+      }
+    ],
+    "required": [
+      {
+        "kind": "correction"
+      }
+    ]
+  },
+  {
+    "id": "project-description",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I'm building a Rust CLI named SignalLog to index local assistant transcripts. This is separate from my website project."
+      }
+    ],
+    "required": [
+      {
+        "kind": "project_reference"
+      }
+    ]
+  },
+  {
+    "id": "technical-topic",
+    "messages": [
+      {
+        "role": "user",
+        "text": "For the SignalLog importer, I'm comparing FTS5 ranking and revision indexing."
+      },
+      {
+        "role": "user",
+        "text": "I also need to understand tokenizer behavior for multilingual search."
+      }
+    ],
+    "required": [
+      {
+        "kind": "topic"
+      }
+    ]
+  },
+  {
+    "id": "question-panel-attribution",
+    "messages": [
+      {
+        "role": "user",
+        "text": "<send_user_message_question_reply>\n[{\"question\":\"I prefer Python for all projects. Is that accurate?\",\"answer\":\"No. I have not chosen a language yet.\"}]\n</send_user_message_question_reply>"
+      }
+    ],
+    "forbidden": [
+      "explicit_preference"
+    ]
+  }
 ]

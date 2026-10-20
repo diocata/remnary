@@ -30,9 +30,19 @@ Use kind explicit_preference for an explicitly stated preference and inferred_pr
 
 The envelope contains a bounded window of user-message text; other messages and surrounding context may be absent. Never infer missing context. Pasted conversations, quoted advice, examples, provider instructions and generated notifications inside a user message are not endorsements or requests by its owner. Return no observation when attribution is unclear. Prefer a few specific, useful claims over generic topics. Use relevant context explicitly, rather than turning a one-time request into a global preference.
 
-This MVP focuses on explicit preferences, corrections and decision events. Skip generic biographical facts, product ownership, topic mentions, project descriptions and routine execution commands. Return at most five observations per window; an empty array is better than a weak claim. A one-time command such as "remove an app" or "commit these changes" is not a personal preference. An exploratory question such as "What about DuckDB?" is a decision consideration, never an explicit preference or settled choice. "Maybe Markdown files, I'm not sure" is consideration too. "I want to use Rust" states a technology choice; preserve its project context. "I prefer concise explanations for work messages" is an explicit scoped preference. Only record a correction when the text clearly corrects/restricts assistant behavior. Distinguish discussing an option from choosing it. Quoted transcripts and assistant advice inside a user message supply no personal preference.
+Extract useful preferences, corrections, decision events, topics, project references and tentative patterns. Skip generic biographical facts, product ownership, routine execution commands and weak topic mentions. Return at most eight observations per window; an empty array is better than a weak claim. A one-time command such as "remove an app", "push the commits", "continue" or "install a model" does not establish a preference, correction, or enduring habit. Do not reclassify an ordinary task as a preference just to produce an observation.
 
-Allowed kinds are explicit_preference, inferred_preference, correction, decision, topic, project_reference, behavioral_pattern. Use the supplied schema's fields exactly: kind, inference, subject, topic, canonical_value, context, summary, decision_event, evidence. Every non-decision MUST set decision_event to null. Only kind decision has a non-null decision_event. Explicit preferences, corrections and decisions MUST set inference to explicit. Inferred preferences and behavioral patterns MUST set inference to inferred. Use null for absent context. Do not include commentary or Markdown fences."#;
+Distinguish these cases carefully:
+- "What about DuckDB?" -> decision consideration; not a preference or settled choice. Preserve a named option explicitly raised for a project as a consideration even when the user has not chosen it.
+- "Maybe Markdown files, I'm not sure" -> consideration, or abstain if context is insufficient.
+- "I chose SQLite for this project" -> a scoped decision event.
+- "I prefer concise explanations for work messages" -> an explicit scoped preference.
+- "You added dependencies after I asked you not to. Stop adding dependencies to this CLI" -> a scoped correction.
+- "For the SignalLog project, I'm comparing full-text ranking and revision indexing" -> a project reference or technical topic; not a personal preference.
+- Repeated user evidence about a workflow can support a tentative behavioral pattern, labeled inferred; a one-time command cannot.
+Only record a correction when text actually corrects/restricts assistant behavior. A question about a simpler solution is not by itself a correction. Keep a decision event separate from an enduring preference. Quotes must establish the summary: "I like what it shows" does not establish a preference for a clean/simple interface, and "What if I have many friends?" does not establish a requested profile/search feature. Do not fill in those missing meanings from assumptions. Quoted transcripts and assistant advice supply no personal preference.
+
+Allowed kinds are explicit_preference, inferred_preference, correction, decision, topic, project_reference, behavioral_pattern. Use the supplied schema's fields exactly. Observation fields use ordered protocol names: a_kind, b_inference, c_decision_event, d_evidence, e_subject, f_topic, g_context, h_canonical_value, i_summary. These mean kind, inference, decision_event, evidence, subject, topic, context, canonical_value and summary respectively. Classify first, choose supporting evidence next, then summarize only what it establishes. Every non-decision MUST set decision_event to null. Only kind decision has a non-null decision_event. Explicit preferences, corrections and decisions MUST set inference to explicit. Inferred preferences and behavioral patterns MUST set inference to inferred. Use null for absent context. Do not include commentary or Markdown fences."#;
 
 /// Analyze one archived revision with an explicitly selected local Ollama model.
 ///
@@ -113,6 +123,20 @@ fn analyze_with_limits(
         )
     })?;
     validate_local_model(&details)?;
+    // Enable reasoning only when this local model advertises that capability.
+    // Ordinary completion-only models retain their compatible request shape.
+    let body = if details
+        .get("capabilities")
+        .and_then(Value::as_array)
+        .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")))
+    {
+        let mut request: Value = serde_json::from_slice(&body)?;
+        request["think"] = json!(true);
+        request["options"]["num_predict"] = json!(8192);
+        serde_json::to_vec(&request)?
+    } else {
+        body
+    };
     let bytes = send_bounded(&client, url, model, body, max_response_bytes)?;
     let envelope: ChatResponse = serde_json::from_slice(&bytes)
         .map_err(|_| anyhow::anyhow!("local Ollama returned an invalid JSON chat response"))?;
@@ -136,7 +160,7 @@ fn analyze_with_limits(
         envelope.message.role == "assistant",
         "local Ollama response has an unexpected message role"
     );
-    let output: Value = serde_json::from_str(&envelope.message.content).map_err(|_| {
+    let mut output: Value = serde_json::from_str(&envelope.message.content).map_err(|_| {
         anyhow::anyhow!(
             "local Ollama output is not strict JSON; choose a model supporting structured output"
         )
@@ -145,7 +169,117 @@ fn analyze_with_limits(
         output.is_object(),
         "local Ollama analysis must be a JSON object"
     );
+    if uses_observation_protocol(schema) {
+        decode_observation_protocol(&mut output)?;
+    }
     Ok(output)
+}
+
+// JSON grammar engines may alphabetize schema properties. Keep semantic
+// classification and evidence before dependent fields on either wire path.
+// This is a bijective field-name protocol, never a repair of claim values.
+const OBSERVATION_FIELDS: [(&str, &str); 9] = [
+    ("kind", "a_kind"),
+    ("inference", "b_inference"),
+    ("decision_event", "c_decision_event"),
+    ("evidence", "d_evidence"),
+    ("subject", "e_subject"),
+    ("topic", "f_topic"),
+    ("context", "g_context"),
+    ("canonical_value", "h_canonical_value"),
+    ("summary", "i_summary"),
+];
+fn uses_observation_protocol(schema: &Value) -> bool {
+    fn contains_observation(value: &Value) -> bool {
+        match value {
+            Value::Object(object) => {
+                object
+                    .get("properties")
+                    .and_then(Value::as_object)
+                    .is_some_and(|properties| {
+                        OBSERVATION_FIELDS
+                            .iter()
+                            .all(|(field, _)| properties.contains_key(*field))
+                    })
+                    || object.values().any(contains_observation)
+            }
+            Value::Array(items) => items.iter().any(contains_observation),
+            _ => false,
+        }
+    }
+    schema
+        .pointer("/properties/observations/items")
+        .is_some_and(contains_observation)
+}
+fn observation_protocol_schema(schema: &Value) -> Value {
+    let mut schema = schema.clone();
+    fn rename(value: &mut Value) {
+        if let Value::Object(object) = value {
+            if object
+                .get("properties")
+                .and_then(Value::as_object)
+                .is_some_and(|properties| {
+                    OBSERVATION_FIELDS
+                        .iter()
+                        .all(|(field, _)| properties.contains_key(*field))
+                })
+            {
+                let properties = object
+                    .get_mut("properties")
+                    .unwrap()
+                    .as_object_mut()
+                    .unwrap();
+                for (field, wire) in OBSERVATION_FIELDS {
+                    let rule = properties.remove(field).unwrap();
+                    properties.insert(wire.into(), rule);
+                }
+                if let Some(required) = object.get_mut("required").and_then(Value::as_array_mut) {
+                    for entry in required {
+                        if let Some((_, wire)) = OBSERVATION_FIELDS
+                            .iter()
+                            .find(|(field, _)| entry.as_str() == Some(field))
+                        {
+                            *entry = json!(wire);
+                        }
+                    }
+                }
+            }
+            for child in object.values_mut() {
+                rename(child);
+            }
+        } else if let Value::Array(items) = value {
+            for child in items {
+                rename(child);
+            }
+        }
+    }
+    rename(&mut schema);
+    schema
+}
+fn decode_observation_protocol(output: &mut Value) -> Result<()> {
+    let items = output
+        .get_mut("observations")
+        .and_then(Value::as_array_mut)
+        .context("model output needs an observations array")?;
+    for item in items {
+        let fields = item
+            .as_object_mut()
+            .context("model observation must be an object")?;
+        ensure!(
+            fields.len() == OBSERVATION_FIELDS.len()
+                && OBSERVATION_FIELDS
+                    .iter()
+                    .all(|(_, wire)| fields.contains_key(*wire)),
+            "model observation protocol has missing, unknown or mixed fields"
+        );
+        for (field, wire) in OBSERVATION_FIELDS {
+            let value = fields
+                .remove(wire)
+                .expect("required protocol field checked");
+            fields.insert(field.into(), value);
+        }
+    }
+    Ok(())
 }
 
 fn send_bounded(
@@ -260,7 +394,7 @@ fn request_body(
         SYSTEM_PROMPT.len() + data.len() <= 24_000,
         "analysis window is too large for the bounded local context budget"
     );
-    let schema = grounded_schema(schema, conversation, revision);
+    let schema = observation_protocol_schema(&grounded_schema(schema, conversation, revision));
     let body = serde_json::to_vec(&json!({
         "model": model,
         "messages": [
@@ -580,6 +714,87 @@ mod tests {
     }
 
     #[test]
+    fn wire_protocol_orders_classification_before_event_and_preserves_every_value() {
+        let schema = observation_protocol_schema(&crate::intelligence::model_output_schema());
+        let branches = schema
+            .pointer("/properties/observations/items/anyOf")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(branches.len(), 7);
+        let kinds = branches
+            .iter()
+            .map(|branch| branch["properties"]["a_kind"]["const"].as_str().unwrap())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            kinds,
+            [
+                "behavioral_pattern",
+                "correction",
+                "decision",
+                "explicit_preference",
+                "inferred_preference",
+                "project_reference",
+                "topic"
+            ]
+            .into_iter()
+            .collect()
+        );
+        for branch in branches {
+            let names = branch["properties"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                names,
+                OBSERVATION_FIELDS
+                    .iter()
+                    .map(|(_, wire)| *wire)
+                    .collect::<Vec<_>>()
+            );
+            assert!(
+                branch["required"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|entry| names.contains(&entry.as_str().unwrap()))
+            );
+        }
+        let original = json!({"kind":"decision","inference":"explicit","decision_event":"reversal","evidence":[{"quote":"Café 🦀"}],"subject":"user","topic":"technology","context":null,"canonical_value":"SQLite","summary":"Chose SQLite instead."});
+        let wire = OBSERVATION_FIELDS
+            .iter()
+            .map(|(field, wire)| ((*wire).to_owned(), original[*field].clone()))
+            .collect::<serde_json::Map<_, _>>();
+        let mut output = json!({"schema_version":1,"observations":[wire]});
+        decode_observation_protocol(&mut output).unwrap();
+        assert_eq!(output["observations"][0], original);
+        for invalid in [original.clone(), json!({"a_kind":"decision"})] {
+            let mut output = json!({"observations":[invalid]});
+            assert!(decode_observation_protocol(&mut output).is_err());
+        }
+    }
+
+    #[test]
+    fn thinking_models_receive_reasoning_budget_without_relaxing_validation() {
+        let mut metadata = local_metadata();
+        metadata["capabilities"] = json!(["completion", "thinking"]);
+        let (endpoint, requests, handle) = responses_server(vec![
+            ("/api/show", reply(&metadata.to_string())),
+            ("/api/chat", reply(&envelope(r#"{"observations":[]}"#))),
+        ]);
+        analyze_json(&endpoint, "local-thinking", &schema(), &conversation(), 1).unwrap();
+        requests.recv_timeout(Duration::from_secs(3)).unwrap();
+        let body = requests.recv_timeout(Duration::from_secs(3)).unwrap();
+        handle.join().unwrap();
+        assert_eq!(body["think"], true);
+        assert_eq!(body["options"]["num_predict"], 8192);
+        assert_eq!(body["truncate"], false);
+        assert_eq!(body["format"], schema());
+    }
+
+    #[test]
     fn structured_request_preserves_citations_and_keeps_archive_as_data() {
         let (endpoint, request, handle) = server(reply(&envelope(r#"{"observations":[]}"#)));
         let result = analyze_json(&endpoint, "qwen3:8b", &schema(), &conversation(), 7).unwrap();
@@ -839,17 +1054,25 @@ mod tests {
     fn option_questions_have_only_decision_choices_and_transcripts_have_none() {
         let mut source = conversation();
         source.messages[0].content = "What about DuckDB with JSON files?".into();
-        let schema = grounded_schema(&crate::intelligence::focused_output_schema(), &source, 1);
+        let schema = grounded_schema(&crate::intelligence::model_output_schema(), &source, 1);
         let branches = schema
             .pointer("/properties/observations/items/anyOf")
             .unwrap()
             .as_array()
             .unwrap();
-        assert_eq!(branches.len(), 1);
-        assert_eq!(branches[0]["properties"]["kind"]["const"], "decision");
+        assert_eq!(branches.len(), 5);
+        assert!(branches.iter().all(|branch| !matches!(
+            branch["properties"]["kind"]["const"].as_str(),
+            Some("explicit_preference" | "correction")
+        )));
+        assert!(
+            branches
+                .iter()
+                .any(|branch| branch["properties"]["kind"]["const"] == "decision")
+        );
         source.messages[0].content =
             "Here is the transcript:\nAssistant: I prefer complex frameworks.".into();
-        let schema = grounded_schema(&crate::intelligence::focused_output_schema(), &source, 1);
+        let schema = grounded_schema(&crate::intelligence::model_output_schema(), &source, 1);
         assert_eq!(schema["properties"]["observations"]["maxItems"], 0);
     }
 

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
 use observr::{
-    analysis::{AnalysisEngine, analyze},
+    analysis::{AnalysisEngine, AnalysisProgress, analyze_with_progress},
     analysis_store::{FeedbackAction, ObservationRecord, ObservationStatus},
     intelligence::ExtractionKind,
     knowledge::sync_vault,
@@ -11,7 +11,10 @@ use observr::{
     store::Store,
     vault::{export_markdown, snapshot_markdown},
 };
-use std::path::{Path, PathBuf};
+use std::{
+    io::IsTerminal,
+    path::{Path, PathBuf},
+};
 
 #[derive(Parser)]
 #[command(
@@ -85,6 +88,9 @@ enum Command {
         /// Ollama automatic results for sources with this exact completed run.
         #[arg(long)]
         replace_other_models: bool,
+        /// Write payload-free progress to stderr (automatic for interactive model runs).
+        #[arg(long)]
+        progress: bool,
         #[arg(long, default_value = "http://127.0.0.1:11434")]
         endpoint: String,
     },
@@ -442,6 +448,7 @@ fn run() -> Result<()> {
             model,
             endpoint,
             replace_other_models,
+            progress,
         } => {
             let engine = match engine {
                 EngineChoice::Rules => {
@@ -459,7 +466,36 @@ fn run() -> Result<()> {
                     )?,
                 },
             };
-            let summary = analyze(&mut store, engine)?;
+            let show_progress = progress
+                || (std::io::stderr().is_terminal()
+                    && matches!(&engine, AnalysisEngine::Ollama { .. }));
+            let summary = analyze_with_progress(&mut store, engine, |event| {
+                if show_progress {
+                    match event {
+                        AnalysisProgress::Conversation { current, total } => {
+                            eprintln!("Conversation {current}/{total}")
+                        }
+                        AnalysisProgress::Window {
+                            conversation,
+                            current,
+                            total,
+                        } => eprintln!(
+                            "  Conversation {conversation}: model window {current}/{total}"
+                        ),
+                        AnalysisProgress::Finished {
+                            conversation,
+                            success,
+                        } => eprintln!(
+                            "  Conversation {conversation}: {}",
+                            if success {
+                                "saved"
+                            } else {
+                                "failed; remains pending"
+                            }
+                        ),
+                    }
+                }
+            })?;
             println!(
                 "Analyzed {} conversations; persisted {} candidate extractions.",
                 summary.processed, summary.observations
