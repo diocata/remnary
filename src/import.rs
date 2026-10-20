@@ -466,6 +466,27 @@ mod tests {
     }
 
     #[test]
+    fn scrubbed_published_export_retains_every_graph_and_message_field() -> Result<()> {
+        let bytes = include_bytes!("../tests/fixtures/upstream-chatgpt-weather.json");
+        let original: Value = serde_json::from_slice(bytes)?;
+        let imported = parse_chatgpt(bytes)?;
+        assert_eq!(imported.len(), 1);
+        let conversation = &imported[0];
+        assert_eq!(conversation.messages.len(), 11);
+        assert_eq!(
+            conversation.metadata["mapping"].as_object().unwrap().len(),
+            12
+        );
+        assert!(conversation.messages.iter().any(|m| m.role == "tool"));
+        let mut reconstructed = conversation.metadata.clone();
+        for message in &conversation.messages {
+            reconstructed["mapping"][&message.source_id]["message"] = message.metadata.clone();
+        }
+        assert_eq!(reconstructed, original[0]);
+        Ok(())
+    }
+
+    #[test]
     fn synthetic_demo_has_two_conversations_and_repeated_user_preferences() -> Result<()> {
         let imported = parse_chatgpt(include_bytes!("../tests/fixtures/chatgpt.json"))?;
         assert_eq!(imported.len(), 2);

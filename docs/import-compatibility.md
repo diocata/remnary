@@ -15,3 +15,5 @@ The same real payload imported unchanged when wrapped in a generated ZIP contain
 | `seoul-weather-early-october` | 12 | `811bf0956926e0596bc31b06380954f88bcbefdb7fa202de8d0ef22f74f5b9e6` |
 
 Only provenance and observed results are committed; downloaded records, generated wrappers and the separate encrypted check archive are ignored local evaluation artifacts. The original sample bytes were fetched from immutable commit URLs. This verifies these published mapping records and the tested container contracts, not every current or future export layout. [Supported formats and limits](sources.md).
+
+A scrubbed copy of the published weather record is now a permanent regression fixture at `tests/fixtures/upstream-chatgpt-weather.json`, with its MIT notice and [scrubbing provenance](../tests/fixtures/upstream-chatgpt-PROVENANCE.md). Its test checks all 12 graph nodes and 11 messages and exact reconstruction of the scrubbed record. Original published text is not committed.

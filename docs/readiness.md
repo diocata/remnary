@@ -4,7 +4,7 @@ Updated 2026-10-20. **Production readiness is not established:** source-grounded
 
 ## Verified local candidate
 
-The release candidate is commit `aaf0412ccbdf`, built with Rust 1.99.1 for Apple Silicon macOS 27.0.1. All **156 tests** passed: 141 library, eight analysis and seven CLI/source integration tests. Formatting, locked all-target Clippy with warnings denied, optimized compilation and local installation passed. Subsequent commits record evidence only.
+The release candidate is commit `aaf0412ccbdf`, built with Rust 1.99.1 for Apple Silicon macOS 27.0.1. All **156 tests** passed: 141 library, eight analysis and seven CLI/source integration tests. Formatting, locked all-target Clippy with warnings denied, optimized compilation and local installation passed. Subsequent commits record evidence and add a scrubbed published-export regression fixture; production behavior is unchanged. The current tree passes **157 tests** (142 library, eight analysis, seven CLI/source), formatting and all-target Clippy.
 
 The local package contains 306 files, including the CLI, MIT license, security/product documentation and complete target-specific dependency notices. Its SHA-256 is `f7f16b1a2a142864f512770a6920498481c7abe5278c2c90d62dd64afdbae61f`. Archive contents, binary digest, source-path remapping and the native linker’s ad-hoc signature were verified. It has no Developer ID distribution signature and is not notarized. [Packaging recipe](releasing.md).
 
