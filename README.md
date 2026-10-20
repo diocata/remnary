@@ -23,7 +23,7 @@ cargo run -- discover
 cargo run -- web
 ```
 
-This workspace also provides `./scripts/cargo-local` for its isolated, ignored development toolchain. Use it in place of `cargo` when that toolchain is present. `cargo install --path . --locked` installs the CLI from your checkout; no Homebrew package or published binary is provided yet.
+This workspace also provides `./scripts/cargo-local` for its isolated, ignored development toolchain. Use it in place of `cargo` when that toolchain is present. `cargo install --path . --locked` installs the CLI from your checkout; no Homebrew package or published binary is provided yet. A clean commit can produce a local evaluation archive with checksums using `python3 scripts/package-release.py`; see [package contents and checks](docs/releasing.md).
 
 On macOS, `init` creates a random key in macOS Keychain and an encrypted archive under `~/Library/Application Support/observr`. Keychain access may prompt. `--data-dir DIRECTORY` selects an independent archive. Initialization does not scan sources or call a model.
 
