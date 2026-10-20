@@ -1,0 +1,54 @@
+{
+  "description": "Hand-labeled synthetic cases for rule extraction. This tests grounding and conservative grouping, not model accuracy or user-rated usefulness.",
+  "conversations": [
+    {
+      "provider": "chatgpt",
+      "source_id": "observr-architecture",
+      "messages": [
+        {"role": "user", "content": "Keep implementations simple."},
+        {"role": "user", "content": "Again, keep the code simple."},
+        {"role": "assistant", "content": "I prefer MongoDB."},
+        {"role": "user", "content": "I prefer short explanations for status reports."},
+        {"role": "user", "content": "I am considering DuckDB for Observr."},
+        {"role": "user", "content": "I chose SQLite for Observr."}
+      ]
+    },
+    {
+      "provider": "claude",
+      "source_id": "observr-review",
+      "messages": [
+        {"role": "user", "content": "Keep implementations simple."},
+        {"role": "user", "content": "Keep implementations simple for production migrations."},
+        {"role": "user", "content": "I prefer detailed explanations for learning."},
+        {"role": "user", "content": "I changed my mind about DuckDB for Observr."},
+        {"role": "user", "content": "I confirm SQLite for Observr."}
+      ]
+    },
+    {
+      "provider": "chatgpt",
+      "source_id": "unrelated-analytics-project",
+      "messages": [
+        {"role": "user", "content": "I chose DuckDB for Analytics."},
+        {"role": "user", "content": "Keep implementations complex."},
+        {"role": "user", "content": "I don't like short explanations for learning."},
+        {"role": "user", "content": "I prefer Rust."},
+        {"role": "user", "content": "I prefer Rust."},
+        {"role": "user", "content": "> I prefer MongoDB.\n```\nI prefer Redis.\n```"}
+      ]
+    }
+  ],
+  "expected_groups": [
+    {"kind": "correction", "inference": "explicit", "canonical_value": "keep_implementations_simple", "decision_event": null, "occurrences": 3, "distinct_conversations": 2},
+    {"kind": "correction", "inference": "explicit", "canonical_value": "keep implementations simple for production migrations", "decision_event": null, "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "correction", "inference": "explicit", "canonical_value": "keep implementations complex", "decision_event": null, "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "explicit_preference", "inference": "explicit", "canonical_value": "prefer short explanations for status reports", "decision_event": null, "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "explicit_preference", "inference": "explicit", "canonical_value": "prefer detailed explanations for learning", "decision_event": null, "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "explicit_preference", "inference": "explicit", "canonical_value": "dislike short explanations for learning", "decision_event": null, "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "explicit_preference", "inference": "explicit", "canonical_value": "prefer rust", "decision_event": null, "occurrences": 2, "distinct_conversations": 1},
+    {"kind": "decision", "inference": "explicit", "canonical_value": "duckdb for observr", "decision_event": "consideration", "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "decision", "inference": "explicit", "canonical_value": "sqlite for observr", "decision_event": "decision", "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "decision", "inference": "explicit", "canonical_value": "about duckdb for observr", "decision_event": "reversal", "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "decision", "inference": "explicit", "canonical_value": "sqlite for observr", "decision_event": "confirmation", "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "decision", "inference": "explicit", "canonical_value": "duckdb for analytics", "decision_event": "decision", "occurrences": 1, "distinct_conversations": 1}
+  ]
+}

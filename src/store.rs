@@ -5,12 +5,12 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, pa
 
 use crate::model::{Conversation, Message};
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 const APPLICATION_ID: i64 = 0x4f425352;
 const DATABASE_NAME: &str = "observr.sqlite3";
 
 pub struct Store {
-    connection: Connection,
+    pub(crate) connection: Connection,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -18,6 +18,7 @@ pub struct ImportSummary {
     pub inserted: usize,
     pub updated: usize,
     pub unchanged: usize,
+    pub skipped: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -80,15 +81,17 @@ impl Store {
         if application == 0 && version == 0 && objects == 0 {
             transaction.execute_batch(include_str!("schema.sql"))?;
             transaction.pragma_update(None, "application_id", APPLICATION_ID)?;
-            transaction.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+            transaction.pragma_update(None, "user_version", 1)?;
         }
         transaction.commit()?;
+        store.migrate()?;
         store.check_schema()?;
         Ok(store)
     }
 
     pub fn open(data_dir: &Path) -> Result<Self> {
-        let store = Self::connect(data_dir)?;
+        let mut store = Self::connect(data_dir)?;
+        store.migrate()?;
         store.check_schema()?;
         Ok(store)
     }
@@ -99,7 +102,31 @@ impl Store {
             .with_context(|| format!("opening {}; run `observr init` first", path.display()))?;
         connection.busy_timeout(Duration::from_secs(5))?;
         connection.pragma_update(None, "foreign_keys", true)?;
+        connection.pragma_update(None, "secure_delete", true)?;
         Ok(Self { connection })
+    }
+
+    fn migrate(&mut self) -> Result<()> {
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let application: i64 =
+            transaction.pragma_query_value(None, "application_id", |r| r.get(0))?;
+        ensure!(
+            application == APPLICATION_ID,
+            "this file is not an initialized Observr database"
+        );
+        let version: i64 = transaction.pragma_query_value(None, "user_version", |r| r.get(0))?;
+        ensure!(
+            (1..=SCHEMA_VERSION).contains(&version),
+            "unsupported database schema {version}; expected 1..={SCHEMA_VERSION}"
+        );
+        if version < 2 {
+            transaction.execute_batch(include_str!("migrations/002_intelligence.sql"))?;
+            transaction.pragma_update(None, "user_version", 2)?;
+        }
+        transaction.commit()?;
+        Ok(())
     }
 
     fn check_schema(&self) -> Result<()> {
@@ -132,23 +159,36 @@ impl Store {
                 "conversation needs provider and source ID"
             );
             let id = conversation.stable_id();
+            let suppressed: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM deleted_sources WHERE conversation_id = ?1
+                               UNION ALL SELECT 1 FROM excluded_sources WHERE conversation_id = ?1)",
+                [&id], |r| r.get(0),
+            )?;
+            if suppressed {
+                summary.skipped += 1;
+                continue;
+            }
             let fingerprint = conversation.fingerprint()?;
-            let existing: Option<(i64, String)> = transaction.query_row(
-                "SELECT c.current_revision, r.fingerprint FROM conversations c
+            let existing: Option<(i64, String, Option<f64>)> = transaction.query_row(
+                "SELECT c.current_revision, r.fingerprint, r.updated_at FROM conversations c
                  JOIN conversation_revisions r ON r.conversation_id = c.id AND r.revision = c.current_revision
                  WHERE c.id = ?1",
                 [&id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             ).optional()?;
             if existing
                 .as_ref()
-                .is_some_and(|(_, hash)| hash == &fingerprint)
+                .is_some_and(|(_, hash, _)| hash == &fingerprint)
             {
                 summary.unchanged += 1;
                 continue;
             }
+            if existing.as_ref().is_some_and(|(_, _, time)| matches!((time, conversation.updated_at), (Some(current), Some(incoming)) if *current > incoming)) {
+                summary.skipped += 1;
+                continue;
+            }
             let revision = match existing {
-                Some((revision, _)) => {
+                Some((revision, _, _)) => {
                     summary.updated += 1;
                     revision + 1
                 }
@@ -227,7 +267,9 @@ impl Store {
              FROM messages_fts JOIN messages m ON m.id = messages_fts.rowid
              JOIN conversations c ON c.id = m.conversation_id AND c.current_revision = m.revision
              JOIN conversation_revisions r ON r.conversation_id = c.id AND r.revision = c.current_revision
-             WHERE messages_fts MATCH ?1 ORDER BY rank, c.id, m.position LIMIT ?2",
+             WHERE messages_fts MATCH ?1
+             AND NOT EXISTS(SELECT 1 FROM excluded_sources x WHERE x.conversation_id = c.id)
+             ORDER BY rank, c.id, m.position LIMIT ?2",
         )?;
         let hits = statement
             .query_map(params![tokens.join(" AND "), limit as i64], |row| {
@@ -249,7 +291,9 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT c.id, c.provider, c.source_id, c.current_revision, r.title, r.created_at, r.updated_at, r.metadata
              FROM conversations c JOIN conversation_revisions r
-             ON r.conversation_id = c.id AND r.revision = c.current_revision ORDER BY c.id",
+             ON r.conversation_id = c.id AND r.revision = c.current_revision
+             WHERE NOT EXISTS(SELECT 1 FROM excluded_sources x WHERE x.conversation_id = c.id)
+             ORDER BY c.id",
         )?;
         let mut rows = statement.query([])?;
         let mut conversations = Vec::new();

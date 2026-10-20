@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Observr · Your evidence workspace</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to workspace</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Workspace navigation">
+      <a class="brand" href="/" aria-label="Observr home"><span class="brand-mark" aria-hidden="true"><span></span></span>observr<span class="brand-period">.</span></a>
+      <p class="sidebar-caption">Your conversations,<br>with a longer memory.</p>
+      <nav id="navigation" aria-label="Main">
+        <button type="button" class="nav-item active" data-view="discoveries" aria-current="page"><span aria-hidden="true">↗</span>Discoveries</button>
+        <button type="button" class="nav-item" data-view="profile"><span aria-hidden="true">◎</span>Profile</button>
+        <button type="button" class="nav-item" data-view="timeline"><span aria-hidden="true">⌁</span>Timeline</button>
+        <button type="button" class="nav-item" data-view="search"><span aria-hidden="true">⌕</span>Search</button>
+        <button type="button" class="nav-item" data-view="sources"><span aria-hidden="true">▤</span>Sources</button>
+      </nav>
+      <div class="sidebar-footer"><span class="local-dot" aria-hidden="true"></span><span>On this computer<br><small>Private local archive</small></span></div>
+    </aside>
+    <main id="main" class="main" tabindex="-1">
+      <header class="page-header">
+        <div><p class="eyebrow" id="page-eyebrow">Your evidence workspace</p><h1 id="page-title">A little more self-knowledge.</h1><p class="page-description" id="page-description">Follow a finding back to the words that support it. You decide what stays.</p></div>
+        <button type="button" id="refresh" class="button button-quiet"><span aria-hidden="true">↻</span> Refresh archive</button>
+      </header>
+      <div class="archive-line"><span class="archive-label">ARCHIVE</span><p id="archive-status">Connecting to your local archive…</p><span class="privacy-label">No external connections</span></div>
+      <div id="connection-error" class="connection-error" role="alert" hidden></div>
+      <section id="review-view" aria-label="Observation review">
+        <div class="review-toolbar"><div class="section-heading"><h2 id="list-heading">Discoveries</h2><span id="result-count" class="count">0</span></div><label class="hidden-toggle"><input id="include-hidden" type="checkbox"> Show reviewed items</label></div>
+        <div class="filter-row"><label class="filter-label" for="filter">Find a discovery</label><input id="filter" class="text-input" type="search" placeholder="Filter by topic or wording…" autocomplete="off"><label class="filter-label" for="kind-filter">Kind</label><select id="kind-filter" aria-label="Filter by kind"><option value="all">All kinds</option><option value="preference">Preferences</option><option value="correction">Corrections</option><option value="decision">Decisions</option><option value="behavioral_pattern">Patterns</option><option value="project_reference">Projects</option><option value="topic">Topics</option></select></div>
+        <div class="evidence-workspace">
+          <div class="observation-column"><div class="column-label">THE FINDING <span id="list-context">Yours to review</span></div><div id="observation-list" class="observation-list" aria-label="Findings"></div></div>
+          <section id="evidence-panel" class="evidence-panel" aria-label="Supporting evidence" aria-live="polite"></section>
+        </div>
+      </section>
+      <section id="search-view" hidden aria-labelledby="search-heading"><h2 id="search-heading" class="view-heading">Find the original words.</h2><p class="view-intro">Search the current versions of your conversations. Every word is treated literally.</p><form id="search-form" class="search-form"><label class="filter-label" for="search-query">Conversation search</label><input id="search-query" class="text-input" type="search" placeholder="e.g. Rust, explanations, database…" maxlength="1000" required><button class="button button-primary" type="submit">Search archive</button></form><div id="search-results" class="search-results" aria-live="polite"><p class="empty-message">Choose a few words you remember. Search stays on your computer.</p></div></section>
+      <section id="sources-view" hidden aria-labelledby="sources-heading"><div class="source-heading"><div><h2 id="sources-heading" class="view-heading">The conversations behind it.</h2><p class="view-intro">Your current source archive. Exact revisions stay attached to each finding.</p></div><span id="source-count" class="count">0</span></div><div id="sources-list" class="sources-list"></div></section>
+      <footer class="main-footer"><span>Evidence before interpretation.</span><span>Observations remain candidates until you confirm them.</span></footer>
+    </main>
+  </div>
+  <div id="announcement" class="announcement" role="status" aria-live="polite" hidden></div>
+  <dialog id="correction-dialog" aria-labelledby="correction-title"><form id="correction-form"><p class="eyebrow">Your wording takes precedence</p><h2 id="correction-title">Correct this finding</h2><label for="correction-value">What should it say?</label><textarea id="correction-value" rows="5" maxlength="16384" required></textarea><p id="correction-error" class="connection-error" role="alert" hidden></p><p class="dialog-note">Your correction is saved as confirmed. The original evidence stays attached.</p><div class="dialog-actions"><button id="cancel-correction" class="button button-quiet" type="button">Cancel</button><button id="save-correction" class="button button-primary" type="submit">Save correction</button></div></form></dialog>
+  <dialog id="source-dialog" class="source-dialog" aria-labelledby="source-title"><div class="source-dialog-heading"><div><p id="source-meta" class="eyebrow">Original source</p><h2 id="source-title">Conversation</h2></div><button type="button" id="close-source" class="button button-quiet">Close</button></div><div id="source-messages" class="source-messages"></div></dialog>
+</body>
+</html>

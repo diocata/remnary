@@ -1,4 +1,14 @@
+pub mod analysis;
+pub mod analysis_store;
 pub mod import;
+pub mod intelligence;
+pub mod knowledge;
 pub mod model;
+pub mod ollama;
+pub mod privacy;
+pub mod privacy_store;
+pub mod projection_store;
+pub mod reports;
 pub mod store;
 pub mod vault;
+pub mod web;

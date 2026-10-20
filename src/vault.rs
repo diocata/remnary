@@ -17,6 +17,16 @@ pub struct ExportSummary {
     pub conflicts: usize,
 }
 
+/// Return the exact immutable transcript filename and bytes used by export.
+pub fn snapshot_markdown(conversation: &Conversation) -> Result<(String, String)> {
+    let stable_id = conversation.stable_id();
+    let fingerprint = conversation.fingerprint()?;
+    Ok((
+        format!("{stable_id}-{fingerprint}.md"),
+        render(conversation, &stable_id, &fingerprint),
+    ))
+}
+
 /// Export content-addressed snapshots into an explicitly selected directory.
 ///
 /// Both parts of each filename are SHA-256 hashes; provider IDs never become
@@ -169,8 +179,12 @@ fn render(conversation: &Conversation, stable_id: &str, fingerprint: &str) -> St
     note
 }
 
-fn anchor(source_id: &str) -> String {
+pub fn message_anchor(source_id: &str) -> String {
     format!("message-{}", digest(source_id.as_bytes()))
+}
+
+fn anchor(source_id: &str) -> String {
+    message_anchor(source_id)
 }
 
 fn field(note: &mut String, label: &str, value: &str) {
@@ -185,7 +199,7 @@ fn timestamp(note: &mut String, label: &str, value: Option<f64>) {
     }
 }
 
-fn quoted(note: &mut String, value: &str) {
+pub(crate) fn quoted(note: &mut String, value: &str) {
     // Keep source text literal: Markdown images, links, HTML, and wiki links
     // must not become active content. A fence longer than every source run
     // prevents source code fences from closing this generated code block.
