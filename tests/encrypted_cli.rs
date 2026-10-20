@@ -120,3 +120,115 @@ fn encrypted_cli_workflow_survives_backup_restore_and_source_deletion() {
             .success()
     );
 }
+
+#[test]
+fn plaintext_upgrade_and_key_rotation_publish_independent_verified_archives() {
+    let temp = tempfile::tempdir().unwrap();
+    let legacy = temp.path().join("legacy");
+    let key = temp.path().join("new.key");
+    let plain = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_observr"))
+            .arg("--insecure-plaintext")
+            .arg("--data-dir")
+            .arg(&legacy)
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    for args in [
+        vec!["init"],
+        vec![
+            "import",
+            concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/chatgpt.json"),
+        ],
+        vec!["analyze"],
+    ] {
+        let result = plain(&args);
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    let original = fs::read(legacy.join("observr.sqlite3")).unwrap();
+    let key_result = Command::new(env!("CARGO_BIN_EXE_observr"))
+        .args(["key", "create"])
+        .arg(&key)
+        .output()
+        .unwrap();
+    assert!(key_result.status.success());
+    let encrypted = temp.path().join("encrypted.sqlite3");
+    // Encryption conversion must be explicitly selected; no implicit adoption.
+    assert!(
+        !run(
+            &legacy,
+            &key,
+            &[
+                "encrypt-copy",
+                encrypted.to_str().unwrap(),
+                "--new-key-file",
+                key.to_str().unwrap()
+            ]
+        )
+        .status
+        .success()
+    );
+    assert!(!encrypted.exists());
+    let result = plain(&[
+        "encrypt-copy",
+        encrypted.to_str().unwrap(),
+        "--new-key-file",
+        key.to_str().unwrap(),
+    ]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(fs::read(legacy.join("observr.sqlite3")).unwrap(), original);
+    let converted = temp.path().join("converted");
+    ok(&converted, &key, &["restore", encrypted.to_str().unwrap()]);
+    assert!(ok(&converted, &key, &["search", "Rust"]).contains("Rust"));
+    assert!(ok(&converted, &key, &["doctor"]).contains("\"database_integrity\": true"));
+    let rotated_key = temp.path().join("rotated.key");
+    assert!(
+        Command::new(env!("CARGO_BIN_EXE_observr"))
+            .args(["key", "create"])
+            .arg(&rotated_key)
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    let rotated_backup = temp.path().join("rotated.sqlite3");
+    ok(
+        &converted,
+        &key,
+        &[
+            "backup",
+            rotated_backup.to_str().unwrap(),
+            "--backup-key-file",
+            rotated_key.to_str().unwrap(),
+        ],
+    );
+    let rotated = temp.path().join("rotated");
+    assert!(
+        !run(
+            &rotated,
+            &key,
+            &["restore", rotated_backup.to_str().unwrap()]
+        )
+        .status
+        .success()
+    );
+    ok(
+        &rotated,
+        &rotated_key,
+        &["restore", rotated_backup.to_str().unwrap()],
+    );
+    assert!(ok(&rotated, &rotated_key, &["doctor"]).contains("\"database_integrity\": true"));
+    assert!(ok(&rotated, &rotated_key, &["status"]).contains("Conversations: 2"));
+    assert!(!run(&rotated, &key, &["status"]).status.success());
+    assert!(ok(&converted, &key, &["status"]).contains("Conversations: 2"));
+    assert!(!run(&converted, &rotated_key, &["status"]).status.success());
+}

@@ -5,8 +5,8 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, pa
 
 use crate::model::{Conversation, Message};
 
-const SCHEMA_VERSION: i64 = 3;
-const APPLICATION_ID: i64 = 0x4f425352;
+pub(crate) const SCHEMA_VERSION: i64 = 3;
+pub(crate) const APPLICATION_ID: i64 = 0x4f425352;
 const DATABASE_NAME: &str = "observr.sqlite3";
 
 pub struct Store {
@@ -133,7 +133,7 @@ impl Store {
         Ok(Self { connection })
     }
 
-    fn migrate(&mut self) -> Result<()> {
+    pub(crate) fn migrate(&mut self) -> Result<()> {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -174,6 +174,25 @@ impl Store {
         ensure!(
             version == SCHEMA_VERSION,
             "unsupported database schema {version}; expected {SCHEMA_VERSION}"
+        );
+        Ok(())
+    }
+
+    /// Read-only gate for old backups; migration happens on a private copy.
+    pub(crate) fn check_compatible_schema(&self) -> Result<()> {
+        let application: i64 = self
+            .connection
+            .pragma_query_value(None, "application_id", |r| r.get(0))?;
+        let version: i64 = self
+            .connection
+            .pragma_query_value(None, "user_version", |r| r.get(0))?;
+        ensure!(
+            application == APPLICATION_ID,
+            "this file is not an initialized Observr database"
+        );
+        ensure!(
+            (1..=SCHEMA_VERSION).contains(&version),
+            "unsupported database schema {version}; supported 1..={SCHEMA_VERSION}"
         );
         Ok(())
     }

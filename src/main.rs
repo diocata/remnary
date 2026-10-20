@@ -37,6 +37,12 @@ struct Cli {
 enum Command {
     /// Check database integrity and pending projection cleanup without content.
     Doctor,
+    /// Copy a legacy plaintext archive into a new encrypted database file.
+    EncryptCopy {
+        output: PathBuf,
+        #[arg(long)]
+        new_key_file: PathBuf,
+    },
     /// Create a consistent encrypted backup at a new filename.
     Backup {
         output: PathBuf,
@@ -258,6 +264,23 @@ fn run() -> Result<()> {
         );
         return Ok(());
     }
+    if let Command::EncryptCopy {
+        output,
+        new_key_file,
+    } = &cli.command
+    {
+        ensure!(
+            cli.insecure_plaintext,
+            "encrypt-copy requires --insecure-plaintext to explicitly select the legacy source"
+        );
+        let new_key = observr::security::SecretKey::from_key_file(new_key_file)?;
+        Store::encrypt_plaintext_copy(&data_dir, output, &new_key)?;
+        println!(
+            "Encrypted copy saved to {}. Original archive preserved. Restore into a new directory with the new key, then verify before retiring old plaintext copies.",
+            output.display()
+        );
+        return Ok(());
+    }
     let key = if cli.insecure_plaintext {
         None
     } else {
@@ -283,6 +306,7 @@ fn run() -> Result<()> {
     };
     match cli.command {
         Command::Restore { .. }
+        | Command::EncryptCopy { .. }
         | Command::Init
         | Command::Key {
             command: KeyCommand::Create { .. },
@@ -292,13 +316,22 @@ fn run() -> Result<()> {
             output,
             backup_key_file,
         } => {
+            ensure!(
+                !cli.insecure_plaintext || backup_key_file.is_none(),
+                "use encrypt-copy --new-key-file to convert a plaintext archive; ordinary backups retain its encryption mode"
+            );
             let backup_key = backup_key_file
                 .as_deref()
                 .map(observr::security::SecretKey::from_key_file)
                 .transpose()?;
             store.backup_to(&output, backup_key.as_ref().or(key.as_ref()))?;
+            let protection = if key.is_some() {
+                "encrypted; recovery requires the matching key"
+            } else {
+                "plaintext development copy"
+            };
             println!(
-                "Backup saved to {}. Recovery requires the matching key; Markdown exports and independent copies are not part of this database backup.",
+                "Backup saved to {} ({protection}). Markdown exports and independent copies are not part of this database backup.",
                 output.display()
             );
         }

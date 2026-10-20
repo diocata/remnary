@@ -100,9 +100,9 @@ observr key create /private/location/observr.key
 observr --data-dir /path/to/archive --key-file /private/location/observr.key init
 ```
 
-Use that same `--key-file` with subsequent commands. On Unix key files must be private regular files, with mode `0600`. `--insecure-plaintext` exists only for development and does not migrate or decrypt an encrypted archive. Existing plaintext stores are refused by the default encrypted path; a conversion command is not provided yet.
+Use that same `--key-file` with subsequent commands. On Unix key files must be private regular files, with mode `0600`. `--insecure-plaintext` explicitly selects development/legacy storage and never decrypts an encrypted archive. Default commands refuse plaintext stores; `encrypt-copy --new-key-file KEY` creates a separate encrypted copy. [Upgrade, restore and key-change workflows](docs/recovery.md).
 
-`exclude CONVERSATION_ID` hides retained evidence from search, analysis and projections; `include` reverses it. `delete conversation ID` purges canonical source revisions and derived dependencies; `delete observation ID` removes a finding and records an identity tombstone. `cleanup` retries projection conflicts. Provider/project/topic exclusions and key rotation remain release gaps. Deletion cannot erase independent backups or original exports. [Security boundaries](SECURITY.md).
+`exclude CONVERSATION_ID` hides retained evidence from search, analysis and projections; `include` reverses it. `delete conversation ID` purges canonical source revisions and derived dependencies; `delete observation ID` removes a finding and records an identity tombstone. `cleanup` retries projection conflicts. Provider/project/topic exclusions remain release gaps. Key changes use a verified backup/new-archive workflow. Deletion cannot erase independent backups or original exports. [Security boundaries](SECURITY.md).
 
 ## Development
 

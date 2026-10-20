@@ -11,6 +11,7 @@ use rusqlite::{
 use serde::Serialize;
 use std::{
     fs,
+    io::Read,
     path::Path,
     time::{Duration, Instant},
 };
@@ -26,6 +27,120 @@ pub struct HealthReport {
 }
 
 impl Store {
+    /// Convert a compatible plaintext archive into a NEW encrypted copy.
+    /// Source is opened read-only and is never migrated or rekeyed in place.
+    /// SQLCipher's backup API cannot mix encrypted and plaintext databases.
+    pub fn encrypt_plaintext_copy(data_dir: &Path, output: &Path, key: &SecretKey) -> Result<()> {
+        let source_path = data_dir.join("observr.sqlite3");
+        ensure!(
+            fs::symlink_metadata(&source_path)
+                .is_ok_and(|m| m.is_file() && !m.file_type().is_symlink()),
+            "conversion source must be a regular archive file, not a symlink"
+        );
+        let mut header = [0u8; 16];
+        fs::File::open(&source_path)?.read_exact(&mut header)?;
+        ensure!(
+            &header == b"SQLite format 3\0",
+            "conversion source is not plaintext; use backup for encrypted archives"
+        );
+        let source = Connection::open_with_flags(&source_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        source.pragma_update(None, "temp_store", "MEMORY")?;
+        source.busy_timeout(Duration::from_secs(5))?;
+        let application: i64 = source.pragma_query_value(None, "application_id", |r| r.get(0))?;
+        let version: i64 = source.pragma_query_value(None, "user_version", |r| r.get(0))?;
+        ensure!(
+            application == crate::store::APPLICATION_ID
+                && (1..=crate::store::SCHEMA_VERSION).contains(&version),
+            "conversion source is not a supported Observr archive"
+        );
+        verify_integrity(&source)?;
+        ensure!(
+            fs::symlink_metadata(output).is_err(),
+            "conversion destination already exists; choose a new filename"
+        );
+        let parent = output
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        ensure!(
+            parent.is_dir(),
+            "conversion destination directory must exist"
+        );
+        let temporary = tempfile::NamedTempFile::new_in(parent)
+            .context("create private encrypted conversion stage")?;
+        {
+            let mut target = Connection::open_with_flags(
+                temporary.path(),
+                OpenFlags::SQLITE_OPEN_READ_WRITE
+                    | OpenFlags::SQLITE_OPEN_CREATE
+                    | OpenFlags::SQLITE_OPEN_URI
+                    | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+            )?;
+            apply_key(&target, key)?;
+            target.busy_timeout(Duration::from_secs(5))?;
+            let mut source_uri = reqwest::Url::from_file_path(fs::canonicalize(&source_path)?)
+                .map_err(|_| anyhow::anyhow!("cannot represent conversion source as a file URI"))?;
+            source_uri.query_pairs_mut().append_pair("mode", "ro");
+            target.execute(
+                "ATTACH DATABASE ?1 AS observr_plain KEY ''",
+                [source_uri.as_str()],
+            )?;
+            let interrupt = target.get_interrupt_handle();
+            let (completed, deadline) = std::sync::mpsc::channel::<()>();
+            let watchdog = std::thread::spawn(move || {
+                if matches!(
+                    deadline.recv_timeout(Duration::from_secs(30)),
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+                ) {
+                    interrupt.interrupt();
+                }
+            });
+            let result = (|| -> Result<()> {
+                let transaction = target.transaction()?;
+                let attached = Some("observr_plain");
+                let application: i64 =
+                    transaction.pragma_query_value(attached, "application_id", |r| r.get(0))?;
+                let version: i64 =
+                    transaction.pragma_query_value(attached, "user_version", |r| r.get(0))?;
+                ensure!(
+                    application == crate::store::APPLICATION_ID
+                        && (1..=crate::store::SCHEMA_VERSION).contains(&version),
+                    "conversion source changed to an unsupported archive"
+                );
+                transaction
+                    .query_row(
+                        "SELECT sqlcipher_export('main', 'observr_plain')",
+                        [],
+                        |_| Ok(()),
+                    )
+                    .context("export plaintext into encrypted stage")?;
+                transaction.pragma_update(None, "application_id", application)?;
+                transaction.pragma_update(None, "user_version", version)?;
+                transaction.commit()?;
+                target.execute_batch("DETACH DATABASE observr_plain; PRAGMA foreign_keys=ON;")?;
+                Ok(())
+            })();
+            let _ = completed.send(());
+            let _ = watchdog.join();
+            result?;
+            let mut converted = Store { connection: target };
+            converted.migrate()?;
+            // The copy is independently owned. It must not remove source vaults.
+            converted.connection.execute_batch(
+                "BEGIN IMMEDIATE; DELETE FROM managed_files; DELETE FROM file_cleanup; COMMIT;",
+            )?;
+            converted.doctor()?;
+        }
+        temporary.as_file().sync_all()?;
+        temporary
+            .persist_noclobber(output)
+            .map_err(|e| e.error)
+            .context("publish encrypted copy without replacing an existing file")?;
+        #[cfg(unix)]
+        fs::File::open(parent)?.sync_all()?;
+        Ok(())
+    }
+
     pub fn doctor(&self) -> Result<HealthReport> {
         self.check_schema()?;
         verify_integrity(&self.connection)?;
@@ -97,12 +212,14 @@ impl Store {
                     }
                 }
             }
+            let mut copied = Store { connection: target };
             if reset_projections {
+                copied.migrate()?;
                 // A restored archive must never remove files owned by the
                 // original installation. Rebuild its vault explicitly instead.
-                target.execute_batch("PRAGMA foreign_keys=ON; BEGIN IMMEDIATE; DELETE FROM managed_files; DELETE FROM file_cleanup; COMMIT;")?;
+                copied.connection.execute_batch("PRAGMA foreign_keys=ON; BEGIN IMMEDIATE; DELETE FROM managed_files; DELETE FROM file_cleanup; COMMIT;")?;
             }
-            verify_integrity(&target)?;
+            verify_integrity(&copied.connection)?;
         }
         temporary.as_file().sync_all()?;
         temporary
@@ -132,8 +249,9 @@ impl Store {
         if let Some(key) = key {
             apply_key(&connection, key)?;
         }
+        connection.pragma_update(None, "temp_store", "MEMORY")?;
         let source = Store { connection };
-        source.check_schema()?;
+        source.check_compatible_schema()?;
         verify_integrity(&source.connection)?;
         let mut builder = fs::DirBuilder::new();
         builder.recursive(true);
@@ -173,6 +291,138 @@ mod tests {
         analysis_store::FeedbackAction,
         import::read_chatgpt,
     };
+    #[test]
+    fn restoring_an_old_encrypted_backup_migrates_only_the_new_archive() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let key = SecretKey::generate()?;
+        let mut store = Store::init_encrypted(&temp.path().join("source"), &key)?;
+        store.import(&read_chatgpt(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/chatgpt.json"),
+        )?)?;
+        analyze(&mut store, AnalysisEngine::Rules)?;
+        let id = store.observations(false)?[0].id.clone();
+        store.feedback(&id, FeedbackAction::Confirm, None)?;
+        // Reproduce a schema-2 backup produced before active heads existed.
+        store
+            .connection
+            .execute_batch("DROP TABLE active_analysis_runs; PRAGMA user_version=2;")?;
+        let backup = temp.path().join("old-backup.sqlite3");
+        store.backup_to(&backup, Some(&key))?;
+        let original = fs::read(&backup)?;
+        let restored = Store::restore_new(&temp.path().join("restored"), &backup, Some(&key))?;
+        assert_eq!(
+            restored.doctor()?.schema_version,
+            crate::store::SCHEMA_VERSION
+        );
+        assert_eq!(restored.observations(false)?[0].feedback_count, 1);
+        assert_eq!(
+            restored.observations(false)?[0].status,
+            crate::analysis_store::ObservationStatus::UserConfirmed
+        );
+        assert!(!restored.search("Rust", 10)?.is_empty());
+        assert_eq!(fs::read(backup)?, original);
+        Ok(())
+    }
+    #[test]
+    fn plaintext_version_one_conversion_upgrades_only_the_encrypted_copy() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let legacy = temp.path().join("legacy é #?' archive");
+        fs::create_dir(&legacy)?;
+        let path = legacy.join("observr.sqlite3");
+        let connection = Connection::open(&path)?;
+        connection.execute_batch(include_str!("schema.sql"))?;
+        connection.pragma_update(None, "application_id", crate::store::APPLICATION_ID)?;
+        connection.pragma_update(None, "user_version", 1)?;
+        let source = crate::model::Conversation {
+            provider: "chatgpt".into(),
+            source_id: "legacy-source".into(),
+            title: Some("Synthetic legacy archive".into()),
+            created_at: None,
+            updated_at: None,
+            metadata: serde_json::json!({}),
+            messages: vec![crate::model::Message {
+                source_id: "legacy-message".into(),
+                parent_source_id: None,
+                role: "user".into(),
+                content: "Legacy plaintextneedle. I prefer Rust.".into(),
+                created_at: None,
+                metadata: serde_json::json!({}),
+            }],
+        };
+        let id = source.stable_id();
+        connection.execute("INSERT INTO conversations(id,provider,source_id,current_revision) VALUES (?1,'chatgpt','legacy-source',1)",[&id])?;
+        connection.execute("INSERT INTO conversation_revisions(conversation_id,revision,fingerprint,title,metadata) VALUES (?1,1,?2,'Synthetic legacy archive','{}')",rusqlite::params![id,source.fingerprint()?])?;
+        connection.execute("INSERT INTO messages(conversation_id,revision,source_id,position,role,content,metadata) VALUES (?1,1,'legacy-message',0,'user','Legacy plaintextneedle. I prefer Rust.','{}')",[&id])?;
+        drop(connection);
+        let original = fs::read(&path)?;
+        let key = SecretKey::generate()?;
+        let output = temp.path().join("encrypted-copy.sqlite3");
+        Store::encrypt_plaintext_copy(&legacy, &output, &key)?;
+        assert_eq!(fs::read(&path)?, original);
+        let unchanged = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        let version: i64 = unchanged.pragma_query_value(None, "user_version", |r| r.get(0))?;
+        assert_eq!(version, 1);
+        assert!(!String::from_utf8_lossy(&fs::read(&output)?).contains("plaintextneedle"));
+        assert!(
+            Store::restore_new(
+                &temp.path().join("wrong-key"),
+                &output,
+                Some(&SecretKey::generate()?)
+            )
+            .is_err()
+        );
+        let mut restored = Store::restore_new(&temp.path().join("converted"), &output, Some(&key))?;
+        assert_eq!(restored.stats()?.messages, 1);
+        assert_eq!(restored.search("plaintextneedle", 10)?.len(), 1);
+        assert_eq!(
+            restored.doctor()?.schema_version,
+            crate::store::SCHEMA_VERSION
+        );
+        assert!(Store::encrypt_plaintext_copy(&legacy, &output, &key).is_err());
+        assert_eq!(analyze(&mut restored, AnalysisEngine::Rules)?.processed, 1);
+        assert_eq!(
+            restored.observations(false)?[0].observation.evidence[0].source_message_id,
+            "legacy-message"
+        );
+        assert_eq!(fs::read(path)?, original);
+        Ok(())
+    }
+
+    #[test]
+    fn plaintext_conversion_preserves_reviews_and_never_owns_the_original_vault() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let source = temp.path().join("source");
+        let mut store = Store::init(&source)?;
+        store.import(&read_chatgpt(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/chatgpt.json"),
+        )?)?;
+        analyze(&mut store, AnalysisEngine::Rules)?;
+        let id = store.observations(false)?[0].id.clone();
+        store.feedback(
+            &id,
+            FeedbackAction::Correct,
+            Some("My reviewed synthetic preference"),
+        )?;
+        let vault = temp.path().join("vault");
+        crate::knowledge::sync_vault(&mut store, &vault, "UTC")?;
+        let profile = fs::read(vault.join("Profile.md"))?;
+        let original = fs::read(source.join("observr.sqlite3"))?;
+        let key = SecretKey::generate()?;
+        let output = temp.path().join("copy.sqlite3");
+        Store::encrypt_plaintext_copy(&source, &output, &key)?;
+        assert_eq!(fs::read(source.join("observr.sqlite3"))?, original);
+        let mut converted = Store::restore_new(&temp.path().join("restored"), &output, Some(&key))?;
+        assert_eq!(
+            converted.observations(false)?[0].display_text(),
+            "My reviewed synthetic preference"
+        );
+        assert_eq!(converted.observations(false)?[0].feedback_count, 1);
+        assert!(converted.doctor()?.database_integrity);
+        converted.delete_observation(&id)?;
+        assert_eq!(fs::read(vault.join("Profile.md"))?, profile);
+        assert!(store.observations(false)?.iter().any(|r| r.id == id));
+        Ok(())
+    }
     #[test]
     fn encrypted_backup_restore_preserves_evidence_feedback_and_tombstones() -> Result<()> {
         let temp = tempfile::tempdir()?;
