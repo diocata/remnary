@@ -53,7 +53,14 @@ fn read_zip(file: File) -> Result<Vec<u8>> {
         let entry = archive
             .by_index(index)
             .with_context(|| format!("read ZIP member {index}"))?;
-        if entry.is_file() && entry.name().rsplit('/').next() == Some("conversations.json") {
+        if entry.is_file()
+            && entry
+                .name()
+                .context("ZIP entry name is not valid text")?
+                .rsplit('/')
+                .next()
+                == Some("conversations.json")
+        {
             matches.push(index);
         }
     }
