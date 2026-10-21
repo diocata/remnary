@@ -139,3 +139,9 @@ The expanded development fixtures contain 31 full-pipeline cases and 34 verifier
 ### Producer v18: one claim per verification request
 
 The v17 verifier attempt timed out during quotation-only support, so no verifier acceptance score is claimed for that run. V18 reduces verification batches to **one candidate per request** and asks for brief reasoning. All context/quotation boundaries, strict verdict validation and token/deadline limits remain in force. A timeout leaves the source pending rather than accepting unverified output.
+
+### Producer v19: use Qwen's thinking sampler
+
+The v18 verifier was stopped after more than twenty minutes without a completed score; it is not an acceptance pass. Runtime metadata showed active decoding, including a single claim generating thousands of reasoning tokens. V19 keeps one-claim verification and uses Qwen35's recommended general-thinking sampler: temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5 and repetition penalty 1.0. A fixed seed of 42 supports local comparisons without promising exact reproducibility across runtimes. Generation and identity matching retain their separately measured non-thinking policy. The policy is selected by the daemon's advertised model family/capability, not a tag-name guess.
+
+Source: [Qwen3.5-9B official model card, sampling guidance](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices), checked 2026-10-21. The locally installed model metadata already declares the same temperature, top-p, top-k and presence penalty; Observr had overridden its temperature with greedy decoding.

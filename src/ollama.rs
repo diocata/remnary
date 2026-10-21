@@ -346,6 +346,18 @@ fn chat_body_with_limits(
         let mut request: Value = serde_json::from_slice(&body)?;
         request["think"] = json!(true);
         request["options"]["num_predict"] = json!(8192);
+        if qwen && policy == ReasoningPolicy::Verification {
+            // Qwen's recommended thinking sampler avoids greedy reasoning loops.
+            // A fixed seed aids local comparisons; it is not a cross-runtime
+            // reproducibility guarantee.
+            request["options"]["temperature"] = json!(1.0);
+            request["options"]["top_p"] = json!(0.95);
+            request["options"]["top_k"] = json!(20);
+            request["options"]["min_p"] = json!(0.0);
+            request["options"]["presence_penalty"] = json!(1.5);
+            request["options"]["repeat_penalty"] = json!(1.0);
+            request["options"]["seed"] = json!(42);
+        }
         serde_json::to_vec(&request)?
     } else {
         body
@@ -353,7 +365,7 @@ fn chat_body_with_limits(
     // Reasoning models receive twice the token budget and request deadline.
     // The measured Qwen completion path also needs this longer deadline on
     // larger real windows, without enabling reasoning or increasing tokens.
-    // Metadata/verification stay bounded by the original shorter deadline.
+    // Non-thinking verification and metadata retain the shorter deadline.
     let generation_timeout = if thinking || (policy == ReasoningPolicy::Generation && qwen) {
         timeout.saturating_mul(2)
     } else {
@@ -1137,6 +1149,18 @@ mod tests {
             requests.recv_timeout(Duration::from_secs(3)).unwrap();
             let body = requests.recv_timeout(Duration::from_secs(3)).unwrap();
             assert_eq!(body["think"], capable);
+            assert_eq!(
+                body["options"]["temperature"],
+                if capable { json!(1.0) } else { json!(0) }
+            );
+            if capable {
+                assert_eq!(body["options"]["presence_penalty"], 1.5);
+                assert_eq!(body["options"]["top_p"], 0.95);
+                assert_eq!(body["options"]["top_k"], 20);
+                assert_eq!(body["options"]["seed"], 42);
+            } else {
+                assert!(body["options"].get("seed").is_none());
+            }
             assert_eq!(
                 body["options"]["num_predict"],
                 if capable { 8192 } else { 4096 }
