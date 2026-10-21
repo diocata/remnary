@@ -423,7 +423,7 @@
       "I chose SQLite for this prototype."
     ],
     "canonical_value": "selected SQLite for this prototype",
-    "context": "this prototype",
+    "context": "for this prototype",
     "summary": "User selected SQLite for this prototype.",
     "expected_supported": true
   },
@@ -436,7 +436,7 @@
       "I am considering SQLite for this prototype."
     ],
     "canonical_value": "selected SQLite for this prototype",
-    "context": "this prototype",
+    "context": "for this prototype",
     "summary": "User selected SQLite for this prototype.",
     "expected_supported": false
   }

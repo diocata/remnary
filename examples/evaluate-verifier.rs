@@ -70,9 +70,14 @@ fn main() -> Result<()> {
                 .enumerate()
                 .map(|(index, quote)| EvidenceRef {
                     provider: "synthetic".into(),
-                    conversation_id: case.id.clone(),
+                    conversation_id: digest(
+                        format!("observr-synthetic-verifier-conversation:{}", case.id).as_bytes(),
+                    ),
                     revision: 1,
-                    source_message_id: format!("{}-message-{index}", case.id),
+                    source_message_id: digest(
+                        format!("observr-synthetic-verifier-message:{}:{index}", case.id)
+                            .as_bytes(),
+                    ),
                     quote: quote.clone(),
                 })
                 .collect(),
@@ -99,7 +104,10 @@ fn main() -> Result<()> {
                         "synthetic quote must match its source context"
                     );
                     Message {
-                        source_id: format!("{}-message-{index}", case.id),
+                        source_id: digest(
+                            format!("observr-synthetic-verifier-message:{}:{index}", case.id)
+                                .as_bytes(),
+                        ),
                         parent_source_id: None,
                         role: "user".into(),
                         content,
@@ -122,14 +130,14 @@ fn main() -> Result<()> {
         },
     )?;
     let results=cases.iter().map(|case|{
-  let accepted=verified.observations.iter().any(|o|o.evidence[0].conversation_id==case.id);
+  let accepted=verified.observations.iter().any(|o|o.evidence[0].conversation_id==digest(format!("observr-synthetic-verifier-conversation:{}",case.id).as_bytes()));
   json!({"case":case.id,"expected_supported":case.expected_supported,"accepted":accepted,"passed":accepted==case.expected_supported})
  }).collect::<Vec<_>>();
     let passed = results.iter().filter(|r| r["passed"] == true).count();
     println!(
         "{}",
         serde_json::to_string_pretty(
-            &json!({"synthetic_only":true,"model":model,"manifest_digest":identity.digest,"daemon_version":identity.daemon_version,"fixture_sha256":digest(bytes),"selected_cases":cases.iter().map(|case|&case.id).collect::<Vec<_>>(),"seconds":started.elapsed().as_secs_f64(),"passed":passed,"total":cases.len(),"rejected":rejected,"cases":results})
+            &json!({"synthetic_only":true,"fixture_labels_are_not_model_inputs":true,"model":model,"manifest_digest":identity.digest,"daemon_version":identity.daemon_version,"fixture_sha256":digest(bytes),"selected_cases":cases.iter().map(|case|&case.id).collect::<Vec<_>>(),"seconds":started.elapsed().as_secs_f64(),"passed":passed,"total":cases.len(),"rejected":rejected,"cases":results})
         )?
     );
     ensure!(

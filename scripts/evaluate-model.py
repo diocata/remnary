@@ -38,11 +38,13 @@ def main():
         documents = []
         for index, case in enumerate(cases):
             mapping = {}
+            def message_id(position):
+                return hashlib.sha256(f'observr-synthetic-message:{case["id"]}:{position}'.encode()).hexdigest()
             for position, message in enumerate(case["messages"]):
-                node = f'{case["id"]}-message-{position}'
+                node = message_id(position)
                 mapping[node] = {"id": node,
-                                 "parent": f'{case["id"]}-message-{position-1}' if position else None,
-                                 "children": [f'{case["id"]}-message-{position+1}'] if position+1 < len(case["messages"]) else [],
+                                 "parent": message_id(position-1) if position else None,
+                                 "children": [message_id(position+1)] if position+1 < len(case["messages"]) else [],
                                  "message": {"id": node, "author": {"role": message["role"]},
                                              "create_time": 1700000000+index*100+position,
                                              "content": {"content_type": "text", "parts": [message["text"]]}, "metadata": {}}}
@@ -87,7 +89,7 @@ def main():
                     issues.append("required grounded classification missing")
             report.append({"case": case["id"], "passed": not issues, "issues": issues,
                            "claims": [{"kind": c["kind"], "event": c["decision_event"], "summary": c["summary"]} for c in claims]})
-        output = {"synthetic": True, "model": args.model, "seconds": round(time.monotonic()-start, 2),
+        output = {"synthetic": True, "message_ids_opaque": True, "model": args.model, "seconds": round(time.monotonic()-start, 2),
                   "fixture_sha256": hashlib.sha256(fixture_bytes).hexdigest(), "binary_sha256": binary_digest,
                   "selected_cases": [case["id"] for case in cases],
                   "analysis_success": result.returncode == 0, "passed": sum(r["passed"] for r in report),
