@@ -482,6 +482,24 @@ fn run() -> Result<()> {
                         } => eprintln!(
                             "  Conversation {conversation}: model window {current}/{total}"
                         ),
+                        AnalysisProgress::CheckingEvidence {
+                            conversation,
+                            candidates,
+                            reused_identity,
+                        } => eprintln!(
+                            "  Conversation {conversation}: checking evidence for {candidates} {} candidates",
+                            if reused_identity {
+                                "reused"
+                            } else {
+                                "generated"
+                            }
+                        ),
+                        AnalysisProgress::MatchingClaims {
+                            conversation,
+                            candidates,
+                        } => eprintln!(
+                            "  Conversation {conversation}: matching {candidates} claims with existing findings"
+                        ),
                         AnalysisProgress::Finished {
                             conversation,
                             success,

@@ -42,6 +42,15 @@ pub enum AnalysisProgress {
         current: usize,
         total: usize,
     },
+    CheckingEvidence {
+        conversation: usize,
+        candidates: usize,
+        reused_identity: bool,
+    },
+    MatchingClaims {
+        conversation: usize,
+        candidates: usize,
+    },
     Finished {
         conversation: usize,
         success: bool,
@@ -114,6 +123,11 @@ pub fn analyze_with_progress(
                         // Validate against the window actually sent, then the
                         // original immutable source again before committing.
                         let grounded = validate_model_output(&batch, target.revision, output)?;
+                        progress(AnalysisProgress::CheckingEvidence {
+                            conversation: current,
+                            candidates: grounded.observations.len(),
+                            reused_identity: false,
+                        });
                         let (verified, rejected) = crate::verification::verify_observations(
                             endpoint,
                             model,
@@ -123,6 +137,10 @@ pub fn analyze_with_progress(
                         )
                         .context("verifying newly generated observations")?;
                         rejected_candidates += rejected;
+                        progress(AnalysisProgress::MatchingClaims {
+                            conversation: current,
+                            candidates: verified.observations.len(),
+                        });
                         let (reconciled, receipt) = crate::reconciliation::reconcile(
                             store,
                             endpoint,
@@ -144,6 +162,11 @@ pub fn analyze_with_progress(
                                     .collect(),
                                 ..AnalysisOutput::default()
                             };
+                            progress(AnalysisProgress::CheckingEvidence {
+                                conversation: current,
+                                candidates: changes.observations.len(),
+                                reused_identity: true,
+                            });
                             let (supported, _) = crate::verification::verify_observations(
                                 endpoint,
                                 model,
