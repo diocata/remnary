@@ -503,5 +503,32 @@
       "decision",
       "confirmation"
     ]
+  },
+  {
+    "id": "transfer-correction-of-permission-change",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Revert the permissions you changed after I asked you to leave them alone."
+      }
+    ],
+    "required": [
+      {
+        "kind": "correction"
+      }
+    ],
+    "forbidden": [
+      "explicit_preference"
+    ]
+  },
+  {
+    "id": "transfer-routine-permission-request",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Revert the permissions on this scratch folder."
+      }
+    ],
+    "empty": true
   }
 ]
