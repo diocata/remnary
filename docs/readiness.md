@@ -4,7 +4,7 @@ Updated 2026-10-21. **Production readiness is not established:** the full blinde
 
 ## Current implementation
 
-Producer/prompt **v30**, encrypted schema **5**. All **202 offline tests** pass: 183 library, twelve analysis and seven CLI/source tests. Formatting, locked all-target Clippy with warnings denied and debug compilation pass. Two ignored local-model tests run separately and are not counted in 202.
+Producer/prompt **v31**, encrypted schema **5**. All **203 offline tests** pass: 184 library, twelve analysis and seven CLI/source tests. Formatting, locked all-target Clippy with warnings denied and debug compilation pass. Two ignored local-model tests run separately and are not counted in 203.
 
 Generation produces eight canonical fields and Rust derives their displayed description. Existing free-form descriptions require a separate source-free identity-consistency check. Every accepted model claim needs reasoned quotation support; surrounding context may invalidate but cannot rescue a claim absent from its citations. Administrative IDs and fixture labels are excluded from semantic verification. [Current setup and versioned evidence](local-model.md).
 
@@ -68,3 +68,6 @@ V29's targeted correction/routine retest passes **3/3** in 190.13 seconds while 
 
 
 At source commit `13f4f5d`, an in-memory comparison of six task recovery-key files and two captured ephemeral dashboard-token occurrences found zero matches in tracked files or 541 historical Git blobs (9,829,007 bytes). No secret values were printed or committed. This checks those actual task secrets, not every possible third-party credential or private quotation. No database, recovery-key, `.observr`, `.tools` or `target` paths are tracked.
+
+
+V30 completed all 38 synthetic sources in 714.82 seconds and passed 37/38. It retained the transferred correction but accepted approval as a correction in the full run; therefore the worker did not start real histories. V31 adds a source-aware correction eligibility gate for explicit closing approval. It checks the complete linked sentence when a quote is clipped, permits genuine contrast/criticism to reach semantic verification, and avoids treating separate criticism as approval. The unit test covers whole/clipped approval, gratitude and mixed messages. The targeted four controls pass in 34.15 seconds after restarting the local daemon with the same Ollama version and model digest. The initial unavailable-daemon attempt processed no sources and is not a model-quality result. Full generation, renewed verifier/lifecycle checks and real acceptance remain open.

@@ -588,6 +588,63 @@ fn needs_context(source: &Conversation, output: &AnalysisOutput) -> bool {
         })
 }
 
+// Approval is not corrective feedback. Inspect the linked sentence as well as
+// the quote so clipping away the approval cannot change its classification.
+fn approving_feedback(text: &str) -> bool {
+    static CONTRAST: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let text = text.to_lowercase().replace('’', "'");
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let contrast = CONTRAST.get_or_init(|| {
+        regex::Regex::new(
+        r"(?:\b(?:but|however|except|although|yet|instead|not|never|no|stop|undo|revert)\b|n't\b)"
+    ).expect("fixed feedback contrast pattern")
+    });
+    let mut has_approval = false;
+    let only_approval = crate::intelligence::sentence_spans(&text)
+        .iter()
+        .all(|sentence| {
+            let sentence = sentence.trim().trim_end_matches(['.', '!']);
+            if matches!(sentence, "thank you" | "thanks") {
+                return true;
+            }
+            let approved = [
+                "exactly what i wanted",
+                "just what i wanted",
+                "exactly what i asked for",
+            ]
+            .iter()
+            .any(|phrase| {
+                sentence.find(phrase).is_some_and(|at| {
+                    let tail = sentence[at + phrase.len()..]
+                        .trim()
+                        .trim_matches(['.', '!', ',', ';']);
+                    matches!(tail.trim(), "" | "thank you" | "thanks")
+                })
+            }) && !contrast.is_match(sentence);
+            has_approval |= approved;
+            approved
+        });
+    only_approval && has_approval
+}
+
+fn correction_has_only_approval(
+    source: &Conversation,
+    observation: &crate::intelligence::CandidateObservation,
+) -> bool {
+    observation.kind == crate::intelligence::ExtractionKind::Correction
+        && !observation.evidence.is_empty()
+        && observation.evidence.iter().all(|e| {
+            approving_feedback(&e.quote)
+                || source
+                    .messages
+                    .iter()
+                    .filter(|m| m.source_id == e.source_message_id)
+                    .flat_map(|m| m.content.lines())
+                    .flat_map(crate::intelligence::sentence_spans)
+                    .any(|sentence| sentence.contains(&e.quote) && approving_feedback(sentence))
+        })
+}
+
 pub fn verify_observations(
     endpoint: &str,
     model: &str,
@@ -607,8 +664,9 @@ pub fn verify_observations(
     let (mut output, mut omitted) = filter_ineligible_claims(output);
     let before = output.observations.len();
     output.observations.retain(|o| {
-        o.kind != crate::intelligence::ExtractionKind::ExplicitPreference
-            || complete_preference_quotes(source, o)
+        (o.kind != crate::intelligence::ExtractionKind::ExplicitPreference
+            || complete_preference_quotes(source, o))
+            && !correction_has_only_approval(source, o)
     });
     omitted += before - output.observations.len();
     if output.observations.is_empty() {
@@ -716,6 +774,71 @@ mod tests {
         assert_eq!(output.observations.len(), 2);
         output
     }
+    #[test]
+    fn correction_eligibility_preserves_approval_context_and_genuine_contrasts() {
+        let praise =
+            "You renamed those documents without asking, and that was exactly what I wanted.";
+        for (text, quote, expected) in [
+            (praise, praise, true),
+            (praise, "You renamed those documents without asking", true),
+            (
+                "That was exactly what I wanted. Thank you.",
+                "That was exactly what I wanted. Thank you.",
+                true,
+            ),
+            (
+                "That was exactly what I wanted. You changed permissions without asking. Restore them.",
+                "That was exactly what I wanted. You changed permissions without asking. Restore them.",
+                false,
+            ),
+            (
+                "That was exactly what I wanted; you changed permissions without asking.",
+                "That was exactly what I wanted; you changed permissions without asking.",
+                false,
+            ),
+            (
+                "Revert the permissions you changed after I asked you to leave them alone.",
+                "Revert the permissions you changed after I asked you to leave them alone.",
+                false,
+            ),
+            (
+                "You renamed the files exactly what I wanted, but you deleted my notes without asking.",
+                "you deleted my notes without asking",
+                false,
+            ),
+            (
+                "That was exactly what I wanted. You changed permissions after I asked you not to.",
+                "You changed permissions after I asked you not to.",
+                false,
+            ),
+        ] {
+            let source = Conversation {
+                provider: "synthetic".into(),
+                source_id: "one".into(),
+                title: None,
+                created_at: None,
+                updated_at: None,
+                metadata: Value::Null,
+                messages: vec![Message {
+                    source_id: "m".into(),
+                    parent_source_id: None,
+                    role: "user".into(),
+                    content: text.into(),
+                    created_at: None,
+                    metadata: Value::Null,
+                }],
+            };
+            let mut claim = output().observations.remove(0);
+            claim.kind = crate::intelligence::ExtractionKind::Correction;
+            claim.evidence[0].quote = quote.into();
+            assert_eq!(
+                correction_has_only_approval(&source, &claim),
+                expected,
+                "{text}"
+            );
+        }
+    }
+
     #[test]
     fn source_context_is_required_exact_and_omits_raw_metadata() {
         let output = output();
