@@ -35,7 +35,16 @@ fn main() -> Result<()> {
         .map(String::as_str)
         .unwrap_or("qwen3.5:9b-q4_K_M");
     let bytes = include_bytes!("../tests/fixtures/verifier-semantic-evaluation.json");
-    let cases: Vec<Case> = serde_json::from_slice(bytes)?;
+    let mut cases: Vec<Case> = serde_json::from_slice(bytes)?;
+    if args.len() > 3 {
+        for id in &args[3..] {
+            ensure!(
+                cases.iter().any(|case| &case.id == id),
+                "unknown case ID: {id}"
+            );
+        }
+        cases.retain(|case| args[3..].contains(&case.id));
+    }
     let identity = model_identity(endpoint, model)?;
     let observations = cases
         .iter()
@@ -120,7 +129,7 @@ fn main() -> Result<()> {
     println!(
         "{}",
         serde_json::to_string_pretty(
-            &json!({"synthetic_only":true,"model":model,"manifest_digest":identity.digest,"daemon_version":identity.daemon_version,"fixture_sha256":digest(bytes),"seconds":started.elapsed().as_secs_f64(),"passed":passed,"total":cases.len(),"rejected":rejected,"cases":results})
+            &json!({"synthetic_only":true,"model":model,"manifest_digest":identity.digest,"daemon_version":identity.daemon_version,"fixture_sha256":digest(bytes),"selected_cases":cases.iter().map(|case|&case.id).collect::<Vec<_>>(),"seconds":started.elapsed().as_secs_f64(),"passed":passed,"total":cases.len(),"rejected":rejected,"cases":results})
         )?
     );
     ensure!(

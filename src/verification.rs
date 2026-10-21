@@ -206,6 +206,13 @@ fn routine_command(quote: &str) -> bool {
         return false;
     }
     [
+        "run the tests",
+        "run tests",
+        "please run the tests",
+        "please run those tests",
+        "summarize ",
+        "summarise ",
+        "translate ",
         "create a new file ",
         "create new file ",
         "make a new file ",
@@ -628,6 +635,14 @@ mod routine_gate_tests {
         let (filtered, omitted) = filter_ineligible_claims(output.clone());
         assert!(filtered.observations.is_empty());
         assert_eq!(omitted, 1);
+        for quote in [
+            "Run the tests for this change.",
+            "Please run those tests now.",
+            "Summarize the previous messages into Markdown.",
+            "Translate this response into Portuguese.",
+        ] {
+            assert!(routine_command(quote), "{quote}");
+        }
         for quote in [
             "Create a new file for the parser. I prefer Rust for this tool.",
             "I chose Rust instead of Python for LumenLog.",
