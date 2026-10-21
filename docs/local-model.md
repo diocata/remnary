@@ -1,6 +1,6 @@
 # Local model setup and verification
 
-Current producer/prompt: **v32**; encrypted schema: **5**. Model-quality acceptance remains open. The default rules engine works without a model but only recognizes a narrow set of direct statements. This guide describes the current adapter; [historical experiments](model-evaluation-history.md) preserve retired settings and earlier results.
+Current producer/prompt: **v33**; encrypted schema: **5**. Model-quality acceptance remains open. The default rules engine works without a model but only recognizes a narrow set of direct statements. This guide describes the current adapter; [historical experiments](model-evaluation-history.md) preserve retired settings and earlier results.
 
 ## Run a local model
 
@@ -61,8 +61,10 @@ OBSERVR_TEST_OLLAMA_ENDPOINT=http://127.0.0.1:11435 \
   --ignored --nocapture --test-threads=1
 ```
 
-The generation harness contains **39** hand-labeled cases; `--case CASE_ID` selects a targeted subset. It freezes the tested executable and reports binary/fixture hashes. The verifier has **51** cases and the identity fixture **13**, plus an encrypted review lifecycle. Administrative test labels are excluded from semantic verdict inputs. These are development regressions, not independent accuracy estimates.
+The generation harness contains **39** hand-labeled cases; `--case CASE_ID` selects a targeted subset. It freezes the tested executable and reports binary/fixture hashes. The verifier has **54** cases and the identity fixture **13**, plus an encrypted review lifecycle. Administrative test labels are excluded from semantic verdict inputs. These are development regressions, not independent accuracy estimates.
 
-V31 passed 38/38 generation cases, 48/48 verifier cases, 13/13 identity cases and the encrypted review lifecycle, but real review found only 19/23 grounded claims. V32's targeted relevance controls pass 3/3 in 39.75 seconds and its checks exclude all four disputed real findings. Full v32 generation, verification, identity/review and fresh real-history assessment remain open.
+V31 passed 38/38 generation cases, 48/48 verifier cases, 13/13 identity cases and the encrypted review lifecycle, but real review found only 19/23 grounded claims. V32's targeted relevance controls pass 3/3 in 39.75 seconds and its checks exclude all four disputed real findings. The patched-runtime v32 generation run passed 38/39 in 726.66 seconds, failing a valid repeated-workflow case. V33 separates per-message behavioral repetition from cross-occasion breadth, while preserving concrete project restrictions and requiring the full combined claim to pass source entailment. Full v33 generation, verification, identity/review and fresh real-history assessment remain open.
 
 Real acceptance uses a private encrypted forty-source corpus and agent source review under the owner's explicit delegation, without fabricated owner confirmation or independent-human ratings. Real histories bypass synthetic tracing proxies. Current results, exact package provenance and acceptance limits are in [readiness.md](readiness.md); source/format boundaries are in [sources.md](sources.md). No private corpus, model trace or key is committed.
+
+V33 targeted verification passes **6/6 in 188.90 seconds**: two positive repeated-behavior controls and four insufficient-support controls, including concrete project scope and compound actions. This is a targeted regression result, not full acceptance.

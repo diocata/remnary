@@ -630,5 +630,47 @@
     "summary": "Possible preference: prefers rounded blue buttons for this demo",
     "context": null,
     "expected_supported": false
+  },
+  {
+    "id": "repeated-workflow-with-combined-breadth",
+    "kind": "behavioral_pattern",
+    "topic": "workflow",
+    "decision_event": null,
+    "quotes": [
+      "For every new release I use a checklist to avoid skipping the tests.",
+      "That checklist-and-tests routine is my standard release workflow across projects."
+    ],
+    "canonical_value": "standard release workflow involves a checklist-and-tests routine",
+    "summary": "Possible pattern: standard release workflow involves a checklist-and-tests routine",
+    "context": "across projects",
+    "expected_supported": true
+  },
+  {
+    "id": "different-project-does-not-repeat-scoped-workflow",
+    "kind": "behavioral_pattern",
+    "topic": "workflow",
+    "decision_event": null,
+    "quotes": [
+      "For Atlas releases I use a checklist and run tests.",
+      "For Beacon releases I use a checklist and run tests."
+    ],
+    "canonical_value": "uses a checklist and runs tests",
+    "summary": "Possible pattern: uses a checklist and runs tests",
+    "context": "For Atlas releases",
+    "expected_supported": false
+  },
+  {
+    "id": "composed-workflow-actions-not-independently-repeated",
+    "kind": "behavioral_pattern",
+    "topic": "workflow",
+    "decision_event": null,
+    "quotes": [
+      "Before each release I run the tests and inspect failed checks.",
+      "For every new release I use a checklist to avoid skipping the tests."
+    ],
+    "canonical_value": "runs tests, inspects failed checks, and uses a checklist for every new release",
+    "summary": "Possible pattern: runs tests, inspects failed checks, and uses a checklist for every new release",
+    "context": null,
+    "expected_supported": false
   }
 ]
