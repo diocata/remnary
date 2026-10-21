@@ -50,3 +50,5 @@ The observed initial platform is Apple Silicon macOS. Other operating systems, h
 The initial v32 model run was deliberately superseded before a complete generation score when the dependency audit identified the yanked runtime. The restarted `v32b` run label uses producer/prompt 32 and Tokio 1.54.1, with newly frozen executables. All 206 offline tests, Clippy and debug compilation pass after the patch. Current complete model and real-quality gates remain open. [Tokio maintainer changelog](https://github.com/tokio-rs/tokio/blob/master/tokio/CHANGELOG.md#1541-october-21st-2026).
 
 V33 targeted verification passes **6/6 in 188.90 seconds**: two positive repeated-behavior controls and four insufficient-support controls, including concrete project scope and compound actions. This is a targeted regression result, not full acceptance.
+
+The formerly failing repeated-workflow generation case passes **1/1 in 117.22 seconds** on v33, retaining the grounded checklist-and-tests routine and cited cross-project scope. The full frozen v33 pipeline is running from code commit `abf97e7`; no complete v33 acceptance score is claimed yet.
