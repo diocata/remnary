@@ -14,6 +14,7 @@ Each candidate contains kind, inference, subject, topic, canonical_value, contex
 Use supported only when the complete candidate is grounded and its kind/inference/scope are appropriate. Use unsupported for a contradiction, invented detail, stronger comparison, missing evidence, or an ordinary request presented as an enduring preference. Use uncertain if attribution or meaning cannot be established. Do not rewrite or improve candidates.
 Examples: a quotation asking for an attractive car does not support a claim naming a particular different model or comparing coupes with convertibles. Wanting a casual addition to a collection does not imply preferring casual items OVER formal ones. Asking for more options within a price limit establishes a constraint on that request, not an enduring preference. A fragment such as 'not another of the same' does not establish a collection-wide preference without supporting quoted context. 'I prefer concise explanations for work messages' supports that scoped explicit preference. 'I selected SQLite for this prototype' supports a scoped decision, not a global preference.
 Preferences/corrections/decisions must be user statements, not quoted advice. Preserve project/task/audience scope. A one-time execution command is not a preference or behavioral pattern. Inferred patterns require repeated distinct-message evidence and honest tentative wording; do not infer sensitive traits. Topics may narrowly describe substantive exploration, projects require an actual named ongoing project, not product ownership, one appointment, a standalone article query or an unnamed 'our project', corrections must actually correct or restrict assistant behavior. Routine execution, formatting, translation and summary requests are not decision events merely because an action is requested. A decision requires actual deliberation, selection or change of an option/approach for a goal. Decision events describe user commitment, not whether an assistant completed the task. Decision events must preserve proposal, consideration, choice, reconsideration, reversal or confirmation rather than claiming an old event is a current state.
+An option question is a real consideration/proposal event even though it is not an endorsement or settled choice. "What about DuckDB plus JSON files for this prototype?" supports kind decision, event consideration, value DuckDB plus JSON files, scope for this prototype, summary User considers DuckDB plus JSON files for the prototype. The event field supplies the deliberation action when the value names only the options. This does not support adoption, implementation, preference, or an unstated goal/target. A generic information question without a proposed option or approach is not a decision event.
 Generic organizing labels such as user, technology, communication, workflow and software project are categories, not extra personal facts. Do not reject a grounded claim solely because the quotation does not literally spell out its generic category. However, a specific person, project, file, product, feature or comparison added only in a generated label is still unsupported. Recognize ordinary paraphrases: chose and selected describe the same selection; a request to understand a topic supports discussion of that topic, not a claim that the user already mastered it. Quoted unresolved scope such as "this prototype" is valid scope; do not require a project name or evidence that implementation happened. In particular, "I chose SQLite for this prototype" supports subject user, topic technology, canonical_value selected SQLite for this prototype, context this prototype or for this prototype, decision_event decision, summary User selected SQLite for this prototype. "I am considering SQLite for this prototype" does NOT support that same selected/decision claim.
 Output exactly {"schema_version":1,"verdicts":[{"candidate_id":0,"verdict":"supported","reason":"fully_supported"}]}. Return exactly one verdict for EVERY supplied candidate_id, without duplicates or extra IDs. Allowed verdicts: supported, unsupported, uncertain. Allowed reasons: fully_supported, unsupported_detail, overstated_scope, wrong_kind_or_inference, ambiguous_evidence. supported requires fully_supported; other verdicts must use another reason. Never return explanation text, observations, personal facts or quotations."#;
 
@@ -57,6 +58,14 @@ fn schema(count: usize) -> Value {
 }
 
 fn apply(output: AnalysisOutput, result: Value) -> Result<(AnalysisOutput, usize)> {
+    apply_verdicts(output, result, false)
+}
+
+fn apply_verdicts(
+    output: AnalysisOutput,
+    result: Value,
+    defer_uncertain: bool,
+) -> Result<(AnalysisOutput, usize)> {
     let result: Verification = serde_json::from_value(result).map_err(|_| {
         anyhow::anyhow!("local claim verification returned an invalid strict schema")
     })?;
@@ -78,7 +87,10 @@ fn apply(output: AnalysisOutput, result: Value) -> Result<(AnalysisOutput, usize
             (verdict.verdict == Decision::Supported) == (verdict.reason == Reason::FullySupported),
             "local claim verification returned inconsistent verdict/reason fields"
         );
-        decisions[verdict.candidate_id] = Some(verdict.verdict == Decision::Supported);
+        decisions[verdict.candidate_id] = Some(
+            verdict.verdict == Decision::Supported
+                || (defer_uncertain && verdict.verdict == Decision::Uncertain),
+        );
     }
     let original = output.observations.len();
     let observations = output
@@ -149,7 +161,7 @@ fn cited_context(source: &Conversation, output: &AnalysisOutput) -> Result<Vec<V
 // Positive evidence of a stated preference is required BEFORE asking the model
 // for an entailment verdict. A task or question cannot acquire a preference
 // merely because both generation and verification agree on that label.
-fn declared_preference(quote: &str) -> bool {
+pub(crate) fn declared_preference(quote: &str) -> bool {
     let text = quote.to_lowercase().replace('’', "'");
     if text.trim_end().ends_with('?') {
         return false;
@@ -512,7 +524,13 @@ pub fn verify_observations(
                 &model_identity(endpoint, model)? == identity,
                 "local model or daemon changed during claim verification; no analysis was accepted"
             );
-            let (kept, count) = apply(batch, result)?;
+            let (kept, count) = if reasoning {
+                apply(batch, result)?
+            } else {
+                // Uncertainty is not a rejection: let the stronger pass resolve
+                // it. Only supported final verdicts can leave this function.
+                apply_verdicts(batch, result, true)?
+            };
             survivors.extend(kept.observations);
             rejected += count;
         }
@@ -695,6 +713,20 @@ mod tests {
                 .iter()
                 .all(|e| e.get("source_message_id").is_none())
         );
+    }
+
+    #[test]
+    fn uncertain_screening_is_deferred_but_never_final_acceptance() {
+        let output = output();
+        let result = json!({"schema_version":1,"verdicts":[
+            {"candidate_id":0,"verdict":"uncertain","reason":"ambiguous_evidence"},
+            {"candidate_id":1,"verdict":"unsupported","reason":"unsupported_detail"}]});
+        let (screened, omitted) = apply_verdicts(output.clone(), result.clone(), true).unwrap();
+        assert_eq!(screened.observations.len(), 1);
+        assert_eq!(omitted, 1);
+        let (accepted, omitted) = apply(output, result).unwrap();
+        assert!(accepted.observations.is_empty());
+        assert_eq!(omitted, 2);
     }
 
     #[test]

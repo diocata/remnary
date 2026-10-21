@@ -48,7 +48,7 @@ Distinguish these cases carefully:
 - "I prefer concise explanations for work messages" -> an explicit scoped preference.
 - "You added dependencies after I asked you not to. Stop adding dependencies to this CLI" -> a scoped correction.
 - "For the SignalLog project, I'm comparing full-text ranking and revision indexing" -> a project reference or technical topic; not a personal preference.
-- Repeated user evidence about a workflow can support a tentative behavioral pattern, labeled inferred; a one-time command cannot. Inferred preferences and behavioral patterns must cite at least two distinct user-message IDs; repeating two quotes from the same message is insufficient.
+- Repeated user-described behavior or a standard routine belongs to behavioral_pattern, not explicit_preference or inferred_preference. Actual habits are not preference declarations. Use topic workflow for a release/test/checklist routine. Inferred patterns must use visible tentative wording such as "may" or "appears" in the summary and preserve the same tentative meaning in canonical_value, without adding motivations or goals. A one-time execution command cannot establish a habit. Inferred preferences and behavioral patterns must cite at least two distinct user-message IDs; repeating two quotes from the same message is insufficient.
 Only record a correction when text actually corrects/restricts assistant behavior. A question about a simpler solution is not by itself a correction. Keep a decision event separate from an enduring preference. Quotes must establish the summary: "I like what it shows" does not establish a preference for a clean/simple interface, and "What if I have many friends?" does not establish a requested profile/search feature. Do not fill in those missing meanings from assumptions. Quoted transcripts and assistant advice supply no personal preference.
 
 The identity fields (kind, inference, subject, topic, context, canonical_value, decision_event) must encode the complete narrow claim. Summary must be a readable paraphrase of that identity, with no extra facts, named entities or restrictions. For a reversal, preserve direction unambiguously: after changing their mind about option X, the user selected option Y instead. Do not say they reversed an intent to select Y when Y is the NEW choice. Do not imply implementation, migration or deployment unless the quotations say it happened. If the former option is unknown, do not invent one.
@@ -699,6 +699,28 @@ fn grounded_schema(schema: &Value, conversation: &Conversation, revision: i64) -
             let kind = item
                 .pointer("/properties/kind/const")
                 .and_then(Value::as_str);
+            if kind == Some("explicit_preference")
+                && !conversation
+                    .messages
+                    .iter()
+                    .filter(|m| crate::intelligence::eligible_personal_evidence(m))
+                    .any(|m| {
+                        crate::intelligence::personal_evidence_spans(m)
+                            .into_iter()
+                            .flat_map(quote_choices)
+                            .any(|q| {
+                                crate::verification::declared_preference(&q)
+                                    && crate::verification::complete_preference_quote(m, &q)
+                                    && crate::intelligence::statement_quote_supported(
+                                        m,
+                                        &q,
+                                        crate::intelligence::ExtractionKind::ExplicitPreference,
+                                    )
+                            })
+                    })
+            {
+                return false;
+            }
             if matches!(kind, Some("inferred_preference" | "behavioral_pattern"))
                 && conversation
                     .messages
@@ -1606,6 +1628,27 @@ mod tests {
             "Here is the transcript:\nAssistant: I prefer complex frameworks.".into();
         let schema = grounded_schema(&crate::intelligence::model_output_schema(), &source, 1);
         assert_eq!(schema["properties"]["observations"]["maxItems"], 0);
+    }
+
+    #[test]
+    fn workflow_statements_do_not_offer_declared_preference_generation() {
+        let mut source = conversation();
+        source.messages[0].content = "Before each release I run tests.".into();
+        let mut second = source.messages[0].clone();
+        second.source_id = "another-user-message".into();
+        second.content = "That is my standard release workflow.".into();
+        source.messages.push(second);
+        let bound = grounded_schema(&crate::intelligence::model_output_schema(), &source, 1);
+        let kinds = bound
+            .pointer("/properties/observations/items/anyOf")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b["properties"]["kind"]["const"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert!(!kinds.contains(&"explicit_preference"));
+        assert!(kinds.contains(&"behavioral_pattern"));
     }
 
     #[test]
