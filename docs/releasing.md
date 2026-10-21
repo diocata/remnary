@@ -19,3 +19,14 @@ shasum -a 256 -c observr-VERSION-evaluation-COMMIT-aarch64-apple-darwin.tar.gz.s
 ```
 
 The binary has the Apple Silicon linker’s ad-hoc signature, which the recipe verifies. It has no Developer ID distribution signature and is unnotarized. Public distribution, code signing, notarization, hosted CI evidence and a repository-specific private security reporting channel require separate release setup. This script performs no publication, signing, installation or model download.
+
+
+## Local release after acceptance
+
+After completing the applicable acceptance gates in [readiness.md](readiness.md), create the local release archive with:
+
+```sh
+python3 scripts/package-release.py --release
+```
+
+This uses the same clean-checkout, test, lint, optimized-build, signature and encrypted-smoke checks. The flag labels the archive `observr-VERSION-COMMIT-aarch64-apple-darwin.tar.gz` and records local-release status in `BUILD.json`; the linked acceptance evidence supplies the qualification. The default command continues to produce evaluation archives. Both modes remain local and unpublished, with the same signing/distribution limits above.

@@ -80,3 +80,6 @@ The separately frozen v31 verifier also passes **48/48**, with fixture SHA-256 `
 
 
 The frozen v31 review-test executable passes both ignored model tests in 196.06 seconds: all **13/13** identity cases pass in 56.64 seconds, with zero literal-direction overrides, and the encrypted append/rejection/recurrence/reset lifecycle passes. Test executable SHA-256: `7dd1e40cc1ad3d1808994d8e1e33fc8991924b8f4875b379f97add2285d1605c`. All synthetic model gates are now complete; the fresh forty-source extraction and delegated usefulness review remain open.
+
+
+The v31 evaluation package at commit `4cd19f6b0339` passes its exact-package encrypted workflow and installation. Archive SHA-256: `b6cb30d0a36fc59adc07fab57642c85242c530ebe547c7c68ffb302432c10e02`; installed optimized binary SHA-256: `d7a6a6363df387ccdc480273dc48a4b5d68c22bd1c7b5c4fbfa994f70bb1c7e6`. The workflow covers encrypted init, repeated import, recurrence, owner confirmation/correction on synthetic data, annotation-preserving vault sync, historical evidence/search, rotated-key backup/restore and exclusions. Release labeling is available only as an explicit packaging mode after acceptance; the current real-history review remains open.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Build a local, unpublished Apple Silicon evaluation package from a clean commit."""
+"""Build a local, unpublished Apple Silicon package from a clean commit."""
+import argparse
 import gzip
 import hashlib
 import io
@@ -30,6 +31,10 @@ def clean_commit():
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--release", action="store_true",
+                        help="label a local release after acceptance in docs/readiness.md; default: evaluation")
+    args = parser.parse_args()
     if platform.system() != "Darwin" or platform.machine() != "arm64":
         raise SystemExit("This package recipe currently supports Apple Silicon macOS only.")
     commit = clean_commit()
@@ -71,7 +76,7 @@ def main():
             raise SystemExit("Release smoke archive unexpectedly has a plaintext header.")
     if clean_commit() != commit:
         raise SystemExit("The source commit changed during the build; package not created.")
-    name = f"observr-{version}-evaluation-{commit[:12]}-{target}"
+    name = f"observr-{version}-{'' if args.release else 'evaluation-'}{commit[:12]}-{target}"
     destination = ROOT / "target/dist"
     destination.mkdir(parents=True, exist_ok=True)
     package = destination / f"{name}.tar.gz"
@@ -79,7 +84,8 @@ def main():
         raise SystemExit(f"Package already exists: {package}")
     metadata = {
         "version": version, "commit": commit, "target": target,
-        "status": "evaluation; production readiness not established",
+        "status": ("local v0.1 release; acceptance documented in docs/readiness.md"
+                   if args.release else "evaluation; production readiness not established"),
         "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
         "cargo_lock_sha256": hashlib.sha256((ROOT / "Cargo.lock").read_bytes()).hexdigest(),
         "minimum_macos": "27.0.1", "code_signing": "linker-ad-hoc",
@@ -113,7 +119,7 @@ def main():
         checksum = package.with_name(package.name + ".sha256")
         with checksum.open("x") as handle:
             handle.write(f"{digest}  {package.name}\n")
-        print(f"Local evaluation package: {package}\nSHA-256: {digest}")
+        print(f"Local {'release' if args.release else 'evaluation'} package: {package}\nSHA-256: {digest}")
     finally:
         if staged is not None:
             staged.unlink(missing_ok=True)
