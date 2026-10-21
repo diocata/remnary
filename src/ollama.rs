@@ -9,9 +9,11 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail, ensure};
+use regex::Regex;
 use reqwest::{StatusCode, Url, blocking::Client, redirect::Policy};
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::sync::OnceLock;
 
 use crate::model::Conversation;
 
@@ -28,7 +30,9 @@ Use the envelope's provider, conversation_id, and revision unchanged in every ev
 
 Output contract: the root object has exactly schema_version (integer 1) and observations (array). Every observation has exactly the nine ordered protocol fields shown below. d_evidence is an ARRAY OF OBJECTS, not a string or quote alone. Every evidence object has exactly provider (string), conversation_id (string), revision (integer), source_message_id (string), quote (string). Copy those identifiers and the exact quote from the envelope. g_context is a nonempty string or null; all other descriptive fields are nonempty strings. c_decision_event must be one of proposal, consideration, decision, reconsideration, reversal, confirmation, unknown_current_state for a decision, and null otherwise. b_inference is explicit or inferred. Use protocol names in the output, never their unprefixed meanings.
 This illustrates the OUTPUT SHAPE ONLY; placeholders below are not evidence and must never be copied as facts:
-{"schema_version":1,"observations":[{"a_kind":"decision","b_inference":"explicit","c_decision_event":"consideration","d_evidence":[{"provider":"COPY_ENVELOPE_PROVIDER","conversation_id":"COPY_ENVELOPE_ID","revision":1,"source_message_id":"COPY_MESSAGE_ID","quote":"COPY_EXACT_USER_QUOTE"}],"e_subject":"grounded subject","f_topic":"grounded topic","g_context":null,"h_canonical_value":"narrow normalized claim","i_summary":"narrow source-supported summary"}]}
+{"schema_version":1,"observations":[{"a_kind":"decision","b_inference":"explicit","c_decision_event":"consideration","d_evidence":[{"provider":"COPY_ENVELOPE_PROVIDER","conversation_id":"COPY_ENVELOPE_ID","revision":1,"source_message_id":"COPY_MESSAGE_ID","quote":"COPY_EXACT_USER_QUOTE"}],"e_subject":"user","f_topic":"grounded topic","g_context":null,"h_canonical_value":"narrow normalized claim","i_summary":"narrow source-supported summary"}]}
+e_subject is always the literal string "user": the conversation owner, never a claim, activity, project or object. f_topic is a concise source-grounded category. h_canonical_value states the complete narrow meaning, including the action or preference value; g_context carries only a restrictive scope stated in the cited words. Put substantive details in canonical_value/context, never hide them in subject/topic. i_summary is a readable paraphrase of the same complete meaning.
+Examples of field meanings (not evidence): "I prefer Rust for local command-line tools" becomes subject user, topic technology, canonical_value Rust, context for local command-line tools, summary "User prefers Rust for local command-line tools." "I chose SQLite for this prototype" becomes subject user, topic technology, canonical_value selected SQLite for this prototype, context for this prototype, summary "User selected SQLite for this prototype." Never copy envelope instructions, coverage notes, source IDs or synthetic labels into context.
 For abstention return exactly {"schema_version":1,"observations":[]}.
 
 Use kind explicit_preference for an explicitly stated preference and inferred_preference or behavioral_pattern only for a tentative inference supported by the evidence. Mark inference explicit or inferred honestly. Inferred claims may concern only software_design, communication, communication.explanations, technology, workflow, or interaction_pattern. Never infer sensitive personal attributes or traits (health, disability, mental health, race, ethnicity, religion, political views, sexuality, gender identity, financial status, biometrics, criminal history). Do not create diagnoses or psychological profiles. Avoid secrets, credentials, identifying contact information, and unrelated personal information in observations. Keep summaries narrow and evidence-backed. Topics and project references may describe the conversation; do not convert hypothetical examples into facts about its owner.
@@ -623,8 +627,6 @@ fn analysis_data(conversation: &Conversation, revision: i64) -> Result<String> {
         "provider": conversation.provider,
         "conversation_id": conversation.stable_id(),
         "revision": revision,
-        "coverage": "Bounded user-message excerpts. Other messages or surrounding context may be absent; long messages may be split. Do not infer omitted context.",
-        "title": conversation.title,
         "messages": conversation.messages.iter().map(|message| json!({
             "source_id": message.source_id,
             "parent_source_id": message.parent_source_id,
@@ -681,6 +683,19 @@ fn grounded_schema(schema: &Value, conversation: &Conversation, revision: i64) -
     };
     fn bind(item: &mut Value, conversation: &Conversation, revision: i64) -> bool {
         if item.pointer("/properties/evidence/items").is_some() {
+            let mut contexts = vec![Value::Null];
+            contexts.extend(
+                conversation
+                    .messages
+                    .iter()
+                    .filter(|m| crate::intelligence::eligible_personal_evidence(m))
+                    .flat_map(|m| crate::intelligence::personal_evidence_spans(m))
+                    .flat_map(scope_choices)
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .into_iter()
+                    .map(Value::String),
+            );
+            item["properties"]["context"] = json!({"enum":contexts});
             let kind = item
                 .pointer("/properties/kind/const")
                 .and_then(Value::as_str);
@@ -734,6 +749,20 @@ fn grounded_schema(schema: &Value, conversation: &Conversation, revision: i64) -
         schema["properties"]["observations"]["items"] = json!({"type":"object"});
     }
     schema
+}
+
+// Optional source-literal restrictions, never a free-form metadata summary.
+// Scope can also remain in the complete canonical claim when no suitable
+// separate phrase is available. Long/ambiguous phrases are not truncated.
+fn scope_choices(text: &str) -> Vec<String> {
+    static PATTERN: OnceLock<Regex> = OnceLock::new();
+    let pattern = PATTERN.get_or_init(|| Regex::new(r"(?i)\b(?:for|when|during|within|across|before|after|para|durante|quando)\s+[^.!?\n,;]+").expect("fixed scope pattern"));
+    pattern
+        .find_iter(text)
+        .map(|m| m.as_str().trim())
+        .filter(|s| s.chars().count() <= 160 && !s.contains(crate::privacy::REDACTED))
+        .map(str::to_owned)
+        .collect()
 }
 
 fn quote_choices(text: &str) -> Vec<String> {
@@ -1010,6 +1039,11 @@ mod tests {
             .as_array()
             .unwrap();
         assert_eq!(branches.len(), 7);
+        assert!(
+            branches
+                .iter()
+                .all(|branch| branch["properties"]["e_subject"]["const"] == "user")
+        );
         let kinds = branches
             .iter()
             .map(|branch| branch["properties"]["a_kind"]["const"].as_str().unwrap())
@@ -1197,6 +1231,8 @@ mod tests {
             serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         assert_eq!(source["conversation_id"], conversation().stable_id());
         assert_eq!(source["revision"], 7);
+        assert!(source.get("title").is_none());
+        assert!(source.get("coverage").is_none());
         assert_eq!(source["messages"][0]["source_id"], "user-message-1");
         assert!(!body.to_string().contains("secret_metadata"));
     }
@@ -1570,6 +1606,36 @@ mod tests {
             "Here is the transcript:\nAssistant: I prefer complex frameworks.".into();
         let schema = grounded_schema(&crate::intelligence::model_output_schema(), &source, 1);
         assert_eq!(schema["properties"]["observations"]["maxItems"], 0);
+    }
+
+    #[test]
+    fn generated_context_choices_are_literal_source_restrictions() {
+        assert_eq!(
+            scope_choices("I prefer Rust for local CLI tools."),
+            ["for local CLI tools"]
+        );
+        assert_eq!(
+            scope_choices("For the importer, compare indexes."),
+            ["For the importer"]
+        );
+        assert!(
+            scope_choices("I'm building SignalLog. It is separate from my website project.")
+                .is_empty()
+        );
+        let mut source = conversation();
+        source.messages[0].content = "I prefer Rust for local CLI tools.".into();
+        let bound = grounded_schema(&crate::intelligence::model_output_schema(), &source, 1);
+        for branch in bound
+            .pointer("/properties/observations/items/anyOf")
+            .unwrap()
+            .as_array()
+            .unwrap()
+        {
+            assert_eq!(
+                branch["properties"]["context"]["enum"],
+                json!([null, "for local CLI tools"])
+            );
+        }
     }
 
     #[test]

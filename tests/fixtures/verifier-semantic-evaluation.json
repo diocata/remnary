@@ -413,5 +413,31 @@
     "context": "incident reports",
     "topic": "communication",
     "expected_supported": true
+  },
+  {
+    "id": "supported-chosen-option-paraphrase",
+    "kind": "decision",
+    "topic": "technology",
+    "decision_event": "decision",
+    "quotes": [
+      "I chose SQLite for this prototype."
+    ],
+    "canonical_value": "selected SQLite for this prototype",
+    "context": "this prototype",
+    "summary": "User selected SQLite for this prototype.",
+    "expected_supported": true
+  },
+  {
+    "id": "consideration-not-chosen-option",
+    "kind": "decision",
+    "topic": "technology",
+    "decision_event": "decision",
+    "quotes": [
+      "I am considering SQLite for this prototype."
+    ],
+    "canonical_value": "selected SQLite for this prototype",
+    "context": "this prototype",
+    "summary": "User selected SQLite for this prototype.",
+    "expected_supported": false
   }
 ]

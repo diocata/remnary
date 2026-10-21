@@ -241,6 +241,9 @@ pub fn model_output_schema() -> Value {
             expanded.push(branch);
         }
     }
+    for branch in &mut expanded {
+        branch["properties"]["subject"] = json!({"const":"user"});
+    }
     schema["properties"]["observations"]["items"]["anyOf"] = json!(expanded);
     schema["properties"]["observations"]["maxItems"] = json!(8);
     schema
@@ -254,6 +257,10 @@ pub(crate) fn validate_model_output(
     ensure!(
         output.observations.len() <= 8,
         "model extraction permits at most eight observations per window"
+    );
+    ensure!(
+        output.observations.iter().all(|o| o.subject == "user"),
+        "model observations must identify their owner as subject user"
     );
     validate_output(conversation, revision, output)
 }
@@ -907,6 +914,20 @@ mod tests {
         let source = conversation("one", &[("user", "I prefer Rust.")]);
         let output = extract_rules(&source, 1);
         (source, output)
+    }
+
+    #[test]
+    fn model_subject_identifies_owner_instead_of_embedding_a_claim() {
+        let (source, output) = explicit();
+        assert!(validate_model_output(&source, 1, output.clone()).is_ok());
+        for subject in [
+            "database selection",
+            "User prefers Rust language for local CLI tools",
+        ] {
+            let mut invalid = output.clone();
+            invalid.observations[0].subject = subject.into();
+            assert!(validate_model_output(&source, 1, invalid).is_err());
+        }
     }
 
     #[test]
