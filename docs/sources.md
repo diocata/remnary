@@ -42,7 +42,7 @@ These guards cannot establish that every passage inside a human message is the p
 
 ## Real-data check
 
-The authorized local evaluation imported 32 conversations from local coding-assistant files and three selected partial ChatGPT views, for 35 total. It exposed and fixed provider-instruction, task-notification and pasted-transcript attribution errors. Reimports and incremental analysis were exercised. Rules now reject the identified pasted-transcript case; the local-model evaluation is recorded separately in [local-model.md](local-model.md). No useful recurring-pattern or human usefulness target has been established. Private sources, keys and results are ignored by Git.
+The current authorized evaluation corpus contains 40 conversations, 3,061 current messages and 47 retained revisions from local Claude Code, Codex and Kiro files and selected partial ChatGPT views. Earlier imports exposed provider-instruction, task-notification and pasted-transcript attribution errors; the resulting safeguards, reimports and incremental analysis were exercised. Current model-quality results and open acceptance gates are recorded in [readiness.md](readiness.md). Useful real recurring patterns remain unestablished. The owner delegated usefulness assessment to the agent; those ratings are not independent human research or owner confirmation. Private sources, keys and results are ignored by Git.
 
 Provider references: [Claude Code sessions](https://code.claude.com/docs/en/sessions), [Kiro IDE chat](https://kiro.dev/docs/ide/chat/), [Kiro CLI commands](https://kiro.dev/docs/cli/reference/slash-commands/). The Kiro IDE `.chat` adapter follows the locally observed format; its presence does not imply support for the separately documented CLI export formats.
 
