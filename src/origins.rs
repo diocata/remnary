@@ -8,7 +8,10 @@ use rusqlite::Connection;
 use crate::model::digest;
 
 #[derive(Default)]
-pub(crate) struct OriginIndex(BTreeMap<String, String>);
+pub(crate) struct OriginIndex(BTreeMap<String, String>, BTreeMap<String, String>);
+pub(crate) fn message_key(conversation: &str, message: &str) -> String {
+    digest(&serde_json::to_vec(&(conversation, message)).expect("string tuple serializes"))
+}
 struct History {
     id: String,
     prefixes: Vec<String>,
@@ -18,17 +21,20 @@ struct History {
 }
 impl OriginIndex {
     pub(crate) fn load(connection: &Connection) -> Result<Self> {
-        // Native fallback IDs hash the complete original Kiro message plus its
-        // occurrence number. System prompts alone do not establish a lineage.
+        // Kiro executions can insert tool/empty streaming frames and change
+        // native message metadata around copied dialogue. Compare only literal
+        // nonempty user/assistant content, retaining every original source.
+        // System prompts alone do not establish a lineage.
         let mut query=connection.prepare(
-            "SELECT c.id,m.source_id,m.role,length(CAST(m.content AS BLOB)) FROM conversations c
+            "SELECT c.id,m.content,m.role,length(CAST(m.content AS BLOB)),m.source_id FROM conversations c
              JOIN conversation_revisions r ON r.conversation_id=c.id AND r.revision=c.current_revision
              JOIN messages m ON m.conversation_id=c.id AND m.revision=c.current_revision
              WHERE c.provider='kiro' AND json_extract(r.metadata,'$.source_format')='kiro-ide-chat-v1'
-             AND lower(m.role)!='system' AND NOT EXISTS(SELECT 1 FROM excluded_sources x WHERE x.conversation_id=c.id)
+             AND lower(m.role) IN ('user','assistant') AND length(m.content)>0 AND NOT EXISTS(SELECT 1 FROM excluded_sources x WHERE x.conversation_id=c.id)
              ORDER BY c.id,m.position")?;
         let mut rows = query.query([])?;
         let mut histories = Vec::<History>::new();
+        let mut messages = BTreeMap::new();
         while let Some(row) = rows.next()? {
             let id: String = row.get(0)?;
             if histories.last().is_none_or(|h| h.id != id) {
@@ -51,6 +57,8 @@ impl OriginIndex {
             }
             history.hash = digest(&serde_json::to_vec(&(&history.hash, &message, &role))?);
             history.prefixes.push(history.hash.clone());
+            let source_id: String = row.get(4)?;
+            messages.insert(message_key(&history.id, &source_id), history.hash.clone());
         }
         // Require substantive reply history, not repeated greetings, system
         // boilerplate or identical user prompts with no copied answer.
@@ -79,7 +87,13 @@ impl OriginIndex {
                 histories[root(&mut parents, index)].id.clone(),
             );
         }
-        Ok(Self(origins))
+        Ok(Self(origins, messages))
+    }
+    pub(crate) fn message(&self, conversation: &str, message: &str) -> String {
+        self.1
+            .get(&message_key(conversation, message))
+            .cloned()
+            .unwrap_or_else(|| message.to_owned())
     }
     pub(crate) fn conversation(&self, id: &str) -> String {
         self.0.get(id).map(String::as_str).unwrap_or(id).to_owned()
@@ -198,6 +212,48 @@ mod tests {
         assert_eq!(rust.status, ObservationStatus::Candidate);
         Ok(())
     }
+    #[test]
+    fn tool_and_streaming_frames_do_not_make_copied_dialogue_independent() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let mut store = Store::init(&temp.path().join("archive"))?;
+        let reply = "A substantive response copied from the same dialogue. ".repeat(12);
+        let first = session(
+            temp.path(),
+            "one",
+            json!([
+                {"role":"human","content":"I prefer Rust.","timestamp":1},
+                {"role":"bot","content":reply,"timestamp":2}
+            ]),
+        )?;
+        let second = session(
+            temp.path(),
+            "two",
+            json!([
+                {"role":"bot","content":""},
+                {"role":"tool","content":"Different execution metadata"},
+                {"role":"human","content":"I prefer Rust.","timestamp":3},
+                {"role":"bot","content":""},
+                {"role":"bot","content":reply,"timestamp":4},
+                {"role":"human","content":"Explain the next step."}
+            ]),
+        )?;
+        store.import(&[first.clone(), second.clone()])?;
+        analyze(&mut store)?;
+        let records = store.observations(false)?;
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].observation.evidence.len(), 2);
+        assert_eq!(records[0].distinct_conversations, 1);
+        assert_eq!(records[0].occurrences, 1);
+        let roundtrip: Vec<crate::analysis_store::ObservationRecord> =
+            serde_json::from_value(serde_json::to_value(&records)?)?;
+        let ranked = crate::reports::rank_discoveries(roundtrip, usize::MAX);
+        assert_eq!(ranked[0].occurrences, 1);
+        assert_eq!(ranked[0].distinct_conversations, 1);
+        assert_eq!(store.snapshot(&first.stable_id(), None)?, first);
+        assert_eq!(store.snapshot(&second.stable_id(), None)?, second);
+        Ok(())
+    }
+
     #[test]
     fn system_boilerplate_and_short_greetings_do_not_merge_independent_prompts() -> Result<()> {
         let temp = tempfile::tempdir()?;

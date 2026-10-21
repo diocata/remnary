@@ -4,7 +4,7 @@ Updated 2026-10-21. **Production readiness is not established:** the full blinde
 
 ## Current implementation
 
-Producer/prompt **v28**, encrypted schema **5**. All **199 offline tests** pass: 180 library, twelve analysis and seven CLI/source tests. Formatting, locked all-target Clippy with warnings denied and debug compilation pass. Two ignored local-model tests run separately and are not counted in 199.
+Producer/prompt **v28**, encrypted schema **5**. All **200 offline tests** pass: 181 library, twelve analysis and seven CLI/source tests. Formatting, locked all-target Clippy with warnings denied and debug compilation pass. Two ignored local-model tests run separately and are not counted in 200.
 
 Generation produces eight canonical fields and Rust derives their displayed description. Existing free-form descriptions require a separate source-free identity-consistency check. Every accepted model claim needs reasoned quotation support; surrounding context may invalidate but cannot rescue a claim absent from its citations. Administrative IDs and fixture labels are excluded from semantic verification. [Current setup and versioned evidence](local-model.md).
 
@@ -36,7 +36,7 @@ The private encrypted corpus contains **40 conversations, 3,061 current messages
 
 The last complete real semantic evaluation, v16, produced 36 visible claims but failed the delegated top-five assessment: **1/5 accurate and useful**. It misclassified questions and one-time instructions and added meanings absent from citations. Subsequent changes address these observed failures; a fresh v26 evaluation is required before claiming improvement. No private quotations, model traces or keys are committed.
 
-The owner delegated evaluation without further questions. Findings are assessed against their sources for grounding, appropriate scope/type, duplicates, temporal meaning and concrete usefulness as a memory or decision record. Ratings are **agent assessments**, not independent user research or owner endorsement. The acceptance targets are at least 90% factual grounding and three of the first five accurate and useful. Evaluation never creates user-confirmed records. Useful real recurrence has not been established; copied cumulative Kiro histories count once and remain linked to their physical sources.
+The owner delegated evaluation without further questions. Findings are assessed against their sources for grounding, appropriate scope/type, duplicates, temporal meaning and concrete usefulness as a memory or decision record. Ratings are **agent assessments**, not independent user research or owner endorsement. The acceptance targets are at least 90% factual grounding and three of the first five accurate and useful. Evaluation never creates user-confirmed records. The sole apparent v27 recurrence shared copied dialogue with different transient execution frames; v28 correlates those copies. Useful real recurrence has not been established; copied cumulative Kiro histories count once and remain linked to their physical sources.
 
 ## Privacy, recovery and distribution scope
 

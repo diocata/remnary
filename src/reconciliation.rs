@@ -264,6 +264,7 @@ fn catalog(store: &Store, source: &Conversation) -> Result<Vec<ObservationRecord
                 occurrences: 0,
                 feedback_count: usize::try_from(row.get::<_, i64>(10)?)?,
                 conversation_origins: BTreeMap::new(),
+                message_origins: BTreeMap::new(),
             },
         );
     }
@@ -501,6 +502,7 @@ mod tests {
             occurrences: 1,
             feedback_count: 1,
             conversation_origins: BTreeMap::new(),
+            message_origins: BTreeMap::new(),
         };
         let mut proof = Receipt {
             snapshot: String::new(),

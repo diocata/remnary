@@ -89,9 +89,22 @@ pub struct ObservationRecord {
     /// Copied cumulative source records share one logical conversation for counts.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub conversation_origins: BTreeMap<String, String>,
+    /// Logical dialogue-prefix identity for copied Kiro evidence messages.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub message_origins: BTreeMap<String, String>,
 }
 
 impl ObservationRecord {
+    pub(crate) fn occurrence_message<'a>(&'a self, evidence: &'a EvidenceRef) -> &'a str {
+        self.message_origins
+            .get(&crate::origins::message_key(
+                &evidence.conversation_id,
+                &evidence.source_message_id,
+            ))
+            .map(String::as_str)
+            .unwrap_or(&evidence.source_message_id)
+    }
+
     pub fn display_text(&self) -> &str {
         self.user_value
             .as_deref()
@@ -472,7 +485,7 @@ impl Store {
                 conversations.insert(origins.conversation(&reference.conversation_id));
                 occurrences.insert((
                     origins.conversation(&reference.conversation_id),
-                    reference.source_message_id.clone(),
+                    origins.message(&reference.conversation_id, &reference.source_message_id),
                 ));
                 evidence.push(reference);
             }
@@ -500,6 +513,21 @@ impl Store {
                 feedback_count: row.get::<_, i64>(11)? as usize,
                 first_seen: times.iter().copied().min_by(f64::total_cmp),
                 last_seen: times.iter().copied().max_by(f64::total_cmp),
+                message_origins: evidence
+                    .iter()
+                    .filter_map(|e| {
+                        let origin = origins.message(&e.conversation_id, &e.source_message_id);
+                        (origin != e.source_message_id).then(|| {
+                            (
+                                crate::origins::message_key(
+                                    &e.conversation_id,
+                                    &e.source_message_id,
+                                ),
+                                origin,
+                            )
+                        })
+                    })
+                    .collect(),
                 conversation_origins: evidence
                     .iter()
                     .filter_map(|e| {

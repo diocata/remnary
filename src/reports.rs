@@ -340,7 +340,7 @@ fn set_evidence_counts(record: &mut ObservationRecord) {
                     .conversation_origins
                     .get(&source.conversation_id)
                     .unwrap_or(&source.conversation_id),
-                &source.source_message_id,
+                record.occurrence_message(source),
             )
         })
         .collect::<BTreeSet<_>>()
@@ -474,6 +474,7 @@ mod tests {
                 occurrences: 999,
                 feedback_count: 0,
                 conversation_origins: BTreeMap::new(),
+                message_origins: BTreeMap::new(),
             })
             .collect()
     }
