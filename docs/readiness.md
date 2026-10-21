@@ -65,3 +65,6 @@ The exact v28 packaged dashboard also passes a fresh 1280×720 synthetic check: 
 
 
 V29's targeted correction/routine retest passes **3/3** in 190.13 seconds while sharing the local daemon with the v28 experiment; this is not a standalone latency baseline. The superseded v28 real run was deliberately interrupted after seven sources saved, leaving 33 pending and raw revisions unchanged. Its partial results are retained without a full quality score. A frozen v29 binary and a fresh encrypted copy of all forty sources are queued behind the complete 36-case generation suite and renewed encrypted review lifecycle. Current source commit for that run: `90c2762`.
+
+
+At source commit `13f4f5d`, an in-memory comparison of six task recovery-key files and two captured ephemeral dashboard-token occurrences found zero matches in tracked files or 541 historical Git blobs (9,829,007 bytes). No secret values were printed or committed. This checks those actual task secrets, not every possible third-party credential or private quotation. No database, recovery-key, `.observr`, `.tools` or `target` paths are tracked.
