@@ -77,3 +77,6 @@ The frozen v31 CLI at code commit `db194fa15ae9` now passes the complete 38-case
 
 
 The separately frozen v31 verifier also passes **48/48**, with fixture SHA-256 `7cddd5db5c5d234a65d170398f89d47618eb391cc3ad1ed03107b005978b5616`. Its executable SHA-256 is `b158f05e3624a064624a0f85b7f1a6aa26428aa639e41234368d413d11a8505e`; the stage completed in 628.83 seconds. Current identity/review and real-corpus gates remain open.
+
+
+The frozen v31 review-test executable passes both ignored model tests in 196.06 seconds: all **13/13** identity cases pass in 56.64 seconds, with zero literal-direction overrides, and the encrypted append/rejection/recurrence/reset lifecycle passes. Test executable SHA-256: `7dd1e40cc1ad3d1808994d8e1e33fc8991924b8f4875b379f97add2285d1605c`. All synthetic model gates are now complete; the fresh forty-source extraction and delegated usefulness review remain open.
