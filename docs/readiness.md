@@ -74,3 +74,6 @@ V30 completed all 38 synthetic sources in 714.82 seconds and passed 37/38. It re
 
 
 The frozen v31 CLI at code commit `db194fa15ae9` now passes the complete 38-case generation suite: **38/38**, all sources completed, 18 candidate extractions, four omitted unsupported/uncertain proposals, **649.41 seconds**. Tested executable SHA-256: `83af97d1edacf7407682451a32da79d4a91777937629527c3ca6f457a8500348`; fixture SHA-256: `5b9b4beeb3f90cbda668674aa7ccfd6174f2c19be6d6a824935f213c28d8b96a`. The separately frozen verifier and review-test executables are running next, before the forty-source archive. Real semantic acceptance is still open.
+
+
+The separately frozen v31 verifier also passes **48/48**, with fixture SHA-256 `7cddd5db5c5d234a65d170398f89d47618eb391cc3ad1ed03107b005978b5616`. Its executable SHA-256 is `b158f05e3624a064624a0f85b7f1a6aa26428aa639e41234368d413d11a8505e`; the stage completed in 628.83 seconds. Current identity/review and real-corpus gates remain open.
