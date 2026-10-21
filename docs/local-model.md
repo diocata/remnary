@@ -1,6 +1,6 @@
 # Local model setup and verification
 
-Current producer/prompt: **v26**; encrypted storage schema: **5**. Generation emits eight canonical fields; Rust renders the displayed description. Every accepted model claim requires reasoned quotation support, with surrounding context checked separately when present. Legacy free-form descriptions first require a source-free identity-consistency check. Fast factual screening is no longer an acceptance or rejection stage: it incorrectly rejected a valid learning topic. Model quality gates remain open.
+Current producer/prompt: **v27**; encrypted storage schema: **5**. Generation emits eight canonical fields; Rust renders the displayed description. Every accepted model claim requires reasoned quotation support, with surrounding context checked separately when present. Legacy free-form descriptions first require a source-free identity-consistency check. Fast factual screening is no longer an acceptance or rejection stage: it incorrectly rejected a valid learning topic. Model quality gates remain open.
 
 The current development setup uses Homebrew Ollama 0.40.6 on Apple Silicon with the explicit `qwen3.5:9b-q4_K_M` model (about 6.6 GB). Model downloads contact the registry; conversation extraction uses the local daemon. No provider account/API key is needed. Local model digest: `sha256:56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90` (6,550,825,550 bytes). Current quality acceptance is still under evaluation; versioned results and earlier comparators follow below.
 
@@ -196,3 +196,14 @@ The complete v25 six-positive check finished all sources in 697.22 seconds but p
 
 
 The v26 targeted classification pipeline passes **3/3** in 316.16 seconds, with one unsupported extra candidate omitted. The selected cases cover an offered option, an initial choice and a named project without the observed duplicate. Fixture SHA-256: `c798f25ea29e4839b32c9802066fc2908400d3c7135f4d1c99d4864205a4b856`. This does not replace the complete fixture or real-history assessment. CLI progress additionally distinguishes generation, evidence checking and canonical matching using counts only.
+
+
+## Producer v27: temporal fields, evidence eligibility and local-model cost
+
+The v26 Qwen real run was intentionally stopped at 21:01 elapsed after two empty sources completed; its first substantial source had not committed. No real quality score is claimed. Completion-only verification scored 35/40 in 119.93 seconds. A focused diagnostic with reasoned adjudication passed four temporal/project cases but took 811.55 seconds; it was not adopted. An isolated classifier prototype returned inconsistent verdict/reason fields and was rejected. These experiments remain private diagnostics; the application retains its normal verification path.
+
+A local [Ministral 3 14B comparator](https://ollama.com/library/ministral-3:14b) is installed through Ollama: 9,082,537,546 bytes, GGUF Q4_K_M, family `mistral3`, manifest digest `4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7`. The local daemon advertises completion/vision/tools without thinking, and no remote inference fields. Under the unchanged v26 verifier it scored 37/40 in 86.36 seconds. Its remaining omissions/acceptance motivated v27's joint-field temporal interpretation and explicit self-reported reaffirmation rules.
+
+V27 additionally requires a recognizable reaffirmation cue for confirmation events; a first selection alone is insufficient. Marker matching respects word/identifier boundaries, and these cues authorize confirmation eligibility without broadening other decision stages. Unresolved relation-only project fragments cannot stand alone as concrete project findings; other substantive cited statements remain eligible. These conservative gates recognize common English/Portuguese forms and do not prove support on their own. Semantic verification still follows, and event confirmation never changes the owner-review status.
+
+The complete blinded verifier development suite passes **43/43 in 89.20 seconds**, including three transfer cases with different entities and project descriptions. Fixture SHA-256: `ca8432f9b66d6b4f01b238a1d1d5fd457dc04d45852c913483cb5ecf609b616f`. This is development evidence, not an independent accuracy estimate. Full generation and real-history acceptance remain pending. The separately invoked identity/review tests accept `OBSERVR_TEST_OLLAMA_MODEL` and `OBSERVR_TEST_OLLAMA_ENDPOINT` to verify the selected local model explicitly.

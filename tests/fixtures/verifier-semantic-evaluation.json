@@ -489,5 +489,43 @@
     "context": "for this prototype",
     "expected_supported": true,
     "topic": "technology"
+  },
+  {
+    "id": "transfer-reversal-direction",
+    "kind": "decision",
+    "topic": "technology",
+    "decision_event": "reversal",
+    "quotes": [
+      "I changed my mind about Meilisearch. I selected Tantivy for the portable recorder instead."
+    ],
+    "canonical_value": "selected Tantivy instead of Meilisearch",
+    "summary": "After changing their mind about Meilisearch, user selected Tantivy for the portable recorder.",
+    "context": "for the portable recorder",
+    "expected_supported": true
+  },
+  {
+    "id": "transfer-initial-choice-not-confirmation",
+    "kind": "decision",
+    "topic": "technology",
+    "decision_event": "confirmation",
+    "quotes": [
+      "I selected Tantivy for the portable recorder."
+    ],
+    "canonical_value": "Tantivy",
+    "summary": "Recorded confirmation: Tantivy (for the portable recorder)",
+    "context": "for the portable recorder",
+    "expected_supported": false
+  },
+  {
+    "id": "transfer-unnamed-project-fragment",
+    "kind": "project_reference",
+    "topic": "project_reference",
+    "quotes": [
+      "It is unrelated to my gardening project."
+    ],
+    "canonical_value": "unrelated to my gardening project",
+    "summary": "Project reference: unrelated to my gardening project",
+    "context": null,
+    "expected_supported": false
   }
 ]

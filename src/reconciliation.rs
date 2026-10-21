@@ -752,6 +752,14 @@ mod recurrence_tests {
 #[cfg(test)]
 mod local_model {
     use super::*;
+    fn settings() -> (String, String) {
+        (
+            std::env::var("OBSERVR_TEST_OLLAMA_ENDPOINT")
+                .unwrap_or_else(|_| "http://127.0.0.1:11435".into()),
+            std::env::var("OBSERVR_TEST_OLLAMA_MODEL")
+                .unwrap_or_else(|_| "qwen3.5:9b-q4_K_M".into()),
+        )
+    }
     #[test]
     #[ignore = "requires the installed local model and runs an encrypted synthetic review lifecycle"]
     fn reviewed_append_uses_historical_identity() -> Result<()> {
@@ -762,8 +770,8 @@ mod local_model {
             model::Message,
             security::SecretKey,
         };
-        let endpoint = "http://127.0.0.1:11435";
-        let model = "qwen3.5:9b-q4_K_M";
+        let (endpoint, model) = settings();
+        let (endpoint, model) = (endpoint.as_str(), model.as_str());
         let mut source = Conversation {
             provider: "synthetic".into(),
             source_id: "review-lifecycle".into(),
@@ -887,8 +895,8 @@ mod local_model {
     #[test]
     #[ignore = "requires the explicitly installed local Ollama model; run separately from offline tests"]
     fn semantic_identity_fixture() -> Result<()> {
-        let endpoint = "http://127.0.0.1:11435";
-        let model = "qwen3.5:9b-q4_K_M";
+        let (endpoint, model) = settings();
+        let (endpoint, model) = (endpoint.as_str(), model.as_str());
         let fixture = include_str!("../tests/fixtures/identity-semantic-evaluation.json");
         let cases: Vec<Value> = serde_json::from_str(fixture)?;
         let version = model_identity(endpoint, model)?;
