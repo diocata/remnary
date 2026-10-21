@@ -1,12 +1,288 @@
 [
- {"id":"concise-paraphrase","expected":"equivalent","candidate":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"explanations","context":null,"canonical_value":"prefers concise explanations","decision_event":null},"existing":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"explanations","context":null,"canonical_value":"prefers explanations that are concise","decision_event":null}},
- {"id":"task-scope-difference","expected":"distinct","candidate":{"kind":"correction","inference":"explicit","subject":"user","topic":"tone","context":"wedding speech","canonical_value":"use informal language","decision_event":null},"existing":{"kind":"correction","inference":"explicit","subject":"user","topic":"tone","context":"work email","canonical_value":"use informal language","decision_event":null}},
- {"id":"project-boundary","expected":"distinct","candidate":{"kind":"decision","inference":"explicit","subject":"user","topic":"database","context":"Observr prototype","canonical_value":"selected SQLite","decision_event":"decision"},"existing":{"kind":"decision","inference":"explicit","subject":"user","topic":"database","context":"Atlas prototype","canonical_value":"selected SQLite","decision_event":"decision"}},
- {"id":"consideration-versus-choice","expected":"distinct","candidate":{"kind":"decision","inference":"explicit","subject":"user","topic":"database","context":"Observr prototype","canonical_value":"considering SQLite","decision_event":"consideration"},"existing":{"kind":"decision","inference":"explicit","subject":"user","topic":"database","context":"Observr prototype","canonical_value":"selected SQLite","decision_event":"decision"}},
- {"id":"negation","expected":"distinct","candidate":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"documentation","context":null,"canonical_value":"avoid creating extra documentation files","decision_event":null},"existing":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"documentation","context":null,"canonical_value":"create extra documentation files","decision_event":null}},
- {"id":"shared-quotation-separate-facts","expected":"distinct","candidate":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"programming language","context":null,"canonical_value":"prefers Rust","decision_event":null},"existing":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"database","context":null,"canonical_value":"prefers SQLite","decision_event":null}},
- {"id":"rejected-wording-paraphrase","expected":"equivalent","candidate":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"communication","context":"work messages","canonical_value":"prefers brief explanations","decision_event":null},"existing":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"communication","context":"work messages","canonical_value":"prefers concise explanations","decision_event":null}},
- {"id":"broader-scope","expected":"distinct","candidate":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"communication","context":null,"canonical_value":"prefers concise explanations","decision_event":null},"existing":{"kind":"explicit_preference","inference":"explicit","subject":"user","topic":"communication","context":"work messages","canonical_value":"prefers concise explanations","decision_event":null}},
- {"id":"reversal-direction","expected":"distinct","candidate":{"kind":"decision","inference":"explicit","subject":"user","topic":"database","context":"Observr prototype","canonical_value":"changed from DuckDB to SQLite","decision_event":"reversal"},"existing":{"kind":"decision","inference":"explicit","subject":"user","topic":"database","context":"Observr prototype","canonical_value":"changed from SQLite to DuckDB","decision_event":"reversal"}},
- {"id":"reversal-paraphrase","expected":"equivalent","candidate":{"kind":"decision","inference":"explicit","subject":"user","topic":"database","context":"Observr prototype","canonical_value":"abandoned DuckDB and selected SQLite instead","decision_event":"reversal"},"existing":{"kind":"decision","inference":"explicit","subject":"user","topic":"database","context":"Observr prototype","canonical_value":"changed from DuckDB to SQLite","decision_event":"reversal"}}
+  {
+    "id": "concise-paraphrase",
+    "expected": "equivalent",
+    "candidate": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "explanations",
+      "context": null,
+      "canonical_value": "prefers concise explanations",
+      "decision_event": null
+    },
+    "existing": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "explanations",
+      "context": null,
+      "canonical_value": "prefers explanations that are concise",
+      "decision_event": null
+    }
+  },
+  {
+    "id": "task-scope-difference",
+    "expected": "distinct",
+    "candidate": {
+      "kind": "correction",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "tone",
+      "context": "wedding speech",
+      "canonical_value": "use informal language",
+      "decision_event": null
+    },
+    "existing": {
+      "kind": "correction",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "tone",
+      "context": "work email",
+      "canonical_value": "use informal language",
+      "decision_event": null
+    }
+  },
+  {
+    "id": "project-boundary",
+    "expected": "distinct",
+    "candidate": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "Observr prototype",
+      "canonical_value": "selected SQLite",
+      "decision_event": "decision"
+    },
+    "existing": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "Atlas prototype",
+      "canonical_value": "selected SQLite",
+      "decision_event": "decision"
+    }
+  },
+  {
+    "id": "consideration-versus-choice",
+    "expected": "distinct",
+    "candidate": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "Observr prototype",
+      "canonical_value": "considering SQLite",
+      "decision_event": "consideration"
+    },
+    "existing": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "Observr prototype",
+      "canonical_value": "selected SQLite",
+      "decision_event": "decision"
+    }
+  },
+  {
+    "id": "negation",
+    "expected": "distinct",
+    "candidate": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "documentation",
+      "context": null,
+      "canonical_value": "avoid creating extra documentation files",
+      "decision_event": null
+    },
+    "existing": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "documentation",
+      "context": null,
+      "canonical_value": "create extra documentation files",
+      "decision_event": null
+    }
+  },
+  {
+    "id": "shared-quotation-separate-facts",
+    "expected": "distinct",
+    "candidate": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "programming language",
+      "context": null,
+      "canonical_value": "prefers Rust",
+      "decision_event": null
+    },
+    "existing": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": null,
+      "canonical_value": "prefers SQLite",
+      "decision_event": null
+    }
+  },
+  {
+    "id": "rejected-wording-paraphrase",
+    "expected": "equivalent",
+    "candidate": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "communication",
+      "context": "work messages",
+      "canonical_value": "prefers brief explanations",
+      "decision_event": null
+    },
+    "existing": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "communication",
+      "context": "work messages",
+      "canonical_value": "prefers concise explanations",
+      "decision_event": null
+    }
+  },
+  {
+    "id": "broader-scope",
+    "expected": "distinct",
+    "candidate": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "communication",
+      "context": null,
+      "canonical_value": "prefers concise explanations",
+      "decision_event": null
+    },
+    "existing": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "communication",
+      "context": "work messages",
+      "canonical_value": "prefers concise explanations",
+      "decision_event": null
+    }
+  },
+  {
+    "id": "reversal-direction",
+    "expected": "distinct",
+    "candidate": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "Observr prototype",
+      "canonical_value": "changed from DuckDB to SQLite",
+      "decision_event": "reversal"
+    },
+    "existing": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "Observr prototype",
+      "canonical_value": "changed from SQLite to DuckDB",
+      "decision_event": "reversal"
+    }
+  },
+  {
+    "id": "reversal-paraphrase",
+    "expected": "equivalent",
+    "candidate": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "Observr prototype",
+      "canonical_value": "abandoned DuckDB and selected SQLite instead",
+      "decision_event": "reversal"
+    },
+    "existing": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "Observr prototype",
+      "canonical_value": "changed from DuckDB to SQLite",
+      "decision_event": "reversal"
+    }
+  },
+  {
+    "id": "negative-action-transfer",
+    "expected": "distinct",
+    "candidate": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "dependencies",
+      "context": null,
+      "canonical_value": "avoid adding extra dependencies",
+      "decision_event": null
+    },
+    "existing": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "dependencies",
+      "context": null,
+      "canonical_value": "add extra dependencies",
+      "decision_event": null
+    }
+  },
+  {
+    "id": "negative-action-paraphrase",
+    "expected": "equivalent",
+    "candidate": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "dependencies",
+      "context": null,
+      "canonical_value": "avoid adding extra dependencies",
+      "decision_event": null
+    },
+    "existing": {
+      "kind": "explicit_preference",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "dependencies",
+      "context": null,
+      "canonical_value": "do not add extra dependencies",
+      "decision_event": null
+    }
+  },
+  {
+    "id": "reversal-direction-transfer",
+    "expected": "distinct",
+    "candidate": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "portable recorder",
+      "canonical_value": "changed from Meilisearch to Tantivy",
+      "decision_event": "reversal"
+    },
+    "existing": {
+      "kind": "decision",
+      "inference": "explicit",
+      "subject": "user",
+      "topic": "database",
+      "context": "portable recorder",
+      "canonical_value": "changed from Tantivy to Meilisearch",
+      "decision_event": "reversal"
+    }
+  }
 ]

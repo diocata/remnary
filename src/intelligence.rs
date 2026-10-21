@@ -292,6 +292,23 @@ pub(crate) fn validate_model_output(
     validate_output(conversation, revision, output)
 }
 
+/// Fresh model scopes must occur in their own citations, never just another
+/// message in the window. Legacy reviewed identities may use paraphrased scopes
+/// and are independently checked against new evidence during reconciliation.
+pub(crate) fn retain_cited_model_scopes(output: &mut AnalysisOutput) -> usize {
+    let before = output.observations.len();
+    output.observations.retain(|observation| {
+        observation.context.as_ref().is_none_or(|context| {
+            let context = normalize_key(context);
+            observation
+                .evidence
+                .iter()
+                .any(|evidence| normalize_key(&evidence.quote).contains(&context))
+        })
+    });
+    before - output.observations.len()
+}
+
 /// Reject an entire output atomically on invalid provenance or inconsistent
 /// classification. In particular, an assistant describing the user is not a
 /// source of user preferences, corrections, decisions or inferred user facts.
@@ -941,6 +958,20 @@ mod tests {
         let source = conversation("one", &[("user", "I prefer Rust.")]);
         let output = extract_rules(&source, 1);
         (source, output)
+    }
+
+    #[test]
+    fn fresh_scopes_require_the_candidates_own_citations() {
+        let (source, mut output) = explicit();
+        output.observations[0].context = Some("for another project".into());
+        // General provenance validation still accepts legacy paraphrased scopes.
+        assert!(validate_output(&source, 1, output.clone()).is_ok());
+        assert_eq!(retain_cited_model_scopes(&mut output), 1);
+        assert!(output.observations.is_empty());
+        let (_, mut output) = explicit();
+        output.observations[0].context = Some("RUST".into());
+        assert_eq!(retain_cited_model_scopes(&mut output), 0);
+        assert_eq!(output.observations.len(), 1);
     }
 
     #[test]

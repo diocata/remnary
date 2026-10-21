@@ -527,5 +527,66 @@
     "summary": "Project reference: unrelated to my gardening project",
     "context": null,
     "expected_supported": false
+  },
+  {
+    "id": "software-removal-is-not-correction",
+    "kind": "correction",
+    "topic": "software management",
+    "quotes": [
+      "Please uninstall PaperEdit from my computer."
+    ],
+    "canonical_value": "uninstall PaperEdit",
+    "summary": "Correction: uninstall PaperEdit",
+    "context": null,
+    "expected_supported": false
+  },
+  {
+    "id": "supported-correction-of-unapproved-install",
+    "kind": "correction",
+    "topic": "software management",
+    "quotes": [
+      "Remove PaperEdit from my computer—you installed it without asking."
+    ],
+    "canonical_value": "remove PaperEdit installed without asking",
+    "summary": "Correction: remove PaperEdit installed without asking",
+    "context": null,
+    "expected_supported": true
+  },
+  {
+    "id": "opposed-preference-is-not-equivalent",
+    "kind": "explicit_preference",
+    "topic": "documentation",
+    "quotes": [
+      "I prefer avoiding extra documentation files."
+    ],
+    "canonical_value": "create extra documentation files",
+    "summary": "Stated preference: create extra documentation files",
+    "context": null,
+    "expected_supported": false
+  },
+  {
+    "id": "supported-negative-preference-paraphrase",
+    "kind": "explicit_preference",
+    "topic": "dependencies",
+    "quotes": [
+      "I prefer not adding extra dependencies to this CLI."
+    ],
+    "canonical_value": "avoid adding extra dependencies",
+    "summary": "Stated preference: avoid adding extra dependencies (to this CLI)",
+    "context": "to this CLI",
+    "expected_supported": true
+  },
+  {
+    "id": "opposite-reversal-transfer",
+    "kind": "decision",
+    "topic": "database",
+    "decision_event": "reversal",
+    "quotes": [
+      "I switched from Meilisearch to Tantivy for this prototype."
+    ],
+    "canonical_value": "changed from Tantivy to Meilisearch",
+    "summary": "Reversal: changed from Tantivy to Meilisearch (for this prototype)",
+    "context": "for this prototype",
+    "expected_supported": false
   }
 ]

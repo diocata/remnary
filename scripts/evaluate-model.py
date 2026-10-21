@@ -85,7 +85,10 @@ def main():
             if any(c["decision_event"] in case.get("forbidden_events", []) for c in claims):
                 issues.append("discussion became a settled choice")
             for required in case.get("required", []):
-                if not any(c["kind"] == required["kind"] and ("events" not in required or c["decision_event"] in required["events"]) for c in claims):
+                if not any(c["kind"] == required["kind"]
+                           and ("events" not in required or c["decision_event"] in required["events"])
+                           and all(term.casefold() in c["canonical_value"].casefold()
+                                   for term in required.get("value_terms", [])) for c in claims):
                     issues.append("required grounded classification missing")
             report.append({"case": case["id"], "passed": not issues, "issues": issues,
                            "claims": [{"kind": c["kind"], "event": c["decision_event"], "summary": c["summary"]} for c in claims]})

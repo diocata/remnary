@@ -40,7 +40,7 @@ Decision events are proposal, consideration, decision, reconsideration, reversal
 
 Classification priority: an offered option/approach for a goal is decision, not topic. "What about DuckDB plus JSON files for this prototype?" MUST be decision, explicit, consideration, value DuckDB plus JSON files, scope for this prototype. It is not a generic topic question. "I chose SQLite for this prototype." MUST be decision, explicit, decision_event decision, value SQLite, scope for this prototype. A first report of a choice is NOT confirmation: confirmation requires explicitly reaffirming a previously established choice (for example "I still stand by my earlier choice"). Record what the words establish, not the fact that the owner reported it. An ordinary selection does not establish a reversal or implementation.
 
-Use topic for substantive exploration, including a request to understand a technical subject, without asserting mastery or an enduring preference. Do not repeat a project-reference fact as a topic. For "I'm building a Rust CLI named SignalLog to index local assistant transcripts. This is separate from my website project.", record ONE project_reference naming SignalLog and its stated purpose; do not add a duplicate topic or a separate unnamed website-project claim. Every observation should capture a different useful fact. Use project_reference for a named ongoing project with a concrete purpose, not product ownership, one appointment, a standalone article query or an unnamed our project. Prefer a few useful specific claims over generic biographical facts or weak mentions. Classification and event fields supply their relationship: for example preference value Rust with context for local CLI tools, or consideration value DuckDB plus JSON files with context for this prototype. Return JSON only, without Markdown fences or commentary."#;
+Use topic for substantive exploration, including a request to understand a technical subject, without asserting mastery or an enduring preference. Do not repeat a project-reference fact as a topic. For "I'm building a Rust CLI named SignalLog to index local assistant transcripts. This is separate from my website project.", record ONE project_reference naming SignalLog and its stated purpose; do not add a duplicate topic or a separate unnamed website-project claim. Every observation should capture a different useful fact. Preserve a proposed combination as ONE consideration (A plus B), never separate component considerations or an invented A-or-B alternative. Do not repeat the same option in broad and narrow observations. Separate independent preferences instead of combining them into one claim. Keep ambiguous product/model names as quoted; never expand a model code into an unquoted brand. A file location alone does not establish an ongoing project. Use project_reference for a named ongoing project with a concrete purpose, not product ownership, one appointment, a standalone article query or an unnamed our project. Prefer a few useful specific claims over generic biographical facts or weak mentions. Classification and event fields supply their relationship: for example preference value Rust with context for local CLI tools, or consideration value DuckDB plus JSON files with context for this prototype. Return JSON only, without Markdown fences or commentary."#;
 
 /// Analyze one archived revision with an explicitly selected local Ollama model.
 ///
@@ -317,17 +317,18 @@ fn chat_body_with_limits(
         )
     })?;
     validate_local_model(&details)?;
-    // Keep measured Qwen generation non-thinking. Independent support checks
+    // Keep Qwen and Gemma generation non-thinking. Independent support checks
     // prefer the model's advertised reasoning capability; identity comparison
     // remains a fast constrained completion.
     let qwen = details.pointer("/details/family").and_then(Value::as_str) == Some("qwen35");
+    let gemma = details.pointer("/details/family").and_then(Value::as_str) == Some("gemma4");
     let capable = details
         .get("capabilities")
         .and_then(Value::as_array)
         .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")));
     let thinking = capable
         && match policy {
-            ReasoningPolicy::Generation => !qwen,
+            ReasoningPolicy::Generation => !qwen && !gemma,
             ReasoningPolicy::Verification => true,
             ReasoningPolicy::Disabled => false,
         };
@@ -347,15 +348,21 @@ fn chat_body_with_limits(
             request["options"]["repeat_penalty"] = json!(1.0);
             request["options"]["seed"] = json!(42);
         }
+        if gemma && policy == ReasoningPolicy::Verification {
+            request["options"]["temperature"] = json!(1.0);
+            request["options"]["top_p"] = json!(0.95);
+            request["options"]["top_k"] = json!(64);
+            request["options"]["seed"] = json!(42);
+        }
         serde_json::to_vec(&request)?
     } else {
         body
     };
     // Reasoning models receive twice the token budget and request deadline.
-    // The measured Qwen completion path also needs this longer deadline on
-    // larger real windows, without enabling reasoning or increasing tokens.
-    // Non-thinking verification and metadata retain the shorter deadline.
-    let generation_timeout = if thinking || (policy == ReasoningPolicy::Generation && qwen) {
+    // Completion-only generation can also need the longer deadline on larger
+    // real windows (observed with both Qwen and Ministral). This does not enable
+    // reasoning or increase tokens. Fast verification/metadata keep their limit.
+    let generation_timeout = if thinking || policy == ReasoningPolicy::Generation {
         timeout.saturating_mul(2)
     } else {
         timeout
@@ -1142,9 +1149,14 @@ mod tests {
 
     #[test]
     fn qwen_generation_and_identity_matching_avoid_automatic_reasoning() {
-        for identity_matching in [false, true] {
+        for (family, identity_matching) in [
+            ("qwen35", false),
+            ("qwen35", true),
+            ("gemma4", false),
+            ("gemma4", true),
+        ] {
             let mut metadata = local_metadata();
-            metadata["details"]["family"] = json!("qwen35");
+            metadata["details"]["family"] = json!(family);
             metadata["capabilities"] = json!(["thinking"]);
             let (endpoint, requests, handle) = responses_server(vec![
                 ("/api/show", reply(&metadata.to_string())),
@@ -1176,9 +1188,9 @@ mod tests {
 
     #[test]
     fn support_verification_prefers_advertised_reasoning_without_exposing_thoughts() {
-        for capable in [false, true] {
+        for (family, capable) in [("qwen35", false), ("qwen35", true), ("gemma4", true)] {
             let mut metadata = local_metadata();
-            metadata["details"]["family"] = json!("qwen35");
+            metadata["details"]["family"] = json!(family);
             metadata["capabilities"] = if capable {
                 json!(["thinking"])
             } else {
@@ -1212,9 +1224,14 @@ mod tests {
                 if capable { json!(1.0) } else { json!(0) }
             );
             if capable {
-                assert_eq!(body["options"]["presence_penalty"], 1.5);
+                if family == "qwen35" {
+                    assert_eq!(body["options"]["presence_penalty"], 1.5);
+                }
                 assert_eq!(body["options"]["top_p"], 0.95);
-                assert_eq!(body["options"]["top_k"], 20);
+                assert_eq!(
+                    body["options"]["top_k"],
+                    if family == "gemma4" { 64 } else { 20 }
+                );
                 assert_eq!(body["options"]["seed"], 42);
             } else {
                 assert!(body["options"].get("seed").is_none());
@@ -1505,8 +1522,10 @@ mod tests {
     }
 
     #[test]
-    fn reasoning_generation_has_a_longer_but_bounded_deadline() {
-        for thinking in [false, true] {
+    fn all_generation_has_a_longer_but_bounded_deadline() {
+        for (thinking, delay_ms, succeeds) in
+            [(false, 600, true), (true, 600, true), (false, 1000, false)]
+        {
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             let endpoint = format!("http://{}", listener.local_addr().unwrap());
             let handle = thread::spawn(move || {
@@ -1522,7 +1541,7 @@ mod tests {
                 drop(stream);
                 let (mut stream, _) = listener.accept().unwrap();
                 read_request(&mut stream);
-                thread::sleep(Duration::from_millis(600));
+                thread::sleep(Duration::from_millis(delay_ms));
                 let _ = stream.write_all(reply(&envelope(r#"{"observations":[]}"#)).as_bytes());
             });
             let result = analyze_with_limits(
@@ -1534,7 +1553,7 @@ mod tests {
                 Duration::from_millis(400),
                 MAX_RESPONSE_BYTES,
             );
-            if thinking {
+            if succeeds {
                 assert!(result.is_ok(), "{result:?}");
             } else {
                 assert!(result.unwrap_err().to_string().contains("timed out"));

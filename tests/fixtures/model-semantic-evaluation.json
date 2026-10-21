@@ -27,6 +27,10 @@
         "events": [
           "consideration",
           "proposal"
+        ],
+        "value_terms": [
+          "DuckDB",
+          "JSON"
         ]
       }
     ],
@@ -452,6 +456,52 @@
     "forbidden_events": [
       "decision",
       "reversal"
+    ]
+  },
+  {
+    "id": "undo-unapproved-install",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Remove PaperEdit from my computer—you installed it without asking."
+      }
+    ],
+    "required": [
+      {
+        "kind": "correction"
+      }
+    ],
+    "forbidden": [
+      "explicit_preference"
+    ]
+  },
+  {
+    "id": "informal-combined-option",
+    "messages": [
+      {
+        "role": "user",
+        "text": "for our prototype what about Tantivy + some files? yaml or whatever"
+      }
+    ],
+    "required": [
+      {
+        "kind": "decision",
+        "events": [
+          "consideration",
+          "proposal"
+        ],
+        "value_terms": [
+          "Tantivy",
+          "yaml"
+        ]
+      }
+    ],
+    "forbidden": [
+      "explicit_preference"
+    ],
+    "forbidden_events": [
+      "decision",
+      "confirmation"
     ]
   }
 ]
