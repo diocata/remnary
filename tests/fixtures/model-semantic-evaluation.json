@@ -432,5 +432,26 @@
         "kind": "explicit_preference"
       }
     ]
+  },
+  {
+    "id": "explicit-reaffirmation",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I confirm my earlier choice of SQLite for this prototype."
+      }
+    ],
+    "required": [
+      {
+        "kind": "decision",
+        "events": [
+          "confirmation"
+        ]
+      }
+    ],
+    "forbidden_events": [
+      "decision",
+      "reversal"
+    ]
   }
 ]

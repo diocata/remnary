@@ -476,5 +476,18 @@
     "context": null,
     "expected_supported": false,
     "topic": "project_reference"
+  },
+  {
+    "id": "supported-explicit-reaffirmation",
+    "kind": "decision",
+    "decision_event": "confirmation",
+    "quotes": [
+      "I confirm my earlier choice of SQLite for this prototype."
+    ],
+    "canonical_value": "SQLite",
+    "summary": "Recorded confirmation: SQLite (for this prototype)",
+    "context": "for this prototype",
+    "expected_supported": true,
+    "topic": "technology"
   }
 ]
