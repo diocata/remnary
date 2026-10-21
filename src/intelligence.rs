@@ -651,15 +651,41 @@ pub(crate) fn eligible_personal_evidence(message: &Message) -> bool {
     !personal_evidence_spans(message).is_empty()
 }
 
+// Exact observed task-template prefixes, not a generic steering-word filter.
+// Hashes avoid retaining provider prompt text; owner additions remain eligible.
+const KIRO_STEERING_PREFIXES: &[(usize, &str)] = &[
+    (
+        863,
+        "85c9157a9512d1ea49ceaff9cbbc4d557bad59b6d92abf97a8652a761604bc0d",
+    ),
+    (
+        876,
+        "ce4786f92c8727097e89ac5f687c1f3b798759dffcc76c76b19a0994e88d6c0e",
+    ),
+];
+fn strip_instruction_prefix<'a>(text: &'a str, prefixes: &[(usize, &str)]) -> &'a str {
+    let candidate = text.trim_start();
+    for &(length, hash) in prefixes {
+        if let Some(prefix) = candidate.get(..length)
+            && digest(prefix.as_bytes()) == hash
+        {
+            return &candidate[length..];
+        }
+    }
+    text
+}
+
 /// UI question replies contain an assistant-authored question beside the user's
 /// answer. Only the raw JSON string interiors of answer fields supply evidence.
 /// Keeping the original escapes preserves exact source byte attribution.
 pub(crate) fn personal_evidence_spans(message: &Message) -> Vec<&str> {
-    let content = message.content.trim();
-    if !message.role.eq_ignore_ascii_case("user")
-        || content.is_empty()
-        || declared_transcript(content)
-    {
+    personal_evidence_text(&message.role, &message.content)
+}
+
+pub(crate) fn personal_evidence_text<'a>(role: &str, raw: &'a str) -> Vec<&'a str> {
+    let owner_content = strip_instruction_prefix(raw, KIRO_STEERING_PREFIXES);
+    let content = owner_content.trim();
+    if !role.eq_ignore_ascii_case("user") || content.is_empty() || declared_transcript(content) {
         return Vec::new();
     }
     let first_line = content.lines().next().unwrap_or("").to_ascii_lowercase();
@@ -678,7 +704,7 @@ pub(crate) fn personal_evidence_spans(message: &Message) -> Vec<&str> {
     const START: &str = "<send_user_message_question_reply>";
     const END: &str = "</send_user_message_question_reply>";
     if !content.starts_with(START) {
-        return vec![&message.content];
+        return vec![owner_content];
     }
     #[derive(Deserialize)]
     struct Reply<'a> {
@@ -1027,6 +1053,22 @@ mod tests {
         let source = conversation("one", &[("user", "I prefer Rust.")]);
         let output = extract_rules(&source, 1);
         (source, output)
+    }
+
+    #[test]
+    fn exact_instruction_prefixes_preserve_owner_additions_and_source_bytes() {
+        let prefix = "Provider initialization task.\n";
+        let hash = digest(prefix.as_bytes());
+        let known = [(prefix.len(), hash.as_str())];
+        assert!(strip_instruction_prefix(prefix, &known).is_empty());
+        let combined = format!("{prefix}\nI prefer Rust for local tools.");
+        let owner = strip_instruction_prefix(&combined, &known);
+        assert_eq!(owner, "\nI prefer Rust for local tools.");
+        assert!(combined.contains(owner));
+        let personal = "I want to discuss steering rules and code conventions.";
+        assert_eq!(strip_instruction_prefix(personal, &known), personal);
+        let modified = prefix.replace("initialization", "discussion");
+        assert_eq!(strip_instruction_prefix(&modified, &known), modified);
     }
 
     #[test]

@@ -553,5 +553,22 @@
       "correction",
       "explicit_preference"
     ]
+  },
+  {
+    "id": "unit-request-and-unrelated-followup",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Please show the recipe amounts in millilitres and cups."
+      },
+      {
+        "role": "user",
+        "text": "Which website published this recipe?"
+      }
+    ],
+    "forbidden": [
+      "inferred_preference",
+      "behavioral_pattern"
+    ]
   }
 ]

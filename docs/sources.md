@@ -50,3 +50,6 @@ ZIP conversation members are read directly without extraction. Numbered shards a
 
 
 Kiro's execution ID is retained as a source-record identity. Different execution records can include the exact earlier history. Evidence counts correlate complete cumulative user/assistant dialogue prefixes with substantive copied assistant replies; tool frames, empty streaming entries and native timestamp metadata do not establish independent dialogue. They retain raw records/links rather than treating copied questions as independently repeated user behavior. Identical prompts and short greetings alone remain separate. Non-prefix forks and cross-provider copies are not exhaustively resolved. [Counting policy](architecture.md).
+
+
+The observed Kiro steering-initialization template is excluded from personal evidence by exact LF/CRLF prefix fingerprints. Owner text appended after a recognized prefix remains eligible, and the raw message is retained. This is observed-template compatibility, not universal recognition of future provider prompts. Source-origin correlation requires a substantive reply after eligible owner text; machine initialization frames alone cannot make independent owner requests look copied.

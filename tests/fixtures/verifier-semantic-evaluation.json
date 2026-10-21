@@ -588,5 +588,47 @@
     "summary": "Reversal: changed from Tantivy to Meilisearch (for this prototype)",
     "context": "for this prototype",
     "expected_supported": false
+  },
+  {
+    "id": "unrelated-followup-not-unit-repetition",
+    "kind": "inferred_preference",
+    "topic": "communication.explanations",
+    "decision_event": null,
+    "quotes": [
+      "Show recipe amounts in millilitres and cups.",
+      "Which website published this recipe?"
+    ],
+    "canonical_value": "prefers recipe instructions in millilitres and cups",
+    "summary": "Possible preference: prefers recipe instructions in millilitres and cups",
+    "context": null,
+    "expected_supported": false
+  },
+  {
+    "id": "supported-independent-unit-repetition",
+    "kind": "inferred_preference",
+    "topic": "communication.explanations",
+    "decision_event": null,
+    "quotes": [
+      "Show this recipe in millilitres and cups.",
+      "For the other recipe, give me millilitres and cups too."
+    ],
+    "canonical_value": "prefers recipe instructions in millilitres and cups",
+    "summary": "Possible preference: prefers recipe instructions in millilitres and cups",
+    "context": null,
+    "expected_supported": true
+  },
+  {
+    "id": "rejected-layout-is-not-specific-style-repetition",
+    "kind": "inferred_preference",
+    "topic": "software_design",
+    "decision_event": null,
+    "quotes": [
+      "I do not like these layouts; we can try something different.",
+      "For this demo, show rounded blue buttons."
+    ],
+    "canonical_value": "prefers rounded blue buttons for this demo",
+    "summary": "Possible preference: prefers rounded blue buttons for this demo",
+    "context": null,
+    "expected_supported": false
   }
 ]

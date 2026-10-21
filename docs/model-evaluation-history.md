@@ -239,3 +239,10 @@ V30 preserves model generation and adds bounded, literal, English direct-feedbac
 ## V30 complete generation and V31 approval eligibility
 
 V30 completed all 38 sources in 714.82 seconds and passed 37/38. The missed correction was retained; the approval control was accepted as correction despite passing its earlier targeted check. Real histories were not started after the failure. V31 enforces source-aware correction eligibility for explicit closing approval, including clipped quotations and multi-sentence gratitude while preserving separate genuine criticism. All 203 offline tests and lint checks pass. The initial targeted attempt could not connect to the stopped local daemon and processed no sources. After a confirmed local-only restart with unchanged Ollama 0.40.6 and Gemma manifest, all four targeted controls pass in 34.15 seconds. Complete current-version checks remain separate gates.
+
+
+## V31 complete real review and V32 relevance/ownership checks
+
+V31 passed all synthetic gates and completed all 40 real sources in 1,579.95 seconds, with 23 extractions and 26 omitted proposals. Agent review found 19/23 grounded (82.61%), three of the top five useful, zero genuine cross-source recurring groups and no owner confirmations. Two inferred preferences used one relevant request plus a different follow-up; two topics came from a provider task template. This fails real grounding despite complete synthetic scores.
+
+V32 checks each inferred claim's messages independently for relevant behavioral content and retains only relevant groups, requiring at least two unique message identities. A separate source check still validates the full tentative claim. Exact known steering-prefix fingerprints preserve owner additions without storing provider prompt text in the implementation. Machine-only frames cannot supply owner history for copied-source correlation. All 206 offline tests pass. New negative/positive relevance controls pass 3/3 in 39.75 seconds, and the four disputed real findings are excluded. Complete current-version gates remain open.

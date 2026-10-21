@@ -49,7 +49,8 @@ impl OriginIndex {
             let history = histories.last_mut().expect("current source was added");
             let message: String = row.get(1)?;
             let role: String = row.get(2)?;
-            history.has_user |= role.eq_ignore_ascii_case("user");
+            history.has_user |=
+                !crate::intelligence::personal_evidence_text(&role, &message).is_empty();
             if history.has_user && role.eq_ignore_ascii_case("assistant") {
                 history.reply_bytes = history
                     .reply_bytes
@@ -251,6 +252,26 @@ mod tests {
         assert_eq!(ranked[0].distinct_conversations, 1);
         assert_eq!(store.snapshot(&first.stable_id(), None)?, first);
         assert_eq!(store.snapshot(&second.stable_id(), None)?, second);
+        Ok(())
+    }
+
+    #[test]
+    fn machine_frames_cannot_supply_the_owner_history_needed_to_merge_sources() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let mut store = Store::init(&temp.path().join("archive"))?;
+        let chat = json!([
+            {"role":"human","content":"<environment_context>Machine-provided workspace details.</environment_context>"},
+            {"role":"bot","content":"A shared provider initialization response without an owner request. ".repeat(10)},
+            {"role":"human","content":"I prefer Rust."}
+        ]);
+        let first = session(temp.path(), "one", chat.clone())?;
+        let second = session(temp.path(), "two", chat)?;
+        store.import(&[first, second])?;
+        analyze(&mut store)?;
+        let records = store.observations(false)?;
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].distinct_conversations, 2);
+        assert_eq!(records[0].status, ObservationStatus::Supported);
         Ok(())
     }
 

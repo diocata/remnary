@@ -130,7 +130,7 @@ pub fn analyze_with_progress(
                             candidates: grounded.observations.len(),
                             reused_identity: false,
                         });
-                        let (verified, rejected) = crate::verification::verify_observations(
+                        let (mut verified, rejected) = crate::verification::verify_observations(
                             endpoint,
                             model,
                             identity.as_ref().expect("model identity resolved"),
@@ -139,6 +139,7 @@ pub fn analyze_with_progress(
                         )
                         .context("verifying newly generated observations")?;
                         rejected_candidates += rejected;
+                        rejected_candidates += retain_cited_model_scopes(&mut verified);
                         progress(AnalysisProgress::MatchingClaims {
                             conversation: current,
                             candidates: verified.observations.len(),
