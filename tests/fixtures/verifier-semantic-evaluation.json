@@ -341,5 +341,77 @@
     "context": null,
     "expected_supported": false,
     "topic": "reading"
+  },
+  {
+    "id": "mixed-interface-question",
+    "kind": "explicit_preference",
+    "quotes": [
+      "I like the current dashboard, could we try a denser layout?"
+    ],
+    "canonical_value": "prefers dense dashboard layouts",
+    "summary": "User prefers dense dashboard layouts.",
+    "context": "dashboard",
+    "topic": "design",
+    "expected_supported": false
+  },
+  {
+    "id": "liking-is-not-reading",
+    "kind": "explicit_preference",
+    "quotes": [
+      "I like chess. Can you suggest a beginner book?"
+    ],
+    "canonical_value": "likes books about chess",
+    "summary": "User likes books about chess.",
+    "context": null,
+    "topic": "reading",
+    "expected_supported": false
+  },
+  {
+    "id": "generated-context-not-evidence",
+    "kind": "topic",
+    "quotes": [
+      "Please analyze the repository and its project rules."
+    ],
+    "canonical_value": "exploring Python scripts comet.py and orbit.py",
+    "summary": "User exploring Python scripts comet.py and orbit.py.",
+    "context": null,
+    "topic": "Python scripts",
+    "expected_supported": false
+  },
+  {
+    "id": "unspecified-pivot-target",
+    "kind": "decision",
+    "quotes": [
+      "I am considering moving away from virtual assistants."
+    ],
+    "canonical_value": "considering a pivot to database monitoring",
+    "summary": "User considering a pivot to database monitoring.",
+    "context": null,
+    "topic": "database monitoring",
+    "expected_supported": false
+  },
+  {
+    "id": "format-request-not-decision",
+    "kind": "decision",
+    "quotes": [
+      "I want the answer in a table."
+    ],
+    "canonical_value": "chooses tabular answer formatting",
+    "summary": "User chooses tabular answer formatting.",
+    "context": null,
+    "topic": "answer format",
+    "expected_supported": false
+  },
+  {
+    "id": "scoped-complete-preference",
+    "kind": "explicit_preference",
+    "quotes": [
+      "For incident reports, I prefer a short numbered checklist."
+    ],
+    "canonical_value": "short numbered checklists for incident reports",
+    "summary": "User short numbered checklists for incident reports.",
+    "context": "incident reports",
+    "topic": "communication",
+    "expected_supported": true
   }
 ]

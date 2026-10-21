@@ -361,5 +361,70 @@
         "kind": "explicit_preference"
       }
     ]
+  },
+  {
+    "id": "mixed-interface-question",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I like the current dashboard, could we try a denser layout?"
+      }
+    ],
+    "forbidden": [
+      "explicit_preference",
+      "inferred_preference",
+      "behavioral_pattern"
+    ],
+    "forbidden_values": [
+      "prefers dense",
+      "prefers denser"
+    ]
+  },
+  {
+    "id": "liking-is-not-reading",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I like chess. Can you suggest a beginner book?"
+      }
+    ],
+    "forbidden_values": [
+      "likes books",
+      "prefers books"
+    ]
+  },
+  {
+    "id": "format-request-not-decision",
+    "messages": [
+      {
+        "role": "user",
+        "text": "I want the answer in a table."
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "summary-request-not-decision",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Summarize the previous messages into Markdown."
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "scoped-complete-preference",
+    "messages": [
+      {
+        "role": "user",
+        "text": "For incident reports, I prefer a short numbered checklist."
+      }
+    ],
+    "required": [
+      {
+        "kind": "explicit_preference"
+      }
+    ]
   }
 ]

@@ -23,7 +23,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
-use crate::analysis_store::FeedbackAction;
+use crate::analysis_store::{FeedbackAction, ObservationStatus};
 use crate::store::Store;
 
 const MAX_BODY_BYTES: u64 = 64 * 1024;
@@ -227,6 +227,16 @@ fn api(
             let observations = store
                 .observations(hidden.as_deref() == Some("1"))
                 .map_err(|_| database_error())?;
+            let (visible, hidden): (Vec<_>, Vec<_>) = observations.into_iter().partition(|r| {
+                matches!(
+                    r.status,
+                    ObservationStatus::Candidate
+                        | ObservationStatus::Supported
+                        | ObservationStatus::UserConfirmed
+                )
+            });
+            let mut observations = crate::reports::rank_discoveries(visible, usize::MAX);
+            observations.extend(hidden);
             Ok(json_response(200, json!({"observations":observations})))
         }
         (Method::Get, "/api/search") => {

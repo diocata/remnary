@@ -350,6 +350,9 @@ fn append_observation(
     body.push_str(&format!("## Observation {}\n\n", record.id));
     quoted(body, record.display_text());
     body.push_str(&format!("- Status: `{}`\n- Classification: `{}` / `{}`\n- Supporting conversations: {}\n- Source message occurrences: {}\n\n",serde_json::to_value(record.status)?.as_str().context("status is string")?,serde_json::to_value(record.observation.kind)?.as_str().context("kind is string")?,serde_json::to_value(record.observation.inference)?.as_str().context("inference is string")?,record.distinct_conversations,record.occurrences));
+    if !record.conversation_origins.is_empty() {
+        body.push_str("Copied cumulative history is counted once; all original source links are retained.\n\n");
+    }
     if let Some(event) = record.observation.decision_event {
         body.push_str(&format!(
             "Decision event: `{}`\n\n",

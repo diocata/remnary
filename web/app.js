@@ -129,7 +129,12 @@ function filtered() {
   if (state.kind !== 'all') records = records.filter((record) => state.kind === 'preference' ? record.observation.kind.includes('preference') : record.observation.kind === state.kind);
   const filter = state.filter.trim().toLocaleLowerCase();
   if (filter) records = records.filter((record) => [displayText(record), record.observation.topic, record.observation.context || '', record.observation.canonical_value].join(' ').toLocaleLowerCase().includes(filter));
-  return [...records].sort((a, b) => state.view === 'timeline' ? (b.last_seen || 0) - (a.last_seen || 0) : Number(a.status === 'user_confirmed') - Number(b.status === 'user_confirmed') || b.distinct_conversations - a.distinct_conversations || (b.last_seen || 0) - (a.last_seen || 0));
+  // Preserve the server's discovery order across filters and list lengths.
+  if (state.view !== 'timeline') return records;
+  return [...records].sort((a, b) => {
+    const knownA = Number.isFinite(a.last_seen), knownB = Number.isFinite(b.last_seen);
+    return Number(!knownA) - Number(!knownB) || (knownA && knownB ? b.last_seen - a.last_seen : 0) || a.id.localeCompare(b.id);
+  });
 }
 
 function empty(title, description) {
@@ -187,6 +192,7 @@ function renderEvidence(record) {
   const heading = node('div', 'evidence-heading');
   heading.append(node('h3', '', 'The original words'), node('span', '', `${record.occurrences} occurrence${record.occurrences === 1 ? '' : 's'}`));
   panel.append(heading);
+  if (Object.keys(record.conversation_origins || {}).length) panel.append(node('p', 'detail-context', 'Copied history appears in multiple source records and is counted once.'));
   record.observation.evidence.forEach((evidence) => {
     const item = node('article', 'evidence-item');
     item.append(node('blockquote', 'quote', evidence.quote));

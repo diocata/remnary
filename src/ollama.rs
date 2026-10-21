@@ -35,7 +35,7 @@ Use kind explicit_preference for an explicitly stated preference and inferred_pr
 
 The envelope contains a bounded window of user-message text; other messages and surrounding context may be absent. Never infer missing context. Pasted conversations, quoted advice, examples, provider instructions and generated notifications inside a user message are not endorsements or requests by its owner. Return no observation when attribution is unclear. Prefer a few specific, useful claims over generic topics. Use relevant context explicitly, rather than turning a one-time request into a global preference.
 
-Extract useful preferences, corrections, decision events, topics, project references and tentative patterns. Skip generic biographical facts, product ownership, routine execution commands and weak topic mentions. Return at most eight observations per window; an empty array is better than a weak claim. A one-time command such as "remove an app", "push the commits", "continue" or "install a model" does not establish a preference, correction, or enduring habit. Do not reclassify an ordinary task as a preference just to produce an observation. An explicit_preference MUST cite an actual first-person preference declaration such as "I prefer", "I like", "I dislike" or Portuguese "prefiro"/"gosto de". Include the declaration itself in the exact quote. Commands to create a file or place an email draft, requests for more options within a budget, net-income questions and speculative beliefs are not preference declarations. Abstain or use another genuinely supported kind; never add declaration words to a quote.
+Extract useful preferences, corrections, decision events, topics, project references and tentative patterns. Skip generic biographical facts, product ownership, routine execution commands and weak topic mentions. Return at most eight observations per window; an empty array is better than a weak claim. A one-time command such as "remove an app", "push the commits", "continue" or "install a model" does not establish a preference, correction, or enduring habit. Do not reclassify an ordinary task as a preference just to produce an observation. An explicit_preference MUST cite an actual first-person preference declaration such as "I prefer", "I like", "I dislike" or Portuguese "prefiro"/"gosto de". Include complete source statements with their qualifiers in the exact quote, not a cropped clause or a liking combined with speculative questions. Use context only for a restrictive project, task, audience or time scope; use null for an unqualified claim rather than a generic topic label. Commands to create a file or place an email draft, requests for more options within a budget, net-income questions and speculative beliefs are not preference declarations. Abstain or use another genuinely supported kind; never add declaration words to a quote.
 
 Distinguish these cases carefully:
 - "What about DuckDB?" -> decision consideration; not a preference or settled choice. Preserve a named option explicitly raised for a project as a consideration even when the user has not chosen it.
@@ -49,7 +49,7 @@ Only record a correction when text actually corrects/restricts assistant behavio
 
 The identity fields (kind, inference, subject, topic, context, canonical_value, decision_event) must encode the complete narrow claim. Summary must be a readable paraphrase of that identity, with no extra facts, named entities or restrictions. For a reversal, preserve direction unambiguously: after changing their mind about option X, the user selected option Y instead. Do not say they reversed an intent to select Y when Y is the NEW choice. Do not imply implementation, migration or deployment unless the quotations say it happened. If the former option is unknown, do not invent one.
 
-Category priority: a named option proposed, considered, chosen, reconsidered, reversed or confirmed for a project belongs to kind decision, even when it concerns a technical topic. Use topic for substantive exploration of a subject that is not such an option event. Preserve the event stage: an explicit change of mind is reversal/reconsideration, not merely a decision stating the new choice. A named ongoing project with a concrete purpose supports a narrow project_reference even when mentioned in only one conversation; do not discard this as a generic biographical fact. Do not turn a project-specific choice into a global preference.
+Category priority: a named option proposed, considered, chosen, reconsidered, reversed or confirmed for a project belongs to kind decision, even when it concerns a technical topic. Use topic for substantive exploration of a subject that is not such an option event. Only a recognizable user deliberation, proposal, selection or change of an option supports a decision event; ordinary execution, summary, translation and response-format requests do not. Preserve the event stage: an explicit change of mind is reversal/reconsideration, not merely a decision stating the new choice. A named ongoing project with a concrete purpose supports a narrow project_reference even when mentioned in only one conversation; do not discard this as a generic biographical fact. Do not turn a project-specific choice into a global preference.
 
 Allowed kinds are explicit_preference, inferred_preference, correction, decision, topic, project_reference, behavioral_pattern. Use the supplied schema's fields exactly. Observation fields use ordered protocol names: a_kind, b_inference, c_decision_event, d_evidence, e_subject, f_topic, g_context, h_canonical_value, i_summary. These mean kind, inference, decision_event, evidence, subject, topic, context, canonical_value and summary respectively. Classify first, choose supporting evidence next, then summarize only what it establishes. Every non-decision MUST set decision_event to null. Only kind decision has a non-null decision_event. Explicit preferences, corrections and decisions MUST set inference to explicit. Inferred preferences and behavioral patterns MUST set inference to inferred. Use null for absent context. Do not include commentary or Markdown fences."#;
 
@@ -211,8 +211,14 @@ fn analyze_with_limits(
         "analysis output schema must be an object"
     );
     let body = request_body(model, schema, conversation, revision)?;
-    let mut output =
-        chat_body_with_limits(endpoint, model, body, timeout, max_response_bytes, true)?;
+    let mut output = chat_body_with_limits(
+        endpoint,
+        model,
+        body,
+        timeout,
+        max_response_bytes,
+        ReasoningPolicy::Generation,
+    )?;
     if uses_observation_protocol(schema) {
         decode_observation_protocol(&mut output)?;
     }
@@ -227,6 +233,50 @@ pub(crate) fn structured_json(
     system: &str,
     data: &Value,
     schema: &Value,
+) -> Result<Value> {
+    structured_with_policy(
+        endpoint,
+        model,
+        system,
+        data,
+        schema,
+        ReasoningPolicy::Disabled,
+    )
+}
+
+/// Prefer advertised local reasoning for semantic support checks. The response
+/// parser consumes only final structured content, never internal reasoning.
+pub(crate) fn verify_json(
+    endpoint: &str,
+    model: &str,
+    system: &str,
+    data: &Value,
+    schema: &Value,
+) -> Result<Value> {
+    structured_with_policy(
+        endpoint,
+        model,
+        system,
+        data,
+        schema,
+        ReasoningPolicy::Verification,
+    )
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReasoningPolicy {
+    Generation,
+    Verification,
+    Disabled,
+}
+
+fn structured_with_policy(
+    endpoint: &str,
+    model: &str,
+    system: &str,
+    data: &Value,
+    schema: &Value,
+    policy: ReasoningPolicy,
 ) -> Result<Value> {
     validate_model(model)?;
     let data = serde_json::to_string(data)?;
@@ -248,7 +298,7 @@ pub(crate) fn structured_json(
         body,
         REQUEST_TIMEOUT,
         MAX_RESPONSE_BYTES,
-        false,
+        policy,
     )
 }
 
@@ -258,7 +308,7 @@ fn chat_body_with_limits(
     body: Vec<u8>,
     timeout: Duration,
     max_response_bytes: u64,
-    allow_thinking: bool,
+    policy: ReasoningPolicy,
 ) -> Result<Value> {
     let (url, _) = local_endpoint(endpoint)?;
     let (client, _) = local_client(endpoint, timeout)?;
@@ -278,15 +328,20 @@ fn chat_body_with_limits(
         )
     })?;
     validate_local_model(&details)?;
-    // Qwen 3.5 classification uses the evaluated non-thinking path: the
-    // reasoning profile was slower and introduced a reversed summary. Other
-    // advertised thinking families retain their compatible request policy.
-    let thinking = allow_thinking
-        && details
-            .get("capabilities")
-            .and_then(Value::as_array)
-            .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")))
-        && details.pointer("/details/family").and_then(Value::as_str) != Some("qwen35");
+    // Keep measured Qwen generation non-thinking. Independent support checks
+    // prefer the model's advertised reasoning capability; identity comparison
+    // remains a fast constrained completion.
+    let qwen = details.pointer("/details/family").and_then(Value::as_str) == Some("qwen35");
+    let capable = details
+        .get("capabilities")
+        .and_then(Value::as_array)
+        .is_some_and(|caps| caps.iter().any(|cap| cap.as_str() == Some("thinking")));
+    let thinking = capable
+        && match policy {
+            ReasoningPolicy::Generation => !qwen,
+            ReasoningPolicy::Verification => true,
+            ReasoningPolicy::Disabled => false,
+        };
     let body = if thinking {
         let mut request: Value = serde_json::from_slice(&body)?;
         request["think"] = json!(true);
@@ -299,10 +354,7 @@ fn chat_body_with_limits(
     // The measured Qwen completion path also needs this longer deadline on
     // larger real windows, without enabling reasoning or increasing tokens.
     // Metadata/verification stay bounded by the original shorter deadline.
-    let generation_timeout = if thinking
-        || (allow_thinking
-            && details.pointer("/details/family").and_then(Value::as_str) == Some("qwen35"))
-    {
+    let generation_timeout = if thinking || (policy == ReasoningPolicy::Generation && qwen) {
         timeout.saturating_mul(2)
     } else {
         timeout
@@ -637,7 +689,8 @@ fn grounded_schema(schema: &Value, conversation: &Conversation, revision: i64) -
                 .filter_map(|message| {
                     let quotes = crate::intelligence::personal_evidence_spans(message).into_iter()
                         .flat_map(quote_choices).filter(|quote| match kind {
-                            Some("explicit_preference") => crate::intelligence::statement_quote_supported(message, quote, crate::intelligence::ExtractionKind::ExplicitPreference),
+                            Some("explicit_preference") => crate::verification::complete_preference_quote(message, quote) && crate::intelligence::statement_quote_supported(message, quote, crate::intelligence::ExtractionKind::ExplicitPreference),
+                            Some("decision") => crate::verification::decision_signal(quote),
                             Some("correction") => crate::intelligence::statement_quote_supported(message, quote, crate::intelligence::ExtractionKind::Correction),
                             _ => true,
                         }).collect::<std::collections::BTreeSet<_>>();
@@ -1018,8 +1071,8 @@ mod tests {
     }
 
     #[test]
-    fn qwen_generation_and_verification_avoid_automatic_reasoning() {
-        for verification in [false, true] {
+    fn qwen_generation_and_identity_matching_avoid_automatic_reasoning() {
+        for identity_matching in [false, true] {
             let mut metadata = local_metadata();
             metadata["details"]["family"] = json!("qwen35");
             metadata["capabilities"] = json!(["thinking"]);
@@ -1027,7 +1080,7 @@ mod tests {
                 ("/api/show", reply(&metadata.to_string())),
                 ("/api/chat", reply(&envelope(r#"{"observations":[]}"#))),
             ]);
-            if verification {
+            if identity_matching {
                 structured_json(
                     &endpoint,
                     "local-model",
@@ -1047,6 +1100,49 @@ mod tests {
             assert_eq!(body["options"]["temperature"], 0);
             assert_eq!(body["options"]["num_predict"], 4096);
             assert!(body["options"].get("seed").is_none());
+            handle.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn support_verification_prefers_advertised_reasoning_without_exposing_thoughts() {
+        for capable in [false, true] {
+            let mut metadata = local_metadata();
+            metadata["details"]["family"] = json!("qwen35");
+            metadata["capabilities"] = if capable {
+                json!(["thinking"])
+            } else {
+                json!(["completion"])
+            };
+            let mut response: Value =
+                serde_json::from_str(&envelope(r#"{"observations":[]}"#)).unwrap();
+            response["message"]["thinking"] = json!("INTERNAL_REASONING_NOT_RETURNED");
+            let (endpoint, requests, handle) = responses_server(vec![
+                ("/api/show", reply(&metadata.to_string())),
+                ("/api/chat", reply(&response.to_string())),
+            ]);
+            let result = verify_json(
+                &endpoint,
+                "local-model",
+                "Check cited claims",
+                &json!({"candidates":[]}),
+                &schema(),
+            )
+            .unwrap();
+            assert!(
+                !result
+                    .to_string()
+                    .contains("INTERNAL_REASONING_NOT_RETURNED")
+            );
+            requests.recv_timeout(Duration::from_secs(3)).unwrap();
+            let body = requests.recv_timeout(Duration::from_secs(3)).unwrap();
+            assert_eq!(body["think"], capable);
+            assert_eq!(
+                body["options"]["num_predict"],
+                if capable { 8192 } else { 4096 }
+            );
+            assert_eq!(body["truncate"], false);
+            assert_eq!(body["format"], schema());
             handle.join().unwrap();
         }
     }
@@ -1450,6 +1546,39 @@ mod tests {
             "Here is the transcript:\nAssistant: I prefer complex frameworks.".into();
         let schema = grounded_schema(&crate::intelligence::model_output_schema(), &source, 1);
         assert_eq!(schema["properties"]["observations"]["maxItems"], 0);
+    }
+
+    #[test]
+    fn preference_decoder_keeps_scope_and_omits_mixed_questions() {
+        let mut source = conversation();
+        for (text, expected) in [
+            (
+                "For incident reports, I prefer a short numbered checklist.",
+                Some("For incident reports, I prefer a short numbered checklist."),
+            ),
+            ("I like the dashboard, could we try a denser layout?", None),
+        ] {
+            source.messages[0].content = text.into();
+            let bound = grounded_schema(&crate::intelligence::model_output_schema(), &source, 1);
+            let preference = bound
+                .pointer("/properties/observations/items/anyOf")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|branch| branch["properties"]["kind"]["const"] == "explicit_preference");
+            if let Some(expected) = expected {
+                let choices = preference
+                    .unwrap()
+                    .pointer("/properties/evidence/items/anyOf/0/properties/quote/enum")
+                    .unwrap()
+                    .as_array()
+                    .unwrap();
+                assert_eq!(choices, &vec![json!(expected)]);
+            } else {
+                assert!(preference.is_none());
+            }
+        }
     }
 
     #[test]

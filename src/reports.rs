@@ -248,9 +248,6 @@ pub fn rank_discoveries(
             .then_with(|| compare_time_desc(left.last_seen, right.last_seen))
             .then_with(|| left.id.cmp(&right.id))
     });
-    if limit >= observations.len() {
-        return observations;
-    }
     // Within an equal recurrence/confirmation/kind tier, cover another
     // conversation before showing more details from an already shown source.
     // Never replace stronger recurrence or confirmed evidence for diversity.
@@ -258,30 +255,46 @@ pub fn rank_discoveries(
     let mut covered = BTreeSet::new();
     while ranked.len() < limit && !observations.is_empty() {
         let first = &observations[0];
-        let selected = observations
+        let tier_end = observations
             .iter()
-            .position(|record| {
+            .take_while(|record| {
                 record.distinct_conversations == first.distinct_conversations
                     && (record.status == ObservationStatus::UserConfirmed)
                         == (first.status == ObservationStatus::UserConfirmed)
                     && discovery_kind_priority(record.observation.kind)
                         == discovery_kind_priority(first.observation.kind)
-                    && record.observation.evidence.iter().any(|evidence| {
-                        !covered.contains(&(
-                            evidence.provider.clone(),
-                            evidence.conversation_id.clone(),
-                        ))
-                    })
             })
-            .unwrap_or(0);
+            .count();
+        let selected = observations[..tier_end].iter().position(|record| {
+            record.observation.evidence.iter().any(|evidence| {
+                !covered.contains(&(
+                    evidence.provider.clone(),
+                    record
+                        .conversation_origins
+                        .get(&evidence.conversation_id)
+                        .unwrap_or(&evidence.conversation_id)
+                        .clone(),
+                ))
+            })
+        });
+        let Some(selected) = selected else {
+            // No remaining source in this tier can expand coverage. Appending
+            // it together preserves order and avoids quadratic rescanning.
+            let count = tier_end.min(limit - ranked.len());
+            ranked.extend(observations.drain(..count));
+            continue;
+        };
         let record = observations.remove(selected);
-        covered.extend(
-            record
-                .observation
-                .evidence
-                .iter()
-                .map(|evidence| (evidence.provider.clone(), evidence.conversation_id.clone())),
-        );
+        covered.extend(record.observation.evidence.iter().map(|evidence| {
+            (
+                evidence.provider.clone(),
+                record
+                    .conversation_origins
+                    .get(&evidence.conversation_id)
+                    .unwrap_or(&evidence.conversation_id)
+                    .clone(),
+            )
+        }));
         ranked.push(record);
     }
     ranked
@@ -616,6 +629,14 @@ mod tests {
             }
             records.push(record);
         }
+        let full = rank_discoveries(records.clone(), usize::MAX);
+        assert_eq!(
+            full.iter()
+                .take(3)
+                .map(|r| r.id.as_str())
+                .collect::<Vec<_>>(),
+            ["a", "d", "b"]
+        );
         let ranked = rank_discoveries(records, 3);
         assert_eq!(
             ranked
