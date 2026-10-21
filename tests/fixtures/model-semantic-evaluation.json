@@ -219,6 +219,12 @@
       {
         "kind": "project_reference"
       }
+    ],
+    "forbidden": [
+      "topic"
+    ],
+    "forbidden_values": [
+      "my website project"
     ]
   },
   {

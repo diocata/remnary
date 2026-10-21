@@ -4,11 +4,11 @@ Updated 2026-10-21. **Production readiness is not established:** the full blinde
 
 ## Current implementation
 
-Producer/prompt **v25**, encrypted schema **5**, source commit `59fb8198b44c`. All **195 offline tests** pass: 176 library, twelve analysis and seven CLI/source tests. Formatting, locked all-target Clippy with warnings denied and debug compilation pass. Two ignored local-model tests run separately and are not counted in 195.
+Producer/prompt **v26**, encrypted schema **5**. All **195 offline tests** pass: 176 library, twelve analysis and seven CLI/source tests. Formatting, locked all-target Clippy with warnings denied and debug compilation pass. Two ignored local-model tests run separately and are not counted in 195.
 
 Generation produces eight canonical fields and Rust derives their displayed description. Existing free-form descriptions require a separate source-free identity-consistency check. Every accepted model claim needs reasoned quotation support; surrounding context may invalidate but cannot rescue a claim absent from its citations. Administrative IDs and fixture labels are excluded from semantic verification. [Current setup and versioned evidence](local-model.md).
 
-The targeted v25 legacy-description controls pass 2/2, and the previously missed technical-topic pipeline case passes 1/1. These are development regressions, not an independent quality estimate. The complete blinded checks contain 31 full-pipeline cases, 36 verifier cases and ten identity cases; their current complete results remain pending.
+The targeted v25 legacy-description controls pass 2/2, and the previously missed technical-topic pipeline case passes 1/1. Its broader six-source run completed but passed 4/6, exposing option/choice stage errors and redundant project findings. V26 clarifies those classifications and adds corresponding negative regressions. These are development regressions, not an independent quality estimate. The complete blinded checks contain 31 full-pipeline cases, 39 verifier cases and ten identity cases; their current complete results remain pending.
 
 | Required v0.1 capability | Evidence and limits |
 | --- | --- |
@@ -18,7 +18,7 @@ The targeted v25 legacy-description controls pass 2/2, and the previously missed
 | 4. SQLite | Direct SQL with bundled SQLCipher 4.19.0 / SQLite 3.53.4 and Apple CommonCrypto; no database server or ORM. [Native provenance](native-dependencies.md). |
 | 5. Deduplication | Repeated/older imports, new revisions, tombstones and partial-view safeguards tested; packaged repeat import and real local reimports observed. |
 | 6. Local search | Current-source FTS, literal query handling and exclusion/deletion tested. Packaged search and browser search-to-source verified. |
-| 7. Structured extraction | Seven typed kinds; exact eligible-user evidence, redaction, strict decoding, immutable revisions and model/daemon cache identity tested. Current v25 model and broader real quality checks are in progress. |
+| 7. Structured extraction | Seven typed kinds; exact eligible-user evidence, redaction, strict decoding, immutable revisions and model/daemon cache identity tested. Current v26 model and broader real quality checks are in progress. |
 | 8. Recurring patterns | Context-aware grouping, distinct-conversation counts and inferred-claim two-message floor tested. Synthetic recurrence observed; useful real recurrence remains unestablished. |
 | 9. Personal profile | Confirmed-only generation, explicit corrections, feedback history and restored profile tested. Agent review never fabricates user confirmation. |
 | 10. Decisions/timelines | Typed event stages, dated ordering and unknown timestamps tested; synthetic consideration/choice/reversal passed. Broader source interpretation still needs review. |
@@ -32,7 +32,7 @@ The targeted v25 legacy-description controls pass 2/2, and the previously missed
 
 The private encrypted corpus contains **40 conversations, 3,061 current messages and 47 retained revisions** from Claude Code, Codex, Kiro and selected ChatGPT app views. App-view pagination, truncation and unknown timestamps remain explicit. Original histories are unchanged. No owner account-export ZIP was found; independently published real ChatGPT records provide importer compatibility evidence, including generated ZIP/shard wrappers. [Source compatibility](import-compatibility.md).
 
-The last complete real semantic evaluation, v16, produced 36 visible claims but failed the delegated top-five assessment: **1/5 accurate and useful**. It misclassified questions and one-time instructions and added meanings absent from citations. Subsequent changes address these observed failures; a fresh v25 evaluation is required before claiming improvement. No private quotations, model traces or keys are committed.
+The last complete real semantic evaluation, v16, produced 36 visible claims but failed the delegated top-five assessment: **1/5 accurate and useful**. It misclassified questions and one-time instructions and added meanings absent from citations. Subsequent changes address these observed failures; a fresh v26 evaluation is required before claiming improvement. No private quotations, model traces or keys are committed.
 
 The owner delegated evaluation without further questions. Findings are assessed against their sources for grounding, appropriate scope/type, duplicates, temporal meaning and concrete usefulness as a memory or decision record. Ratings are **agent assessments**, not independent user research or owner endorsement. The acceptance targets are at least 90% factual grounding and three of the first five accurate and useful. Evaluation never creates user-confirmed records. Useful real recurrence has not been established; copied cumulative Kiro histories count once and remain linked to their physical sources.
 
@@ -52,4 +52,4 @@ A collector/session pause, browser extension, background daemon, full TUI, every
 
 Canonical reuse compares complete identities, requires new source support and rechecks the review/source snapshot transactionally. Explicitly distinct claims may share a quotation; ambiguous overlaps with reviewed claims remain pending. Rejection and owner corrections stay authoritative. Schema-5 opaque message-digest/span tombstones prevent deleted claims returning from unchanged overlapping evidence without retaining their deleted text. Changed text and unrelated spans remain eligible. [Identity and deletion rules](architecture.md#canonical-identity-reuse).
 
-The existing local packages predate v25. A current optimized package, exact-package encrypted workflow, final dashboard inspection and refreshed performance check are still required. Historical package and browser checks are recorded in the evaluation history and are not current sign-off.
+The v25 optimized package at commit `62d20b37033a` passes the exact-package encrypted workflow, a refreshed 2,000-conversation performance check and synthetic dashboard checks for evidence, source labels, focus restoration, confirmed-only profile and search. Archive SHA-256: `0c091cc446269daa03f6e1dc51c523c9de3382cc63aa47c8c6b9e3d8766fd462`. It predates v26 classification changes; final current packaging remains open. [Performance measurements](performance.md).

@@ -1,6 +1,6 @@
 # Local model setup and verification
 
-Current producer/prompt: **v25**; encrypted storage schema: **5**. Generation emits eight canonical fields; Rust renders the displayed description. Every accepted model claim requires reasoned quotation support, with surrounding context checked separately when present. Legacy free-form descriptions first require a source-free identity-consistency check. Fast factual screening is no longer an acceptance or rejection stage: it incorrectly rejected a valid learning topic. Model quality gates remain open.
+Current producer/prompt: **v26**; encrypted storage schema: **5**. Generation emits eight canonical fields; Rust renders the displayed description. Every accepted model claim requires reasoned quotation support, with surrounding context checked separately when present. Legacy free-form descriptions first require a source-free identity-consistency check. Fast factual screening is no longer an acceptance or rejection stage: it incorrectly rejected a valid learning topic. Model quality gates remain open.
 
 The current development setup uses Homebrew Ollama 0.40.6 on Apple Silicon with the explicit `qwen3.5:9b-q4_K_M` model (about 6.6 GB). Model downloads contact the registry; conversation extraction uses the local daemon. No provider account/API key is needed. Local model digest: `sha256:56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90` (6,550,825,550 bytes). Current quality acceptance is still under evaluation; versioned results and earlier comparators follow below.
 
@@ -188,3 +188,8 @@ V24's blind six-positive pipeline retained five cases and missed the technical l
 Generation now emits exactly eight ordered protocol fields, `a_kind` through `h_canonical_value`; independently proposed `summary`/`i_summary` fields fail strict decoding. Rust derives the description from kind, event, canonical value and restrictive context. Existing free-form descriptions are checked against their canonical identity in a separate source-free request before source entailment. Neither provenance IDs nor fixture labels are semantic inputs. Every source check uses one candidate with reasoned quotation support and, if needed, a separate context veto. Uncertain or malformed results never authorize a claim.
 
 All 195 offline tests, formatting, locked all-target Clippy and debug compilation pass. The targeted legacy-description controls pass 2/2: a valid scoped choice survives and a true but identity-unrelated extra description fact is rejected. Broader model and real-history acceptance remains pending.
+
+
+## Producer v26: classification regressions
+
+The complete v25 six-positive check finished all sources in 697.22 seconds but passed only 4/6: an offered option became a topic and an initial choice became a confirmation. It also duplicated a named project as a topic and retained a weak unnamed-project fragment. V26 clarifies option/choice/confirmation examples and project classification priority in generation and verification. The project pipeline case now forbids the observed redundant topic and unnamed fragment; three added negative verifier cases cover these classification errors (39 verifier cases total). All 195 offline tests, formatting, Clippy and debug compilation pass; current model and real-history results remain pending.

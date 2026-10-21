@@ -439,5 +439,42 @@
     "context": "for this prototype",
     "summary": "User selected SQLite for this prototype.",
     "expected_supported": false
+  },
+  {
+    "id": "initial-choice-is-not-confirmation",
+    "kind": "decision",
+    "decision_event": "confirmation",
+    "quotes": [
+      "I chose SQLite for this prototype."
+    ],
+    "canonical_value": "SQLite",
+    "summary": "Recorded confirmation: SQLite (for this prototype)",
+    "context": "for this prototype",
+    "expected_supported": false,
+    "topic": "technology"
+  },
+  {
+    "id": "offered-option-is-not-generic-topic",
+    "kind": "topic",
+    "quotes": [
+      "What about DuckDB plus JSON files for this prototype?"
+    ],
+    "canonical_value": "DuckDB plus JSON files",
+    "summary": "Topic: DuckDB plus JSON files (for this prototype)",
+    "context": "for this prototype",
+    "expected_supported": false,
+    "topic": "technology"
+  },
+  {
+    "id": "unnamed-project-fragment",
+    "kind": "project_reference",
+    "quotes": [
+      "This is separate from my website project."
+    ],
+    "canonical_value": "separate from my website project",
+    "summary": "Project reference: separate from my website project",
+    "context": null,
+    "expected_supported": false,
+    "topic": "project_reference"
   }
 ]
