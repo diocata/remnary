@@ -3,7 +3,7 @@
 use crate::{
     intelligence::AnalysisOutput,
     model::Conversation,
-    ollama::{ModelIdentity, model_identity, verify_json},
+    ollama::{ModelIdentity, model_identity, structured_json, verify_json},
 };
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
@@ -427,9 +427,10 @@ pub fn verify_observations(
         return Ok((output, omitted));
     }
     let mut rejected = omitted;
-    // First prove support without any uncited surrounding words. Only survivors
-    // reach the context check, so context can never rescue missing details.
-    for include_context in [false, true] {
+    // A fast rejection pass saves reasoning work but can never accept a claim.
+    // Every survivor still needs independent reasoned quotation support and,
+    // when necessary, a source-context check. Context cannot rescue a rejection.
+    for (include_context, reasoning) in [(false, false), (false, true), (true, true)] {
         if output.observations.is_empty() {
             break;
         }
@@ -448,14 +449,21 @@ pub fn verify_observations(
                 continue;
             }
             let data = verification_input(source, &batch, include_context)?;
-            let result = verify_json(
+            let check = if reasoning {
+                verify_json
+            } else {
+                structured_json
+            };
+            let result = check(
                 endpoint,
                 model,
                 PROMPT,
                 &data,
                 &schema(batch.observations.len()),
             )
-            .context(if include_context {
+            .context(if !reasoning {
+                "checking fast quotation-only rejection"
+            } else if include_context {
                 "checking surrounding source context"
             } else {
                 "checking quotation-only support"
