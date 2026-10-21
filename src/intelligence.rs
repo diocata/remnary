@@ -292,6 +292,75 @@ pub(crate) fn validate_model_output(
     validate_output(conversation, revision, output)
 }
 
+/// Propose literal feedback omitted by generation. These are candidates only:
+/// the model pipeline must independently verify classification and attribution.
+/// Keeping the full sentence avoids inventing an enduring preference or scope.
+pub(crate) fn propose_literal_feedback(
+    conversation: &Conversation,
+    revision: i64,
+    mut output: AnalysisOutput,
+) -> AnalysisOutput {
+    static ACTION: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let action = ACTION.get_or_init(|| {
+        regex::Regex::new(r"(?i)\byou\s+(?:[\p{L}]+ed|did|made|wrote|ran|sent|took|broke|went)\b")
+            .expect("fixed feedback action pattern")
+    });
+    for message in &conversation.messages {
+        if output.observations.len() >= 8 {
+            break;
+        }
+        if output.observations.iter().any(|o| {
+            o.kind == ExtractionKind::Correction
+                && o.evidence
+                    .iter()
+                    .any(|e| e.source_message_id == message.source_id)
+        }) {
+            continue;
+        }
+        let sentence = personal_evidence_spans(message)
+            .into_iter()
+            .flat_map(str::lines)
+            .flat_map(sentence_spans)
+            .map(str::trim)
+            .find(|quote| {
+                let text = quote.to_lowercase().replace('’', "'");
+                quote.len() <= 3000
+                    && !quote.ends_with('?')
+                    && !["if ", "what if ", "suppose "]
+                        .iter()
+                        .any(|p| text.starts_with(p))
+                    && action.is_match(quote)
+                    && [
+                        "without asking",
+                        "without my approval",
+                        "without permission",
+                        "after i asked",
+                        "after i told",
+                        "i asked you not to",
+                        "i told you not to",
+                    ]
+                    .iter()
+                    .any(|cue| text.contains(cue))
+            });
+        if let Some(quote) = sentence {
+            let mut observation = CandidateObservation {
+                kind: ExtractionKind::Correction,
+                inference: InferenceType::Explicit,
+                subject: "user".into(),
+                topic: "assistant_actions".into(),
+                canonical_value: quote.into(),
+                context: None,
+                summary: String::new(),
+                decision_event: None,
+                evidence: vec![evidence_for(conversation, revision, message, quote)],
+            };
+            observation.summary = render_identity_summary(&observation);
+            output.observations.push(observation);
+        }
+    }
+    output
+}
+
 /// Fresh model scopes must occur in their own citations, never just another
 /// message in the window. Legacy reviewed identities may use paraphrased scopes
 /// and are independently checked against new evidence during reconciliation.
@@ -958,6 +1027,64 @@ mod tests {
         let source = conversation("one", &[("user", "I prefer Rust.")]);
         let output = extract_rules(&source, 1);
         (source, output)
+    }
+
+    #[test]
+    fn literal_feedback_proposals_keep_complete_source_sentences() {
+        for text in [
+            "Revert the permissions you changed after I asked you to leave them alone.",
+            "Remove PaperEdit from my computer—you installed it without asking.",
+        ] {
+            let source = conversation("feedback", &[("user", text)]);
+            let output = propose_literal_feedback(&source, 1, AnalysisOutput::default());
+            let output = validate_model_output(&source, 1, output).unwrap();
+            assert_eq!(output.observations.len(), 1);
+            assert_eq!(output.observations[0].canonical_value, text);
+            assert_eq!(output.observations[0].evidence[0].quote, text);
+            assert_eq!(output.observations[0].context, None);
+            assert_eq!(output.observations[0].kind, ExtractionKind::Correction);
+        }
+    }
+
+    #[test]
+    fn literal_feedback_proposals_are_bounded_and_do_not_duplicate_corrections() {
+        for (role, text) in [
+            ("user", "Revert the permissions on this scratch folder."),
+            (
+                "user",
+                "If you changed permissions after I asked you not to, what would happen?",
+            ),
+            (
+                "assistant",
+                "You changed permissions after I asked you not to.",
+            ),
+            (
+                "user",
+                "Here is the transcript:\nAssistant:\nYou changed permissions after I asked you not to.",
+            ),
+        ] {
+            let source = conversation("feedback", &[(role, text)]);
+            assert!(
+                propose_literal_feedback(&source, 1, AnalysisOutput::default())
+                    .observations
+                    .is_empty()
+            );
+        }
+        let source = conversation(
+            "feedback",
+            &[("user", "You changed permissions after I asked you not to.")],
+        );
+        let once = propose_literal_feedback(&source, 1, AnalysisOutput::default());
+        let twice = propose_literal_feedback(&source, 1, once.clone());
+        assert_eq!(once, twice);
+        let mut full = once;
+        full.observations.resize(8, full.observations[0].clone());
+        assert_eq!(
+            propose_literal_feedback(&source, 1, full)
+                .observations
+                .len(),
+            8
+        );
     }
 
     #[test]

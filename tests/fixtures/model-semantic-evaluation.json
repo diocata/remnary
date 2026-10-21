@@ -530,5 +530,28 @@
       }
     ],
     "empty": true
+  },
+  {
+    "id": "approval-of-unasked-action-not-correction",
+    "messages": [
+      {
+        "role": "user",
+        "text": "You renamed those documents without asking, and that was exactly what I wanted. Thank you."
+      }
+    ],
+    "empty": true
+  },
+  {
+    "id": "hypothetical-permission-change-not-correction",
+    "messages": [
+      {
+        "role": "user",
+        "text": "If you changed the permissions after I asked you to leave them alone, what could happen?"
+      }
+    ],
+    "forbidden": [
+      "correction",
+      "explicit_preference"
+    ]
   }
 ]

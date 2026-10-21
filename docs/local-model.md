@@ -1,6 +1,6 @@
 # Local model setup and verification
 
-Current producer/prompt: **v29**; encrypted schema: **5**. Model-quality acceptance remains open. The default rules engine works without a model but only recognizes a narrow set of direct statements. This guide describes the current adapter; [historical experiments](model-evaluation-history.md) preserve retired settings and earlier results.
+Current producer/prompt: **v30**; encrypted schema: **5**. Model-quality acceptance remains open. The default rules engine works without a model but only recognizes a narrow set of direct statements. This guide describes the current adapter; [historical experiments](model-evaluation-history.md) preserve retired settings and earlier results.
 
 ## Run a local model
 
@@ -25,7 +25,7 @@ Observr never installs or downloads a model automatically. A trusted local daemo
 
 ## Processing and limits
 
-Generation emits seven observation kinds using eight ordered canonical fields. Rust derives the displayed description; legacy free-form descriptions require a separate identity-consistency check. Every accepted model claim then requires independent quotation support. Source context can invalidate an excerpt but cannot supply positive support for an uncited fact. Generated scope must occur in its own citations; existing reviewed identities may retain paraphrased scopes and still require new-source verification.
+Model generation emits seven observation kinds using eight ordered canonical fields. V30 also proposes literal sentences for explicit English feedback about an assistant action performed after a prior restriction or without authorization. These bounded proposals skip an already-generated correction for that message and still require the same independent semantic verification; they cannot confirm themselves or enter the profile automatically. Rust derives the displayed description; legacy free-form descriptions require a separate identity-consistency check. Every accepted model claim then requires independent quotation support. Source context can invalidate an excerpt but cannot supply positive support for an uncited fact. Generated scope must occur in its own citations; existing reviewed identities may retain paraphrased scopes and still require new-source verification.
 
 Inputs contain bounded eligible user text, not raw metadata. Provider instructions, recognized pasted transcripts, subagent notifications and assistant-authored question text are excluded as personal evidence. Secret redaction is best effort. Exact provider, revision, message and quotation validation remains mandatory. Malformed, incomplete or unsupported output is not repaired into a claim.
 
@@ -36,7 +36,7 @@ Inputs contain bounded eligible user text, not raw metadata. Provider instructio
 | Completion-only source verification | Off | 4,096 | 120 seconds |
 | Identity matching | Off | 4,096 | 120 seconds |
 
-Gemma thinking verification uses temperature 1, top-p 0.95, top-k 64 and seed 42, matching the installed model's declared sampler. Qwen uses its separately documented author profile, preserved in the historical log. Generation and identity completion use temperature 0. Other thinking-capable families can use reasoning during generation; they have not been qualified by the Gemma results. Fixed seeds do not guarantee identical results across runtimes.
+Gemma thinking verification uses temperature 1, top-p 0.95, top-k 64 and seed 42, matching the installed model's declared sampler. Qwen thinking verification uses temperature 1, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5, repetition penalty 1 and seed 42. Generation and identity completion use temperature 0. Other thinking-capable families can use reasoning during generation; they have not been qualified by the Gemma results. Fixed seeds do not guarantee identical results across runtimes.
 
 The context setting is 32,768 tokens; prompt plus conversation data is bounded to 24,000 bytes, with at most eight observations per window and 256 windows per conversation. Request and response bodies are bounded; context shifting/truncation, redirects and HTTP proxies are disabled. Only loopback HTTP is allowed, including pinned localhost resolution.
 
@@ -61,8 +61,8 @@ OBSERVR_TEST_OLLAMA_ENDPOINT=http://127.0.0.1:11435 \
   --ignored --nocapture --test-threads=1
 ```
 
-The generation harness contains **36** hand-labeled cases; `--case CASE_ID` selects a targeted subset. It freezes the tested executable and reports binary/fixture hashes. The verifier has **48** cases and the identity fixture **13**, plus an encrypted review lifecycle. Administrative test labels are excluded from semantic verdict inputs. These are development regressions, not independent accuracy estimates.
+The generation harness contains **38** hand-labeled cases; `--case CASE_ID` selects a targeted subset. It freezes the tested executable and reports binary/fixture hashes. The verifier has **48** cases and the identity fixture **13**, plus an encrypted review lifecycle. Administrative test labels are excluded from semantic verdict inputs. These are development regressions, not independent accuracy estimates.
 
-The unchanged verifier and identity policies passed all 48 and 13 cases with Gemma under v28. The encrypted lifecycle passed too. V28 full generation completed 34/34 sources but passed 32/34 cases; two genuine corrections were omitted. V29's targeted correction/routine controls pass 3/3. The complete expanded v29 suite and fresh real-history review remain open; passing targeted controls does not close them.
+The unchanged verifier and identity policies passed all 48 and 13 cases with Gemma under v28, together with the encrypted review lifecycle. V29 full generation completed 36/36 sources but passed 35/36 cases in 710.12 seconds; the remaining correction was absent from generation. V30's targeted correction/routine/praise/hypothetical controls pass 4/4 in 92.23 seconds. The praise sentence triggers a literal proposal that independent verification rejects, exercising the acceptance boundary. Full 38-case generation and real-history review remain open; targeted controls do not close them.
 
 Real acceptance uses a private encrypted forty-source corpus and agent source review under the owner's explicit delegation, without fabricated owner confirmation or independent-human ratings. Real histories bypass synthetic tracing proxies. Current results, exact package provenance and acceptance limits are in [readiness.md](readiness.md); source/format boundaries are in [sources.md](sources.md). No private corpus, model trace or key is committed.

@@ -8,7 +8,7 @@ use crate::{
     analysis_store::Processor,
     intelligence::{
         AnalysisOutput, extract_rules, group_observations, model_output_schema,
-        retain_cited_model_scopes, validate_model_output,
+        propose_literal_feedback, retain_cited_model_scopes, validate_model_output,
     },
     ollama::{analyze_pinned_json, model_identity},
     privacy::redact_conversation,
@@ -122,6 +122,7 @@ pub fn analyze_with_progress(
                             })?;
                         // Validate against the window actually sent, then the
                         // original immutable source again before committing.
+                        let output = propose_literal_feedback(&batch, target.revision, output);
                         let mut grounded = validate_model_output(&batch, target.revision, output)?;
                         rejected_candidates += retain_cited_model_scopes(&mut grounded);
                         progress(AnalysisProgress::CheckingEvidence {
