@@ -13,7 +13,7 @@ import time
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, default=Path("target/debug/observr"))
-    parser.add_argument("--model", default="qwen3.5:4b-q4_K_M")
+    parser.add_argument("--model", default="qwen3.5:9b-q4_K_M")
     parser.add_argument("--endpoint", default="http://127.0.0.1:11435")
     parser.add_argument("--case", dest="case_ids", action="append", help="Run only a named case; repeat for multiple cases")
     args = parser.parse_args()

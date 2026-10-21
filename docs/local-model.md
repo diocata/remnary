@@ -127,3 +127,11 @@ The complete v16 development run passed 26/26 in 356.17 seconds. The real attemp
 Full real coverage produced 36 visible claims. The apparent repeated Kiro questions were copied cumulative history, not independent repetitions; the reporting fix retains all evidence but counts those origins once. The current full top-five agent score is still only 1/5 accurate/useful. A private diagnostic found that stronger instructions and verdict-before-reason output order did not fix fast-verifier false acceptances. Reasoning rejected four of five disputed claims and retained the valid control, but still accepted a formatting request as a decision. No final quality/package acceptance follows from the synthetic pass.
 
 The source-revision lookup fix also passed actual local-model lifecycle coverage, including real semantic canonical reuse across two synthetic conversations. Together with the ten identity cases, the two explicitly invoked model tests completed in 73.22 seconds. They remain separate from offline tests and from actual owner confirmations.
+
+## Producer v17: reasoned verification and complete statements
+
+The current policy keeps Qwen generation and canonical matching non-thinking, but enables reasoning for verification when the daemon advertises that capability. Verification runs at most four candidates per request, with 8,192 output tokens and a 240-second deadline; no reasoning text is returned or persisted by Observr. Generation remains bounded to 4,096 tokens and 240 seconds. Other structured matching calls retain their shorter deadline.
+
+Explicit preferences must cite complete source statements, including their scope, without speculative questions. The constrained decoder uses the same statement gate as postvalidation. A conservative English/Portuguese decision-cue gate precedes semantic checking; ordinary formatting, translation, summarization and execution requests do not qualify merely because they request an action. Generated topic/context labels supply no evidence. These gates can omit valid formulations in unsupported wording or languages.
+
+The expanded development fixtures contain 31 full-pipeline cases and 34 verifier cases. Current results are recorded in [readiness](readiness.md); historical results above apply only to their stated versions. The default evaluation command now selects the installed 9B GGUF model.
