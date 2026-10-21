@@ -52,3 +52,7 @@ The initial v32 model run was deliberately superseded before a complete generati
 V33 targeted verification passes **6/6 in 188.90 seconds**: two positive repeated-behavior controls and four insufficient-support controls, including concrete project scope and compound actions. This is a targeted regression result, not full acceptance.
 
 The formerly failing repeated-workflow generation case passes **1/1 in 117.22 seconds** on v33, retaining the grounded checklist-and-tests routine and cited cross-project scope. The full frozen v33 pipeline is running from code commit `abf97e7`; no complete v33 acceptance score is claimed yet.
+
+## Additional real-source sample pending evaluation
+
+A separate encrypted archive now holds 32 additional accessible ChatGPT app views (163 messages, 32 revisions). They were imported directly from in-memory tool responses through stdin; no plaintext snapshot files were written. These remain partial app views, and do not extend account-export compatibility claims. All returned pages reported no more pages. The rules engine completed all 32 sources with zero candidates/recurring groups. Model extraction and combined-corpus recurrence assessment remain pending; this sample does not change the frozen 40-source v33 run or its acceptance denominator.
