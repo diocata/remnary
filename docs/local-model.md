@@ -135,3 +135,7 @@ The current policy keeps Qwen generation and canonical matching non-thinking, bu
 Explicit preferences must cite complete source statements, including their scope, without speculative questions. The constrained decoder uses the same statement gate as postvalidation. A conservative English/Portuguese decision-cue gate precedes semantic checking; ordinary formatting, translation, summarization and execution requests do not qualify merely because they request an action. Generated topic/context labels supply no evidence. These gates can omit valid formulations in unsupported wording or languages.
 
 The expanded development fixtures contain 31 full-pipeline cases and 34 verifier cases. Current results are recorded in [readiness](readiness.md); historical results above apply only to their stated versions. The default evaluation command now selects the installed 9B GGUF model.
+
+### Producer v18: one claim per verification request
+
+The v17 verifier attempt timed out during quotation-only support, so no verifier acceptance score is claimed for that run. V18 reduces verification batches to **one candidate per request** and asks for brief reasoning. All context/quotation boundaries, strict verdict validation and token/deadline limits remain in force. A timeout leaves the source pending rather than accepting unverified output.
