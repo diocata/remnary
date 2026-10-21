@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Context, Result, ensure};
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
@@ -86,6 +86,9 @@ pub struct ObservationRecord {
     pub distinct_conversations: usize,
     pub occurrences: usize,
     pub feedback_count: usize,
+    /// Copied cumulative source records share one logical conversation for counts.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub conversation_origins: BTreeMap<String, String>,
 }
 
 impl ObservationRecord {
@@ -414,6 +417,7 @@ impl Store {
     /// revisions. Old extractions remain in SQLite for provenance and history.
     pub fn observations(&self, include_hidden: bool) -> Result<Vec<ObservationRecord>> {
         let active_evidence = self.active_extraction_evidence()?;
+        let origins = crate::origins::OriginIndex::load(&self.connection)?;
         let mut statement = self.connection.prepare(
             "SELECT id, kind, inference, subject, topic, canonical_value, context, summary, decision_event,
              status, user_value, (SELECT count(*) FROM user_feedback f WHERE f.observation_id = o.id)
@@ -465,9 +469,9 @@ impl Store {
                 if let Some(time) = row.get::<_, Option<f64>>(5)? {
                     times.push(time);
                 }
-                conversations.insert(reference.conversation_id.clone());
+                conversations.insert(origins.conversation(&reference.conversation_id));
                 occurrences.insert((
-                    reference.conversation_id.clone(),
+                    origins.conversation(&reference.conversation_id),
                     reference.source_message_id.clone(),
                 ));
                 evidence.push(reference);
@@ -496,6 +500,13 @@ impl Store {
                 feedback_count: row.get::<_, i64>(11)? as usize,
                 first_seen: times.iter().copied().min_by(f64::total_cmp),
                 last_seen: times.iter().copied().max_by(f64::total_cmp),
+                conversation_origins: evidence
+                    .iter()
+                    .filter_map(|e| {
+                        let origin = origins.conversation(&e.conversation_id);
+                        (origin != e.conversation_id).then(|| (e.conversation_id.clone(), origin))
+                    })
+                    .collect(),
                 distinct_conversations: conversations.len(),
                 occurrences: occurrences.len(),
                 observation: CandidateObservation {

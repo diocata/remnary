@@ -51,3 +51,8 @@ Verification first checks claims against quotations alone. Only surviving claims
 
 
 Common routine file/draft/push/continuation commands are filtered across claim kinds, preventing a task omitted as a preference from reappearing as a decision proposal. Mixed statements with a separate declaration/choice remain eligible for semantic checking. This is a conservative bounded policy, not a universal intent classifier.
+
+
+Reviewed identities whose original quotation still occurs in a current user message remain available to identity matching after a source append, even while their older evidence is hidden from current reports. A successful new-source proof reattaches current-revision evidence without resetting the review. Encrypted append/backup/restore and actual local-model cross-conversation lifecycle checks cover this path.
+
+Kiro execution files can contain exact cumulative copies of earlier chats under different execution IDs. Reports retain every source and evidence link, but count an exact complete-history prefix with at least 256 bytes of assistant replies after a user message as one logical conversation. Repeated user prompts, provider system text and short greetings alone do not trigger this correlation. The derived `conversation_origins` map carries that accounting through ranking and date-scoped observation reports; inherited message spans count once. This is conservative exact-prefix detection for the observed Kiro format, not universal fork or cross-provider identity resolution.

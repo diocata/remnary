@@ -1,8 +1,8 @@
 //! Conservative semantic identity reuse. Canonical records are never broadened:
 //! a proposed existing identity must pass source entailment with the NEW quotes.
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use rusqlite::Connection;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -171,6 +171,66 @@ fn decode(result: Value, ids: &[String]) -> Result<Vec<Relation>> {
     Ok(result.relations)
 }
 
+// Reports hide stale evidence. Matching also needs reviewed identities from an
+// older revision when its original quote still occurs in a current user message.
+fn catalog(store: &Store, source: &Conversation) -> Result<Vec<ObservationRecord>> {
+    let mut roots = store
+        .observations(true)?
+        .into_iter()
+        .map(|root| (root.id.clone(), root))
+        .collect::<BTreeMap<_, _>>();
+    let mut query = store.connection.prepare(
+        "SELECT o.id,o.kind,o.inference,o.subject,o.topic,o.canonical_value,o.context,o.summary,o.decision_event,o.status,
+         (SELECT count(*) FROM user_feedback f WHERE f.observation_id=o.id),e.revision,e.message_id,e.quote
+         FROM observations o JOIN evidence e ON e.observation_id=o.id
+         JOIN conversations c ON c.id=e.conversation_id
+         JOIN messages m ON m.conversation_id=c.id AND m.revision=c.current_revision AND m.source_id=e.message_id
+         WHERE c.id=?1 AND o.user_value IS NULL
+         AND o.status IN ('user_confirmed','user_rejected','dismissed','superseded')
+         AND EXISTS(SELECT 1 FROM user_feedback f WHERE f.observation_id=o.id)
+         AND NOT EXISTS(SELECT 1 FROM excluded_sources x WHERE x.conversation_id=c.id)
+         AND lower(m.role)='user' AND e.quote!='' AND instr(m.content,e.quote)>0
+         ORDER BY o.id,e.revision,e.message_id,e.quote")?;
+    let mut rows = query.query([source.stable_id()])?;
+    while let Some(row) = rows.next()? {
+        let id: String = row.get(0)?;
+        let evidence = crate::intelligence::EvidenceRef {
+            provider: source.provider.clone(),
+            conversation_id: source.stable_id(),
+            revision: row.get(11)?,
+            source_message_id: row.get(12)?,
+            quote: row.get(13)?,
+        };
+        if let Some(root) = roots.get_mut(&id) {
+            if !root.observation.evidence.contains(&evidence) {
+                root.observation.evidence.push(evidence);
+            }
+            continue;
+        }
+        let observation = serde_json::from_value(json!({
+            "kind":row.get::<_,String>(1)?,"inference":row.get::<_,String>(2)?,
+            "subject":row.get::<_,String>(3)?,"topic":row.get::<_,String>(4)?,"canonical_value":row.get::<_,String>(5)?,
+            "context":row.get::<_,Option<String>>(6)?,"summary":row.get::<_,String>(7)?,
+            "decision_event":row.get::<_,Option<String>>(8)?,"evidence":[evidence]}))?;
+        roots.insert(
+            id.clone(),
+            ObservationRecord {
+                id,
+                observation,
+                status: serde_json::from_value(json!(row.get::<_, String>(9)?))?,
+                user_value: None,
+                first_seen: None,
+                last_seen: None,
+                distinct_conversations: 0,
+                occurrences: 0,
+                feedback_count: usize::try_from(row.get::<_, i64>(10)?)?,
+                conversation_origins: BTreeMap::new(),
+            },
+        );
+    }
+    Ok(roots.into_values().collect())
+}
+
 pub(crate) fn reconcile(
     store: &Store,
     endpoint: &str,
@@ -180,8 +240,7 @@ pub(crate) fn reconcile(
     mut output: AnalysisOutput,
 ) -> Result<(AnalysisOutput, Receipt)> {
     let before = snapshot(&store.connection)?;
-    let roots = store
-        .observations(true)?
+    let roots = catalog(store, source)?
         .into_iter()
         .filter(|root| {
             // A free-form owner correction may change the meaning of the old
@@ -250,7 +309,8 @@ pub(crate) fn reconcile(
             .map(|(_, _, root)| root.id.clone())
             .collect::<Vec<_>>();
         let relations = decode(
-            structured_json(endpoint, model, PROMPT, &data, &schema(&ids))?,
+            structured_json(endpoint, model, PROMPT, &data, &schema(&ids))
+                .context("comparing canonical identities")?,
             &ids,
         )?;
         ensure!(
@@ -693,6 +753,138 @@ mod recurrence_tests {
 mod local_model {
     use super::*;
     #[test]
+    #[ignore = "requires the installed local model and runs an encrypted synthetic review lifecycle"]
+    fn reviewed_append_uses_historical_identity() -> Result<()> {
+        use crate::{
+            analysis::{AnalysisEngine, analyze},
+            analysis_store::{FeedbackAction, ObservationStatus, Processor},
+            intelligence::{model_output_schema, validate_model_output},
+            model::Message,
+            security::SecretKey,
+        };
+        let endpoint = "http://127.0.0.1:11435";
+        let model = "qwen3.5:9b-q4_K_M";
+        let mut source = Conversation {
+            provider: "synthetic".into(),
+            source_id: "review-lifecycle".into(),
+            title: None,
+            created_at: None,
+            updated_at: None,
+            metadata: Value::Null,
+            messages: vec![Message {
+                source_id: "m".into(),
+                parent_source_id: None,
+                role: "user".into(),
+                content: "I prefer concise explanations.".into(),
+                created_at: None,
+                metadata: Value::Null,
+            }],
+        };
+        let version = model_identity(endpoint, model)?;
+        let preview = crate::ollama::analyze_pinned_json(
+            endpoint,
+            model,
+            &version,
+            &model_output_schema(),
+            &source,
+            1,
+        )?;
+        let preview = validate_model_output(&source, 1, serde_json::from_value(preview)?)?;
+        let (preview, _) =
+            crate::verification::verify_observations(endpoint, model, &version, &source, preview)?;
+        let mut root = preview
+            .observations
+            .into_iter()
+            .find(|o| o.kind == crate::intelligence::ExtractionKind::ExplicitPreference)
+            .ok_or_else(|| anyhow::anyhow!("positive preference control was omitted"))?;
+        let generated_id = root.stable_id();
+        root.canonical_value = "user favors brevity in explanations".into();
+        ensure!(
+            generated_id != root.stable_id(),
+            "fixture must seed a different supported canonical wording"
+        );
+        let root_id = root.stable_id();
+        let temp = tempfile::tempdir()?;
+        let key = SecretKey::generate()?;
+        let mut store = Store::init_encrypted(&temp.path().join("archive"), &key)?;
+        store.import(std::slice::from_ref(&source))?;
+        let seed = Processor {
+            engine: "synthetic-review-fixture".into(),
+            version: "1".into(),
+            model: "synthetic".into(),
+            prompt_version: "1".into(),
+        };
+        let target = store.analysis_targets(&seed)?.remove(0);
+        store.save_analysis(
+            &target,
+            &seed,
+            AnalysisOutput {
+                observations: vec![root],
+                ..AnalysisOutput::default()
+            },
+        )?;
+        store.feedback(&root_id, FeedbackAction::Reject, None)?;
+        source.messages.push(Message {
+            source_id: "reply".into(),
+            parent_source_id: Some("m".into()),
+            role: "assistant".into(),
+            content: "Acknowledged.".into(),
+            created_at: None,
+            metadata: Value::Null,
+        });
+        store.import(std::slice::from_ref(&source))?;
+        assert!(store.observations(true)?.is_empty());
+        assert_eq!(catalog(&store, &source)?.len(), 1);
+        let result = analyze(&mut store, AnalysisEngine::Ollama { endpoint, model })?;
+        ensure!(
+            result.failures.is_empty(),
+            "reviewed-source model analysis remained pending: {:?}",
+            result.failures
+        );
+        assert_eq!(result.processed, 1);
+        assert_eq!(result.observations, 1);
+        assert!(store.observations(false)?.is_empty());
+        let reviewed = store.observations(true)?.remove(0);
+        assert_eq!(reviewed.id, root_id);
+        assert_eq!(reviewed.status, ObservationStatus::UserRejected);
+        assert_eq!(reviewed.feedback_count, 1);
+        assert!(
+            reviewed
+                .observation
+                .evidence
+                .iter()
+                .all(|e| e.revision == 2)
+        );
+        let mut repeated = source.clone();
+        repeated.source_id = "review-lifecycle-two".into();
+        repeated.messages.truncate(1);
+        repeated.messages[0].content = "I prefer short explanations.".into();
+        store.import(std::slice::from_ref(&repeated))?;
+        let result = analyze(&mut store, AnalysisEngine::Ollama { endpoint, model })?;
+        ensure!(
+            result.failures.is_empty(),
+            "cross-source identity remained pending: {:?}",
+            result.failures
+        );
+        assert_eq!(result.processed, 1);
+        assert_eq!(result.observations, 1);
+        assert!(store.observations(false)?.is_empty());
+        let recurring = store.observations(true)?.remove(0);
+        assert_eq!(recurring.id, root_id);
+        assert_eq!(recurring.distinct_conversations, 2);
+        assert_eq!(recurring.feedback_count, 1);
+        assert_eq!(recurring.status, ObservationStatus::UserRejected);
+        // Synthetic owner reset permits automatic support, never confirmation.
+        store.feedback(&root_id, FeedbackAction::Reset, None)?;
+        let recurring = store.observations(false)?.remove(0);
+        assert_eq!(recurring.status, ObservationStatus::Supported);
+        assert_eq!(recurring.distinct_conversations, 2);
+        println!(
+            "Encrypted model review lifecycle passed: append preserved rejection, two distinct sources shared the durable root, explicit synthetic reset permitted supported status without confirmation."
+        );
+        Ok(())
+    }
+    #[test]
     #[ignore = "requires the explicitly installed local Ollama model; run separately from offline tests"]
     fn semantic_identity_fixture() -> Result<()> {
         let endpoint = "http://127.0.0.1:11435";
@@ -777,6 +969,117 @@ mod fallback_tests {
             retain_supported_bindings(original, proposal.clone(), proposal.clone())?,
             proposal
         );
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod revision_tests {
+    use super::*;
+    use crate::{
+        analysis_store::{FeedbackAction, ObservationStatus, Processor},
+        intelligence::extract_rules,
+        model::Message,
+        security::SecretKey,
+    };
+    #[test]
+    fn reviewed_identity_survives_append_backup_restore_and_paraphrased_reprocessing() -> Result<()>
+    {
+        let temp = tempfile::tempdir()?;
+        let key = SecretKey::generate()?;
+        let mut store = Store::init_encrypted(&temp.path().join("initial"), &key)?;
+        let mut source = Conversation {
+            provider: "synthetic".into(),
+            source_id: "one".into(),
+            title: None,
+            created_at: None,
+            updated_at: None,
+            metadata: Value::Null,
+            messages: vec![Message {
+                source_id: "m".into(),
+                parent_source_id: None,
+                role: "user".into(),
+                content: "I prefer concise explanations.".into(),
+                created_at: None,
+                metadata: Value::Null,
+            }],
+        };
+        store.import(std::slice::from_ref(&source))?;
+        let p = Processor::rules();
+        let target = store.analysis_targets(&p)?.remove(0);
+        store.save_analysis(&target, &p, extract_rules(&source, 1))?;
+        let root = store.observations(true)?.remove(0);
+        store.feedback(&root.id, FeedbackAction::Reject, None)?;
+        source.messages.push(Message {
+            source_id: "reply".into(),
+            parent_source_id: Some("m".into()),
+            role: "assistant".into(),
+            content: "Acknowledged.".into(),
+            created_at: None,
+            metadata: Value::Null,
+        });
+        store.import(std::slice::from_ref(&source))?;
+        assert!(
+            store.observations(true)?.is_empty(),
+            "stale evidence is not published as current"
+        );
+        let backup = temp.path().join("backup.sqlite3");
+        store.backup_to(&backup, Some(&key))?;
+        drop(store);
+        let mut store = Store::restore_new(&temp.path().join("restored"), &backup, Some(&key))?;
+        let roots = catalog(&store, &source)?;
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0].id, root.id);
+        let target = store.analysis_targets(&p)?.remove(0);
+        assert_eq!(target.revision, 2);
+        let mut candidate = extract_rules(&source, 2).observations.remove(0);
+        candidate.canonical_value = "favors concise explanations".into();
+        assert_ne!(candidate.stable_id(), root.id);
+        let mut proof = Receipt {
+            snapshot: snapshot(&store.connection)?,
+            distinct: BTreeSet::new(),
+        };
+        apply_relations(
+            &mut candidate,
+            &[&roots[0]],
+            vec![Relation {
+                existing_id: root.id.clone(),
+                relation: Meaning::Equivalent,
+            }],
+            &mut proof,
+        )?;
+        store.save_reconciled_analysis(
+            &target,
+            &p,
+            AnalysisOutput {
+                observations: vec![candidate],
+                ..AnalysisOutput::default()
+            },
+            &proof,
+        )?;
+        assert!(store.observations(false)?.is_empty());
+        let reviewed = store.observations(true)?.remove(0);
+        assert_eq!(reviewed.id, root.id);
+        assert_eq!(reviewed.status, ObservationStatus::UserRejected);
+        assert_eq!(reviewed.feedback_count, 1);
+        assert!(
+            reviewed
+                .observation
+                .evidence
+                .iter()
+                .all(|e| e.revision == 2)
+        );
+        store.exclude_conversation(&source.stable_id(), true)?;
+        assert!(catalog(&store, &source)?.is_empty());
+        store.exclude_conversation(&source.stable_id(), false)?;
+        source.messages[0].content = "I prefer detailed explanations.".into();
+        store.import(std::slice::from_ref(&source))?;
+        assert!(
+            catalog(&store, &source)?.iter().all(|r| r.id != root.id),
+            "a changed quote cannot revive old source support"
+        );
+        let health = store.doctor()?;
+        assert!(health.database_integrity && health.foreign_keys_valid);
         Ok(())
     }
 }

@@ -5,7 +5,7 @@ use crate::{
     model::Conversation,
     ollama::{ModelIdentity, model_identity, structured_json},
 };
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -307,7 +307,12 @@ pub fn verify_observations(
             PROMPT,
             &data,
             &schema(output.observations.len()),
-        )?;
+        )
+        .context(if include_context {
+            "checking surrounding source context"
+        } else {
+            "checking quotation-only support"
+        })?;
         ensure!(
             &model_identity(endpoint, model)? == identity,
             "local model or daemon changed during claim verification; no analysis was accepted"

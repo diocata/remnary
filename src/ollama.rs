@@ -296,8 +296,13 @@ fn chat_body_with_limits(
         body
     };
     // Reasoning models receive twice the token budget and request deadline.
-    // Metadata calls remain short and every generation still has a hard bound.
-    let generation_timeout = if thinking {
+    // The measured Qwen completion path also needs this longer deadline on
+    // larger real windows, without enabling reasoning or increasing tokens.
+    // Metadata/verification stay bounded by the original shorter deadline.
+    let generation_timeout = if thinking
+        || (allow_thinking
+            && details.pointer("/details/family").and_then(Value::as_str) == Some("qwen35"))
+    {
         timeout.saturating_mul(2)
     } else {
         timeout

@@ -98,7 +98,7 @@ Version 14 adds bounded semantic matching against existing identities, followed 
 Offline tests cover strict relation decoding, persistent rejection under paraphrase, distinct facts with shared quotes, concurrent feedback/deletion, real conversation recurrence without confirmation and failed-reuse fallback retaining exact evidence. The local-model semantic identity fixture must be run separately from offline tests:
 
 ```sh
-./scripts/cargo-local test --locked --lib reconciliation::local_model -- --ignored --nocapture
+./scripts/cargo-local test --locked --lib reconciliation::local_model -- --ignored --nocapture --test-threads=1
 ```
 
 The ten cases check paraphrases, task/project scope, consideration versus choice, negation, distinct facts, general versus scoped preferences and reversal direction. That initial v14 model check failed its broader-scope case; the v15 changes and new results below supersede it. The full v14 run was not started. Code-level tests alone do not establish semantic quality.
@@ -120,3 +120,10 @@ The v14 identity-only model check had failed the general-versus-scoped case. V15
 The v15 full extraction development run completed all 26 sources in 364.61 seconds and scored 25/26. Its sole failure reclassified a routine file-creation command as a decision proposal, bypassing the preference-only gate. No v15 real run was started.
 
 V16 filters common routine file/draft/push/continuation commands across all kinds. It retains mixed messages containing a separate preference/choice or multiple sentences for semantic checking. This is a conservative list, not a complete multilingual intent classifier. The targeted file-creation case now passes with no observation. All 182 offline tests pass (163 library, twelve analysis, seven CLI/source); the expanded verifier passed 28/28 in 24.09 seconds (seven supported controls and twenty-one rejected errors). The complete 26-case pipeline check is pending.
+
+
+The complete v16 development run passed 26/26 in 356.17 seconds. The real attempt completed 38/40 in 1,380.68 seconds and both pending sources completed on retry after extending Qwen generation's hard deadline to 240 seconds while retaining 4,096 tokens and non-thinking generation. This does not establish the original failure stage; new payload-free error context identifies stages for subsequent failures. Canonical matching and verification retain their shorter bounds.
+
+Full real coverage produced 36 visible claims. The apparent repeated Kiro questions were copied cumulative history, not independent repetitions; the reporting fix retains all evidence but counts those origins once. The current full top-five agent score is still only 1/5 accurate/useful. A private diagnostic found that stronger instructions and verdict-before-reason output order did not fix fast-verifier false acceptances. Reasoning rejected four of five disputed claims and retained the valid control, but still accepted a formatting request as a decision. No final quality/package acceptance follows from the synthetic pass.
+
+The source-revision lookup fix also passed actual local-model lifecycle coverage, including real semantic canonical reuse across two synthetic conversations. Together with the ten identity cases, the two explicitly invoked model tests completed in 73.22 seconds. They remain separate from offline tests and from actual owner confirmations.

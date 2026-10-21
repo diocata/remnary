@@ -1,6 +1,6 @@
 //! Incremental analysis orchestration. Archived content is untrusted data.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::Serialize;
 
 use crate::{
@@ -103,7 +103,8 @@ pub fn analyze_with_progress(
                             &model_output_schema(),
                             &batch,
                             target.revision,
-                        )?;
+                        )
+                        .context("generating a local observation window")?;
                         let output =
                             serde_json::from_value::<AnalysisOutput>(json).map_err(|_| {
                                 anyhow::anyhow!(
@@ -119,7 +120,8 @@ pub fn analyze_with_progress(
                             identity.as_ref().expect("model identity resolved"),
                             &batch,
                             grounded,
-                        )?;
+                        )
+                        .context("verifying newly generated observations")?;
                         rejected_candidates += rejected;
                         let (reconciled, receipt) = crate::reconciliation::reconcile(
                             store,
@@ -148,7 +150,8 @@ pub fn analyze_with_progress(
                                 identity.as_ref().expect("model identity resolved"),
                                 &batch,
                                 changes,
-                            )?;
+                            )
+                            .context("verifying a proposed canonical identity")?;
                             crate::reconciliation::retain_supported_bindings(
                                 verified, reconciled, supported,
                             )?
