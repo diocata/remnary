@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn escaped_text_is_split_by_serialized_budget_with_exact_source_fragments() -> Result<()> {
-        let source = source("\"\\\n".repeat(5000));
+        let source = source("\u{0001}\"\\\n".repeat(5000));
         let batches = model_batches(&source, 1)?;
         assert!(batches.len() > 2);
         assert!(

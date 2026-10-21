@@ -1,5 +1,7 @@
 # Local model setup and verification
 
+Current producer/prompt: **v25**; encrypted storage schema: **5**. Generation emits eight canonical fields; Rust renders the displayed description. Every accepted model claim requires reasoned quotation support, with surrounding context checked separately when present. Legacy free-form descriptions first require a source-free identity-consistency check. Fast factual screening is no longer an acceptance or rejection stage: it incorrectly rejected a valid learning topic. Model quality gates remain open.
+
 The current development setup uses Homebrew Ollama 0.40.6 on Apple Silicon with the explicit `qwen3.5:9b-q4_K_M` model (about 6.6 GB). Model downloads contact the registry; conversation extraction uses the local daemon. No provider account/API key is needed. Local model digest: `sha256:56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90` (6,550,825,550 bytes). Current quality acceptance is still under evaluation; versioned results and earlier comparators follow below.
 
 ```sh
@@ -177,3 +179,12 @@ Verifier fixture references and full-pipeline synthetic message IDs are now opaq
 The blinded v23 six-case pipeline scored 4/6 in 499.43 seconds. It retained the preference, chosen option, named project and technical topic, but omitted an option question and a self-described repeated workflow. Tracing showed fast verification returned uncertain for the valid consideration, while generation mislabeled workflow statements as explicit preferences despite no preference declaration.
 
 V24 defers uncertain fast-screening verdicts to reasoned verification; unsupported fast verdicts still omit a candidate, and final acceptance still requires supported. Tests explicitly distinguish deferral from acceptance. Generation no longer offers an explicit-preference branch when the eligible text has no recognized complete preference declaration; repeated routine descriptions remain eligible for inferred behavioral patterns. The blind two-case regression passes 2/2 in 74.41 seconds. The full blinded matrix and private real-corpus assessment remain required.
+
+
+## Producer v25: canonical descriptions and reasoned source support
+
+V24's blind six-positive pipeline retained five cases and missed the technical learning topic. A diagnostic showed that the fast screening stage rejected a valid request to understand tokenizer behavior. Strong quotation checking retained it, but incorrectly accepted an unrelated extra summary fact when that fact also appeared in the source.
+
+Generation now emits exactly eight ordered protocol fields, `a_kind` through `h_canonical_value`; independently proposed `summary`/`i_summary` fields fail strict decoding. Rust derives the description from kind, event, canonical value and restrictive context. Existing free-form descriptions are checked against their canonical identity in a separate source-free request before source entailment. Neither provenance IDs nor fixture labels are semantic inputs. Every source check uses one candidate with reasoned quotation support and, if needed, a separate context veto. Uncertain or malformed results never authorize a claim.
+
+All 195 offline tests, formatting, locked all-target Clippy and debug compilation pass. The targeted legacy-description controls pass 2/2: a valid scoped choice survives and a true but identity-unrelated extra description fact is rejected. Broader model and real-history acceptance remains pending.

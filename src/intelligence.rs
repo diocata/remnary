@@ -1,7 +1,8 @@
 //! Provider-independent, evidence-grounded extraction contracts.
 //!
-//! Version 1 uses strict JSON objects. All observation fields are required in
-//! model output; `context` and `decision_event` may be null. Every observation
+//! Version 1 uses strict JSON objects. All normalized observation fields are
+//! required; generation produces canonical claim fields and Rust renders the
+//! description. `context` and `decision_event` may be null. Every observation
 //! remains a candidate until reviewed. A valid citation proves provenance, not
 //! semantic truth: callers must continue to label model inferences as inferences.
 //! The built-in extractor recognizes a deliberately small set of direct user
@@ -78,6 +79,32 @@ pub struct CandidateObservation {
     #[serde(deserialize_with = "required_nullable")]
     pub decision_event: Option<DecisionEventType>,
     pub evidence: Vec<EvidenceRef>,
+}
+
+/// A description is a view of the canonical claim, not another generated fact.
+pub(crate) fn render_identity_summary(observation: &CandidateObservation) -> String {
+    let label = match observation.kind {
+        ExtractionKind::ExplicitPreference => "Stated preference",
+        ExtractionKind::InferredPreference => "Possible preference",
+        ExtractionKind::Correction => "Correction",
+        ExtractionKind::Decision => match observation.decision_event {
+            Some(DecisionEventType::Proposal) => "Proposal",
+            Some(DecisionEventType::Consideration) => "Consideration",
+            Some(DecisionEventType::Decision) => "Recorded choice",
+            Some(DecisionEventType::Reconsideration) => "Reconsideration",
+            Some(DecisionEventType::Reversal) => "Reversal",
+            Some(DecisionEventType::Confirmation) => "Recorded confirmation",
+            Some(DecisionEventType::UnknownCurrentState) => "State unknown",
+            None => "Decision",
+        },
+        ExtractionKind::Topic => "Topic",
+        ExtractionKind::ProjectReference => "Project reference",
+        ExtractionKind::BehavioralPattern => "Possible pattern",
+    };
+    match &observation.context {
+        Some(context) => format!("{label}: {} ({context})", observation.canonical_value),
+        None => format!("{label}: {}", observation.canonical_value),
+    }
 }
 
 impl CandidateObservation {
@@ -914,6 +941,37 @@ mod tests {
         let source = conversation("one", &[("user", "I prefer Rust.")]);
         let output = extract_rules(&source, 1);
         (source, output)
+    }
+
+    #[test]
+    fn generated_descriptions_add_no_independent_model_facts() {
+        let (_, output) = explicit();
+        let mut observation = output.observations[0].clone();
+        observation.kind = ExtractionKind::ExplicitPreference;
+        observation.canonical_value = "Rust".into();
+        observation.context = Some("for local CLI tools".into());
+        observation.summary = "Untrusted extra claim about Python.".into();
+        assert_eq!(
+            render_identity_summary(&observation),
+            "Stated preference: Rust (for local CLI tools)"
+        );
+        observation.kind = ExtractionKind::Decision;
+        observation.decision_event = Some(DecisionEventType::Consideration);
+        observation.canonical_value = "DuckDB plus JSON files".into();
+        observation.context = Some("for this prototype".into());
+        assert_eq!(
+            render_identity_summary(&observation),
+            "Consideration: DuckDB plus JSON files (for this prototype)"
+        );
+        observation.kind = ExtractionKind::BehavioralPattern;
+        observation.inference = InferenceType::Inferred;
+        observation.decision_event = None;
+        observation.canonical_value = "a checklist-and-tests release routine".into();
+        observation.context = None;
+        assert_eq!(
+            render_identity_summary(&observation),
+            "Possible pattern: a checklist-and-tests release routine"
+        );
     }
 
     #[test]
