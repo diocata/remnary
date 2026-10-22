@@ -1,28 +1,25 @@
+//! Local conversation imports, encrypted storage and evidence-backed views.
+
 pub mod analysis;
-mod analysis_batches;
-pub mod analysis_store;
-pub mod app_snapshot;
-pub mod exclusions;
-pub mod import;
-pub mod intelligence;
-pub mod knowledge;
-pub mod local_sources;
 pub mod model;
-pub mod ollama;
-pub mod operations;
-pub mod privacy;
-pub mod privacy_store;
-pub mod projection_store;
+pub mod projections;
 pub mod reports;
-pub mod security;
-pub mod store;
-pub mod topics;
-pub mod vault;
-pub mod vault_feedback;
+pub mod sources;
+pub mod storage;
 pub mod web;
 
-pub mod verification;
+// Preserve the public module paths used by existing callers.
+pub use analysis::{intelligence, ollama, redaction as privacy, verification};
+pub use projections as knowledge;
+pub use projections::{feedback as vault_feedback, transcripts as vault};
+pub use reports::topics;
+pub use sources as local_sources;
+pub use sources::{app_snapshot, chatgpt as import};
+pub use storage as store;
+pub use storage::{
+    exclusions, observations as analysis_store, operations, privacy as privacy_store,
+    projections as projection_store, security,
+};
 
-mod reconciliation;
-
-mod origins;
+pub(crate) use analysis::{batches as analysis_batches, reconciliation};
+pub(crate) use sources::origins;

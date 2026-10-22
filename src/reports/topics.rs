@@ -5,11 +5,8 @@ use anyhow::Result;
 use serde::Serialize;
 
 use crate::{
-    analysis_store::{ObservationRecord, ObservationStatus},
-    intelligence::EvidenceRef,
-    model::digest,
-    origins::OriginIndex,
-    store::Store,
+    analysis_store::ObservationRecord, intelligence::EvidenceRef, model::digest,
+    origins::OriginIndex, store::Store,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -51,7 +48,7 @@ impl Store {
 fn group_topics(records: &[ObservationRecord], origins: &OriginIndex) -> Vec<TopicThread> {
     let mut groups = BTreeMap::<(String, String), Vec<&ObservationRecord>>::new();
     for record in records {
-        if !matches!(record.status, ObservationStatus::Candidate | ObservationStatus::Supported | ObservationStatus::UserConfirmed)
+        if !record.status.is_visible()
             // A free-text correction need not retain the model's topic label.
             || record.user_value.is_some()
         {
@@ -125,7 +122,7 @@ fn group_topics(records: &[ObservationRecord], origins: &OriginIndex) -> Vec<Top
 mod tests {
     use super::*;
     use crate::{
-        analysis_store::{FeedbackAction, Processor},
+        analysis_store::{FeedbackAction, ObservationStatus, Processor},
         intelligence::{
             AnalysisOutput, CandidateObservation, ExtractionKind, InferenceType, extract_rules,
         },

@@ -75,6 +75,16 @@ pub enum ObservationStatus {
     Dismissed,
 }
 
+impl ObservationStatus {
+    /// Visible findings can appear in discovery, reports and generated notes.
+    pub fn is_visible(self) -> bool {
+        matches!(
+            self,
+            Self::Candidate | Self::Supported | Self::UserConfirmed
+        )
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ObservationRecord {
     pub id: String,
@@ -442,14 +452,7 @@ impl Store {
             let id: String = row.get(0)?;
             let status_text: String = row.get(9)?;
             let status: ObservationStatus = enum_value(status_text)?;
-            if !include_hidden
-                && matches!(
-                    status,
-                    ObservationStatus::UserRejected
-                        | ObservationStatus::Dismissed
-                        | ObservationStatus::Superseded
-                )
-            {
+            if !include_hidden && !status.is_visible() {
                 continue;
             }
             let mut evidence_statement = self.connection.prepare(
@@ -746,4 +749,19 @@ fn enum_name(value: &impl Serialize) -> Result<String> {
 
 fn enum_value<T: serde::de::DeserializeOwned>(value: String) -> Result<T> {
     Ok(serde_json::from_value(serde_json::Value::String(value))?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ObservationStatus::*;
+
+    #[test]
+    fn visible_statuses_exclude_every_hidden_review_state() {
+        for status in [Candidate, Supported, UserConfirmed] {
+            assert!(status.is_visible());
+        }
+        for status in [UserRejected, Superseded, Dismissed] {
+            assert!(!status.is_visible());
+        }
+    }
 }

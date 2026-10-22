@@ -3,6 +3,8 @@
 //! A digest reports that a message was recorded. It never claims that an action
 //! requested in that message was completed, or assigns dates to unknown times.
 
+pub mod topics;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Context, Result, ensure};
@@ -141,7 +143,10 @@ pub fn summarize_days(
             });
         }
     }
-    for observation in observations.iter().filter(|record| visible(record.status)) {
+    for observation in observations
+        .iter()
+        .filter(|record| record.status.is_visible())
+    {
         let mut evidence_by_date: BTreeMap<String, Vec<(EvidenceRef, f64)>> = BTreeMap::new();
         for evidence in &observation.observation.evidence {
             let Some(source) = source_messages.get(&(
@@ -225,7 +230,7 @@ pub fn rank_discoveries(
 ) -> Vec<ObservationRecord> {
     let mut observations: Vec<_> = observations
         .into_iter()
-        .filter(|record| visible(record.status) && !record.observation.evidence.is_empty())
+        .filter(|record| record.status.is_visible() && !record.observation.evidence.is_empty())
         .map(|mut record| {
             record.observation.evidence.sort();
             record.observation.evidence.dedup();
@@ -345,15 +350,6 @@ fn set_evidence_counts(record: &mut ObservationRecord) {
         })
         .collect::<BTreeSet<_>>()
         .len();
-}
-
-fn visible(status: ObservationStatus) -> bool {
-    matches!(
-        status,
-        ObservationStatus::Candidate
-            | ObservationStatus::Supported
-            | ObservationStatus::UserConfirmed
-    )
 }
 
 fn compare_time_desc(left: Option<f64>, right: Option<f64>) -> std::cmp::Ordering {

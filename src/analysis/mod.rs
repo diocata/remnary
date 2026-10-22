@@ -1,5 +1,12 @@
 //! Incremental analysis orchestration. Archived content is untrusted data.
 
+pub(crate) mod batches;
+pub mod intelligence;
+pub mod ollama;
+pub(crate) mod reconciliation;
+pub mod redaction;
+pub mod verification;
+
 use anyhow::{Context, Result};
 use serde::Serialize;
 
