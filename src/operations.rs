@@ -330,7 +330,12 @@ mod tests {
     #[test]
     fn plaintext_version_one_conversion_upgrades_only_the_encrypted_copy() -> Result<()> {
         let temp = tempfile::tempdir()?;
-        let legacy = temp.path().join("legacy é #?' archive");
+        let directory_name = if cfg!(windows) {
+            "legacy é #' archive"
+        } else {
+            "legacy é #?' archive"
+        };
+        let legacy = temp.path().join(directory_name);
         fs::create_dir(&legacy)?;
         let path = legacy.join("remnary.sqlite3");
         let connection = Connection::open(&path)?;
