@@ -1,6 +1,6 @@
 [package]
 name = "remnary"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.99"
 description = "Your thoughts leave traces. We connect them. Local-first conversation intelligence."
@@ -29,3 +29,9 @@ zeroize = "1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3.6", default-features = false, features = ["apple-native"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+rusqlite = { git = "https://github.com/rusqlite/rusqlite", rev = "661107f6eb5d7477c61be1221744de3ad96c53e7", features = ["bundled-sqlcipher-vendored-openssl", "backup"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3.6", default-features = false, features = ["windows-native"] }

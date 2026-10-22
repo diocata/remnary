@@ -16,7 +16,7 @@ use zeroize::Zeroizing;
 
 const KEY_BYTES: usize = 32;
 const KEY_HEX_BYTES: usize = KEY_BYTES * 2;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 const KEYCHAIN_SERVICE: &str = "dev.remnary";
 
 /// A 256-bit key with zeroization on drop. No serialization or implicit clone.
@@ -139,7 +139,7 @@ impl SecretKey {
         Ok(key)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     fn from_keychain(bytes: &[u8]) -> Result<Self> {
         ensure!(
             bytes.len() == KEY_BYTES,
@@ -235,14 +235,14 @@ pub fn resolve_key(data_dir: &Path, key_file: Option<&Path>, create: bool) -> Re
     if let Some(path) = key_file {
         return SecretKey::from_key_file(path);
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = (data_dir, create);
         anyhow::bail!(
-            "automatic OS key storage is currently supported on macOS; provide an explicit private --key-file"
+            "on this platform, use `remnary key create PATH`, then provide that private --key-file with each command"
         )
     }
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
         let canonical = prepare_key_directory(data_dir, create)?;
         let _lock = lock_key_directory(&canonical)?;
@@ -269,7 +269,7 @@ pub fn resolve_key(data_dir: &Path, key_file: Option<&Path>, create: bool) -> Re
         };
         let entry = keyring::Entry::new(service, &account).map_err(|_| {
             anyhow!(
-                "cannot access macOS Keychain; unlock it or provide an explicit private --key-file"
+                "cannot access the OS credential store; unlock it or provide an explicit private --key-file"
             )
         })?;
         match entry.get_secret() {
@@ -277,17 +277,17 @@ pub fn resolve_key(data_dir: &Path, key_file: Option<&Path>, create: bool) -> Re
             Err(keyring::Error::NoEntry) if create && !database_exists => {
                 let key = SecretKey::generate()?;
                 entry.set_secret(key.bytes.as_ref()).map_err(|_| {
-                    anyhow!("cannot save encryption key in macOS Keychain; no database was created")
+                    anyhow!("cannot save encryption key in the OS credential store; no database was created")
                 })?;
                 // Verify successful persistence before the caller creates a DB.
                 let stored = Zeroizing::new(entry.get_secret().map_err(|_| {
                     anyhow!(
-                        "cannot verify encryption key in macOS Keychain; no database was created"
+                        "cannot verify encryption key in the OS credential store; no database was created"
                     )
                 })?);
                 ensure!(
                     stored.as_slice() == key.bytes.as_ref(),
-                    "macOS Keychain key verification failed; no database was created"
+                    "OS credential key verification failed; no database was created"
                 );
                 Ok(key)
             }
@@ -298,19 +298,22 @@ pub fn resolve_key(data_dir: &Path, key_file: Option<&Path>, create: bool) -> Re
                 "no encryption key is stored for this directory; run `remnary init` first or supply the correct private --key-file"
             )),
             Err(_) => Err(anyhow!(
-                "cannot read macOS Keychain; unlock it or provide an explicit private --key-file"
+                "cannot read the OS credential store; unlock it or provide an explicit private --key-file"
             )),
         }
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn prepare_key_directory(path: &Path, create: bool) -> Result<std::path::PathBuf> {
     if create {
         let mut directory = fs::DirBuilder::new();
         directory.recursive(true);
-        use std::os::unix::fs::DirBuilderExt;
-        directory.mode(0o700);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            directory.mode(0o700);
+        }
         directory
             .create(path)
             .map_err(|_| anyhow!("cannot create private data directory"))?;
@@ -321,7 +324,7 @@ fn prepare_key_directory(path: &Path, create: bool) -> Result<std::path::PathBuf
     Ok(canonical)
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn lock_key_directory(path: &Path) -> Result<File> {
     // OS advisory locks are released on process exit, avoiding stale lockfiles
     // after a crash. They serialize first-time Keychain creation across app
@@ -334,8 +337,11 @@ fn lock_key_directory(path: &Path) -> Result<File> {
     }
     let mut options = fs::OpenOptions::new();
     options.read(true).write(true).create(true).truncate(false);
-    use std::os::unix::fs::OpenOptionsExt;
-    options.mode(0o600);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
     let lock = options
         .open(&lock_path)
         .map_err(|_| anyhow!("cannot open key initialization lock"))?;
@@ -530,7 +536,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     #[test]
     fn key_initialization_lock_is_private_and_released_when_dropped() -> Result<()> {
         let directory = tempfile::tempdir()?;

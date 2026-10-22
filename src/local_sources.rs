@@ -41,6 +41,16 @@ pub struct DetectedSource {
 
 /// Inventory only the documented/session-specific locations. Detection does
 /// not enable ingestion or background observation; import is a separate step.
+fn kiro_session_directory(home: &Path) -> PathBuf {
+    #[cfg(target_os = "windows")]
+    let base = home.join("AppData/Roaming");
+    #[cfg(target_os = "macos")]
+    let base = home.join("Library/Application Support");
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    let base = home.join(".config");
+    base.join("Kiro/User/globalStorage/kiro.kiroagent")
+}
+
 pub fn detect_local(home: &Path) -> Result<Vec<DetectedSource>> {
     let locations = [
         (
@@ -49,11 +59,7 @@ pub fn detect_local(home: &Path) -> Result<Vec<DetectedSource>> {
             SourceFormat::ClaudeCode,
         ),
         ("codex", home.join(".codex/sessions"), SourceFormat::Codex),
-        (
-            "kiro",
-            home.join("Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent"),
-            SourceFormat::Kiro,
-        ),
+        ("kiro", kiro_session_directory(home), SourceFormat::Kiro),
     ];
     let mut found = Vec::new();
     for (provider, path, format) in locations {

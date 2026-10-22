@@ -1,8 +1,6 @@
 //! Persistent exclusions apply to retained sources and future imports.
 //! Topic matching is literal, ASCII case-insensitive substring matching.
 //! Paths match recorded absolute paths with a component boundary, not globs.
-use std::path::{Component, Path};
-
 use anyhow::{Result, ensure};
 use rusqlite::{Connection, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
@@ -32,6 +30,60 @@ impl ExclusionScope {
     }
 }
 
+// Source archives can move between operating systems. Interpret recorded paths
+// lexically, independently of the OS running this process; never touch the disk.
+fn normalize_source_path(value: &str) -> Result<String> {
+    let drive = value.as_bytes().get(1) == Some(&b':')
+        && value
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_alphabetic)
+        && value
+            .as_bytes()
+            .get(2)
+            .is_some_and(|c| matches!(c, b'/' | b'\\'));
+    let unc = value.starts_with("\\\\") || value.starts_with("//");
+    ensure!(
+        drive || unc || value.starts_with('/'),
+        "exclusion path must be absolute"
+    );
+    let windows = drive || unc;
+    let normalized = if windows {
+        value.replace('\\', "/")
+    } else {
+        value.to_owned()
+    };
+    let parts: Vec<_> = normalized
+        .split('/')
+        .filter(|p| !p.is_empty() && *p != ".")
+        .collect();
+    ensure!(
+        !parts.contains(&".."),
+        "exclusion path must not contain '..'"
+    );
+    ensure!(
+        !unc || parts.len() >= 2,
+        "UNC paths need a server and share"
+    );
+    let mut result = if drive {
+        let mut path = parts.join("/");
+        if parts.len() == 1 {
+            path.push('/');
+        }
+        path
+    } else {
+        format!(
+            "{}{path}",
+            if unc { "//" } else { "/" },
+            path = parts.join("/")
+        )
+    };
+    if windows {
+        result.make_ascii_lowercase();
+    }
+    Ok(result)
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ExclusionRule {
     pub id: String,
@@ -52,19 +104,7 @@ impl ExclusionRule {
         );
         let value = match scope {
             ExclusionScope::Provider | ExclusionScope::Topic => value.to_ascii_lowercase(),
-            ExclusionScope::Directory | ExclusionScope::Project => {
-                let path = Path::new(value);
-                ensure!(path.is_absolute(), "exclusion path must be absolute");
-                ensure!(
-                    !path.components().any(|c| matches!(c, Component::ParentDir)),
-                    "exclusion path must not contain '..'"
-                );
-                let path: std::path::PathBuf = path.components().collect();
-                path.to_str()
-                    .ok_or_else(|| anyhow::anyhow!("exclusion path must be UTF-8"))?
-                    .trim_end_matches('/')
-                    .to_owned()
-            }
+            ExclusionScope::Directory | ExclusionScope::Project => normalize_source_path(value)?,
         };
         let value = if value.is_empty() {
             "/".to_owned()
@@ -78,11 +118,12 @@ impl ExclusionRule {
     pub(crate) fn matches(&self, conversation: &Conversation) -> bool {
         let metadata = &conversation.metadata;
         let path_matches = |path: &str| {
-            path == self.value
-                || path
-                    .strip_prefix(&self.value)
-                    .is_some_and(|suffix| suffix.starts_with('/'))
-                || self.value == "/" && path.starts_with('/')
+            normalize_source_path(path).is_ok_and(|path| {
+                path == self.value
+                    || path
+                        .strip_prefix(&self.value)
+                        .is_some_and(|suffix| self.value.ends_with('/') || suffix.starts_with('/'))
+            })
         };
         let cwd_matches = || {
             metadata
@@ -202,6 +243,52 @@ fn excluded_ids(connection: &Connection) -> Result<std::collections::BTreeSet<St
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn recorded_windows_paths_keep_component_boundaries_across_hosts() -> anyhow::Result<()> {
+        let rule =
+            super::ExclusionRule::new(super::ExclusionScope::Directory, r"C:\Users\Demo\Project")?;
+        assert_eq!(rule.value, "c:/users/demo/project");
+        assert!(rule.matches(&source(
+            "child",
+            "codex",
+            json!({"cwd":r"c:\users\demo\project\src"}),
+            "text"
+        )));
+        assert!(!rule.matches(&source(
+            "sibling",
+            "codex",
+            json!({"cwd":r"C:\Users\Demo\Project-other"}),
+            "text"
+        )));
+        let unc_rule = ExclusionRule::new(ExclusionScope::Directory, r"\\SERVER\Share\Project")?;
+        assert!(unc_rule.matches(&source(
+            "unc",
+            "codex",
+            json!({"cwd":r"\\server\share\project\src"}),
+            "text"
+        )));
+        assert_eq!(
+            ExclusionRule::new(unc_rule.scope, &unc_rule.value)?.id,
+            unc_rule.id
+        );
+
+        assert_eq!(
+            super::normalize_source_path(r"C:\Users\Demo\Project\src")?,
+            "c:/users/demo/project/src"
+        );
+        assert!(super::normalize_source_path(r"C:\Users\Demo\..\Other").is_err());
+        assert!(super::normalize_source_path("C:relative").is_err());
+        let root = super::ExclusionRule::new(super::ExclusionScope::Directory, "C:/")?;
+        assert_eq!(root.value, "c:/");
+        let unc = super::normalize_source_path(r"\\server\share\folder")?;
+        assert_eq!(unc, "//server/share/folder");
+        assert_eq!(
+            super::normalize_source_path("/private/project")?,
+            "/private/project"
+        );
+        Ok(())
+    }
+
     use super::*;
     use crate::{
         analysis::{AnalysisEngine, analyze},
