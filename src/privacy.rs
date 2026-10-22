@@ -155,9 +155,9 @@ mod tests {
                 "ub_pat_11EXAMPLE_abcdefghijklmnopqrstuvwxyz0123456789"
             ),
             concat!("glpa", "t-abcdefghijklmnopqrstuvwxyz0123456789"),
-            concat!(concat!("sk-a", ""), "bcdefghijklmnopqrstuvwxyz0123456789"),
-            concat!(concat!("sk-p", ""), "roj-abcdefghijklmnopqrstuvwxyz0123456789_-ABC"),
-            concat!(concat!("sk-a", ""), "nt-api03-abcdefghijklmnopqrstuvwxyz0123456789"),
+            concat!("sk-a", "bcdefghijklmnopqrstuvwxyz0123456789"),
+            concat!("sk-p", "roj-abcdefghijklmnopqrstuvwxyz0123456789_-ABC"),
+            concat!("sk-a", "nt-api03-abcdefghijklmnopqrstuvwxyz0123456789"),
             concat!("sk_l", "ive_abcdefghijklmnopqrstuvwxyz0123456789"),
             concat!("xoxb", "-1234567890-abcdefghijklmnopqrstuvwxyz"),
             concat!("AIza", "SyABCDEFGHIJKLMNOPQRSTUVWXYZ0123456"),
@@ -244,7 +244,7 @@ mod tests {
             "password: '[REDACTED]'",
             "api_key=[REDACTED]",
             "Bearer synthetic_token_123456",
-            concat!(concat!("sk-p", ""), "roj-abcdefghijklmnopqrstuvwxyz0123456789"),
+            concat!("sk-p", "roj-abcdefghijklmnopqrstuvwxyz0123456789"),
         ] {
             let once = redact_text(input);
             assert_eq!(redact_text(&once), once);
