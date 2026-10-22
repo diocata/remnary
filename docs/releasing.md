@@ -30,3 +30,5 @@ python3 scripts/package-release.py --release
 ```
 
 This uses the same clean-checkout, test, lint, optimized-build, signature and encrypted-smoke checks. The flag labels the archive `observr-VERSION-COMMIT-aarch64-apple-darwin.tar.gz` and records local-release status in `BUILD.json`; the linked acceptance evidence supplies the qualification. The default command continues to produce evaluation archives. Both modes remain local and unpublished, with the same signing/distribution limits above.
+
+The package smoke loop uses its own `smoke_args` variable so it cannot overwrite parsed release options before archive naming and `BUILD.json` creation. Both modes keep the same mandatory build/signature/encrypted-workflow checks.

@@ -69,9 +69,9 @@ def main():
         key, archive = base / "recovery.key", base / "archive"
         run(str(binary), "key", "create", str(key))
         command = [str(binary), "--data-dir", str(archive), "--key-file", str(key)]
-        for args in [("init",), ("import", str(ROOT / "tests/fixtures/chatgpt.json")),
+        for smoke_args in [("init",), ("import", str(ROOT / "tests/fixtures/chatgpt.json")),
                      ("analyze",), ("search", "Rust"), ("doctor",)]:
-            run(*command, *args)
+            run(*command, *smoke_args)
         if (archive / "observr.sqlite3").read_bytes().startswith(b"SQLite format 3"):
             raise SystemExit("Release smoke archive unexpectedly has a plaintext header.")
     if clean_commit() != commit:
