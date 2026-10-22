@@ -11,6 +11,50 @@ Selected local history → bounded normalization → atomic import / immutable r
 
 SQLite handles frequent writes, foreign keys, transactions and full-text search. Markdown is a human-readable projection. JSON/JSONL is interchange/source input. DuckDB could query a future analytical export without becoming a second canonical store; adding it to ingestion currently adds packaging and consistency work.
 
+## Source map
+
+The project stays one crate. Folders group code by the responsibility a maintainer needs to change:
+
+```text
+src/
+  main.rs                 CLI entry point and exit status
+  cli/                    Argument definitions, command dispatch, terminal output
+  sources/                Bounded file discovery and provider normalization
+    chatgpt/              ChatGPT JSON/ZIP parsing
+    claude.rs             Claude Code records
+    codex.rs              Codex rollout records
+    kiro.rs               Kiro chat records
+    app_snapshot.rs       Explicit partial app-history imports
+    origins.rs            Copied-dialogue origin accounting
+  storage/                SQLCipher connection, revisions and search
+    observations.rs       Analysis checkpoints, evidence and review state
+    privacy/              Deletion tombstones and durable cleanup
+    projections.rs        Generated-file ownership and locking
+    operations.rs         Integrity checks, encrypted backup and restore
+    security.rs           Recovery keys and native credential stores
+    exclusions.rs         Source exclusion rules
+    schema.sql
+    migrations/           Existing transactional schema upgrades
+  analysis/               Incremental rules/model orchestration
+    intelligence/         Observation contracts and evidence validation
+      rules.rs            Deterministic extraction and owner attribution
+    ollama/               Bounded local-model transport and structured output
+    verification/         Independent claim verification
+    reconciliation/       Conservative identity reuse
+    batches.rs            Bounded analysis windows
+    redaction.rs          Shared secret/contact redaction boundary
+  reports/                Ranked discoveries, daily reports and topic views
+  projections/            Managed knowledge notes, transcripts and feedback
+  web/                    Loopback server/authentication and API routes
+  model.rs                Normalized conversation/message types and hashes
+```
+
+Large unit suites live beside their module in `tests.rs` or a named test module. The top-level `tests/` directory exercises the public library and actual CLI. Test fixtures and embedded web assets resolve from `CARGO_MANIFEST_DIR`, so moving a Rust module cannot silently select a different input.
+
+`lib.rs` re-exports the original public paths, such as `remnary::store`, `remnary::local_sources` and `remnary::intelligence`. These are aliases to the grouped implementations, not duplicate code. Existing callers keep working. `ObservationStatus::is_visible` defines the shared visibility rule for storage, reports, topic groups and the API; feedback transitions and SQL persistence remain in storage.
+
+Keep a change in its owning module. Share an existing rule when multiple views need it; do not add services, traits, configuration or dependencies merely to separate files. Keep provider-specific attribution in its adapter and common provenance checks in analysis. Historical validation documents may name the earlier flat source paths.
+
 Conversation identity hashes `(provider, source_id)`; messages are scoped to `(conversation, revision, source_message_id)`. Fingerprints exclude import time. Changed input adds a revision; identical input does nothing; an older known update timestamp cannot replace a newer one. Missing times stay unknown. Branch relationships are preserved without implying a linear conversation. Original source metadata remains encrypted with normalized records.
 
 Schema version 5 follows transactional version-1/2/3/4 migrations. Foreign/newer/corrupt databases are rejected; empty interrupted initialization is recoverable. Foreign keys, bounded locking and rollback journaling protect canonical writes. Encrypted connections apply keys before schema reads; temporary SQL storage uses memory. Online encrypted backup validates integrity and publishes a private file without overwriting an existing destination.

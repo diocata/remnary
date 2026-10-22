@@ -6,7 +6,7 @@
   <a href="https://github.com/diocata/remnary/actions/workflows/ci.yml"><img src="https://github.com/diocata/remnary/actions/workflows/ci.yml/badge.svg" alt="Rust checks"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-4e5bd9" alt="MIT or Apache-2.0"></a>
   <a href="docs/platforms.md"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-279caf" alt="Windows, Linux and macOS"></a>
-  <a href="docs/readiness.md"><img src="https://img.shields.io/badge/offline_tests-224_verified-226754" alt="224 offline tests verified locally"></a>
+  <a href="docs/readiness.md"><img src="https://img.shields.io/badge/offline_tests-226_verified-226754" alt="226 offline tests verified locally"></a>
 </p>
 
 # Remnary
@@ -349,7 +349,7 @@ Run `remnary COMMAND --help` for arguments and flags. `--data-dir` and `--key-fi
 
 ## Validation and performance
 
-**224 offline tests pass locally**, including encrypted CLI workflows and rename compatibility. The local release recipe also checks formatting, Clippy with warnings denied, optimized builds, ad-hoc signatures and encrypted smoke behavior. Separate model suites and process-interruption recovery checks are recorded in [release evidence](docs/readiness.md).
+**226 offline tests pass locally**, including encrypted CLI workflows and rename compatibility. The local release recipe also checks formatting, Clippy with warnings denied, optimized builds, ad-hoc signatures and encrypted smoke behavior. Separate model suites and process-interruption recovery checks are recorded in [release evidence](docs/readiness.md).
 
 A prior optimized build on an M4 Pro / 24 GiB imported a synthetic **2,000-conversation / 32,000-message** dataset in **3.04 seconds**, searched in **75.6–76.4 ms including startup/unlock**, and completed cached rules analysis in **0.17 seconds**. The browser also rendered 2,000 source rows and a 2,000-citation finding. These are local engineering observations, not performance guarantees. [Benchmark scope, memory and reproduction →](docs/performance.md)
 

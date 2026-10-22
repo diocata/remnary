@@ -1,5 +1,11 @@
 # Release validation
 
+## Unreleased source organization
+
+The reorganized source passes **226 offline tests** locally: 202 library tests, one terminal-output test and 23 integration tests. The two opt-in live-model tests remain ignored in the offline suite. All 203 pre-existing Rust unit-test functions are retained. Formatting and locked all-target Clippy pass with warnings denied.
+
+A direct synthetic comparison with the published v0.2.0 Apple Silicon executable preserves all 37 captured CLI help surfaces, nine query surfaces before and after confirmation, 26 generated vault files byte-for-byte, an owner annotation and the profile after encrypted backup/restore. The encrypted import/reimport, rules, review, vault, search, backup/restore and authenticated HTTP smoke workflow also passes. Migration bytes, Cargo.lock and model prompt constants are unchanged; no live-model accuracy claim is added by this refactor. The six-target CI workflow remains the portability gate.
+
 ## Cross-platform v0.2.0
 
 The v0.2 release workflow builds and executes Windows, Linux and macOS packages on native x86-64 and ARM64 runners. Public tag-based publication requires all six matrix jobs plus the advisory scan to pass. Every target runs the actual packaged CLI through encryption, import/deduplication, rules/review/profile, vault, search, Unicode-path, backup/restore and authenticated dashboard smoke checks, with a freshly collected target-specific license inventory. See [platform baselines](platforms.md), [the release process](releasing.md) and [the actual workflow runs](https://github.com/diocata/remnary/actions/workflows/ci.yml).

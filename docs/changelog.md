@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+Organized Rust code into source adapters, storage, analysis, reports, projections, CLI and web folders. Provider parsers, extraction rules, API routes and CLI argument/output code now have separate files; large unit suites live beside their modules. Original public Rust module paths remain available through re-exports. Command behavior, schema/migrations and model policies stay compatible.
+
+Centralized observation visibility across storage and views. Terminal escaping preserves its output while avoiding a temporary allocation for every character. No dependencies added. Added focused regressions for all review states and Unicode/control-character output.
+
 ## 0.2.0 — 2026-10-22
 
 First downloadable cross-platform release. Six native targets cover Windows, Linux and macOS on x86-64 and ARM64. Every package runs the locked tests, Clippy, encryption/review/vault/backup/HTTP smoke workflow and target-specific notice collection. Tagged releases publish a complete checksummed asset set through GitHub Actions.
