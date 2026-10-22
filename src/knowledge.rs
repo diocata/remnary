@@ -140,7 +140,7 @@ pub fn sync_vault(store: &mut Store, output: &Path, timezone: &str) -> Result<Va
         .collect::<Vec<_>>();
     let mut notes = Vec::new();
     let mut home = String::from(
-        "# Observr\n\nYour imported conversation activity and evidence-backed observations.\n\n[Profile](Profile.md) · [Discoveries](Discoveries.md)\n\n",
+        "# Observr\n\nYour imported conversation activity and evidence-backed observations.\n\n[Profile](Profile.md) · [Discoveries](Discoveries.md) · [Related topics](Topics.md)\n\n",
     );
     home.push_str(&format!("- Imported conversations: {}\n- Active observations with available evidence: {}\n- Messages with unknown time: {} ({} user messages)\n\n", snapshots.len(), records.len(), days.unknown_time_messages, days.unknown_time_user_messages));
     quoted(&mut home, &format!("Daily timezone: {}", days.timezone));
@@ -196,6 +196,44 @@ pub fn sync_vault(store: &mut Store, output: &Path, timezone: &str) -> Result<Va
     notes.push(Note {
         path: output.join("Profile.md"),
         body: profile,
+        conversation_ids: all_conversations.clone(),
+        observation_ids: all_observations.clone(),
+    });
+
+    let mut topics_index = String::from(
+        "# Related topics\n\nDiscussions sharing a topic across independent conversations. Individual claims retain their own context and review status; this does not establish an enduring preference or current choice.\n\n",
+    );
+    for thread in store.topic_threads_from(&records)? {
+        topics_index.push_str(&format!("[Related discussions](Topics/{}.md) — {} independent conversations, {} cited messages\n\n", thread.id, thread.distinct_conversations, thread.occurrences));
+        quoted(&mut topics_index, &thread.topic);
+        let mut body = String::from(
+            "# Related discussions\n\nThese findings share a topic, not necessarily a claim, preference or current choice. Review each finding in its own context.\n\n",
+        );
+        quoted(&mut body, &thread.topic);
+        body.push_str(&format!(
+            "{} independent conversations, {} cited messages.\n\n",
+            thread.distinct_conversations, thread.occurrences
+        ));
+        for record in records
+            .iter()
+            .filter(|record| thread.observation_ids.contains(&record.id))
+        {
+            append_observation(&mut body, record, "../", &transcripts)?;
+        }
+        notes.push(Note {
+            path: output.join(format!("Topics/{}.md", thread.id)),
+            body,
+            conversation_ids: thread
+                .evidence
+                .iter()
+                .map(|e| e.conversation_id.clone())
+                .collect(),
+            observation_ids: thread.observation_ids,
+        });
+    }
+    notes.push(Note {
+        path: output.join("Topics.md"),
+        body: topics_index,
         conversation_ids: all_conversations.clone(),
         observation_ids: all_observations.clone(),
     });
@@ -292,7 +330,7 @@ pub fn sync_vault(store: &mut Store, output: &Path, timezone: &str) -> Result<Va
     }
     // Remove stale generated claims after rejection, correction, source changes
     // or loss of supporting evidence. Unregistered user notes are untouched.
-    for directory in ["Candidates", "Patterns", "Decisions", "Daily"] {
+    for directory in ["Candidates", "Patterns", "Topics", "Decisions", "Daily"] {
         let directory = output.join(directory);
         if !directory.exists() {
             continue;
@@ -666,6 +704,7 @@ mod tests {
             output.clone(),
             output.join("Candidates"),
             output.join("Patterns"),
+            output.join("Topics"),
             output.join("Decisions"),
             output.join("Daily"),
         ] {

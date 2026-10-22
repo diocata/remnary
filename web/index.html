@@ -17,6 +17,7 @@
       <nav id="navigation" aria-label="Main">
         <button type="button" class="nav-item active" data-view="discoveries" aria-current="page"><span aria-hidden="true">↗</span>Discoveries</button>
         <button type="button" class="nav-item" data-view="profile"><span aria-hidden="true">◎</span>Profile</button>
+        <button type="button" class="nav-item" data-view="topics"><span aria-hidden="true">↔</span>Topics</button>
         <button type="button" class="nav-item" data-view="timeline"><span aria-hidden="true">⌁</span>Timeline</button>
         <button type="button" class="nav-item" data-view="search"><span aria-hidden="true">⌕</span>Search</button>
         <button type="button" class="nav-item" data-view="sources"><span aria-hidden="true">▤</span>Sources</button>
@@ -40,6 +41,7 @@
       </section>
       <section id="search-view" hidden aria-labelledby="search-heading"><h2 id="search-heading" class="view-heading">Find the original words.</h2><p class="view-intro">Search the current versions of your conversations. Every word is treated literally.</p><form id="search-form" class="search-form"><label class="filter-label" for="search-query">Conversation search</label><input id="search-query" class="text-input" type="search" placeholder="e.g. Rust, explanations, database…" maxlength="1000" required><button class="button button-primary" type="submit">Search archive</button></form><div id="search-results" class="search-results" aria-live="polite"><p class="empty-message">Choose a few words you remember. Search stays on your computer.</p></div></section>
       <section id="sources-view" hidden aria-labelledby="sources-heading"><div class="source-heading"><div><h2 id="sources-heading" class="view-heading">The conversations behind it.</h2><p class="view-intro">Your current source archive. Exact revisions stay attached to each finding.</p></div><span id="source-count" class="count">0</span></div><div id="sources-list" class="sources-list"></div></section>
+      <section id="topics-view" hidden aria-labelledby="topics-heading"><div class="source-heading"><div><h2 id="topics-heading" class="view-heading">Conversations that connect.</h2><p class="view-intro">Review the individual findings to keep their context and your feedback intact.</p></div><span id="topic-count" class="count">0</span></div><div id="topics-list" class="search-results"></div></section>
       <footer class="main-footer"><span>Evidence before interpretation.</span><span>Observations remain candidates until you confirm them.</span></footer>
     </main>
   </div>

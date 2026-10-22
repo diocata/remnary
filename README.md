@@ -48,6 +48,7 @@ Detection inventories known session directories; importing reads the selected lo
 ```sh
 observr discover --all
 observr patterns
+observr patterns --topics
 observr profile --candidates
 observr timeline
 observr today --timezone Europe/Luxembourg
@@ -71,6 +72,8 @@ observr analyze --engine ollama --model YOUR_INSTALLED_LOCAL_MODEL
 
 Observr does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices, separately checks claim support and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. Real-data checks pass provenance validation; semantic accuracy/usefulness remain release blockers.
 
+Related topics are available with `patterns --topics` (or `--topics --json`) and the dashboard’s Topics view. They connect findings with the same normalized topic label across at least two available independent conversations. Each claim keeps its context, evidence and review status. These connections do not establish an enduring preference or a current choice. Review the individual findings to correct or remove support.
+
 ## Generate a vault
 
 ```sh
@@ -78,7 +81,7 @@ observr vault sync /path/to/Observr-vault --timezone Europe/Luxembourg
 observr export /path/to/transcript-snapshots
 ```
 
-The vault contains Home, Profile, Discoveries, Candidates, Patterns, Decisions, Daily notes and linked transcript snapshots. Obsidian is optional. Generated sections have ownership hashes; edits outside them survive synchronization. Conflicting generated edits are preserved and reported. [Import an explicit Markdown correction](docs/vault-feedback.md) with `vault apply-feedback FILE --check`, then apply it after reviewing. Stale review counts prevent accidental replay or overwriting another correction.
+The vault contains Home, Profile, Discoveries, Candidates, Patterns, related Topics, Decisions, Daily notes and linked transcript snapshots. Obsidian is optional. Generated sections have ownership hashes; edits outside them survive synchronization. Conflicting generated edits are preserved and reported. [Import an explicit Markdown correction](docs/vault-feedback.md) with `vault apply-feedback FILE --check`, then apply it after reviewing. Stale review counts prevent accidental replay or overwriting another correction.
 
 **Markdown exports are plaintext.** Generate them only in a location you choose to protect. Observr tracks owned projections for deletion/feedback cleanup, preserving user-written sections and reporting conflicts. Independent copies and older backups remain your responsibility.
 

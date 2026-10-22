@@ -235,9 +235,15 @@ fn api(
                         | ObservationStatus::UserConfirmed
                 )
             });
+            let topics = store
+                .topic_threads_from(&visible)
+                .map_err(|_| database_error())?;
             let mut observations = crate::reports::rank_discoveries(visible, usize::MAX);
             observations.extend(hidden);
-            Ok(json_response(200, json!({"observations":observations})))
+            Ok(json_response(
+                200,
+                json!({"observations":observations,"topics":topics}),
+            ))
         }
         (Method::Get, "/api/search") => {
             let query = optional_query(url, "q")?.unwrap_or_default();

@@ -3,7 +3,7 @@
 // Archive and model strings enter the document only through textContent.
 // No HTML injection, external requests, remote fonts, or persistent cookies.
 const $ = (id) => document.getElementById(id);
-const state = { view: 'discoveries', observations: [], sources: [], selected: null, filter: '', kind: 'all', busy: false };
+const state = { view: 'discoveries', observations: [], topics: [], sources: [], selected: null, filter: '', kind: 'all', busy: false };
 const labels = {
   explicit_preference: 'Preference', inferred_preference: 'Inferred preference', correction: 'Correction', decision: 'Decision',
   topic: 'Topic', project_reference: 'Project reference', behavioral_pattern: 'Behavioral pattern',
@@ -13,6 +13,7 @@ const labels = {
 const views = {
   discoveries: ['Your evidence workspace', 'A little more self-knowledge.', 'Follow a finding back to the words that support it. You decide what stays.', 'Discoveries'],
   profile: ['Your confirmed profile', 'In your own terms.', 'Only findings you have confirmed appear here. Their original context stays attached.', 'Confirmed by you'],
+  topics: ['Related discussions', 'Follow a topic across conversations.', 'Different questions can share a topic. Each finding keeps its own wording, context, and evidence.', 'Related topics'],
   timeline: ['Your decision trail', 'See how your thinking moved.', 'Decisions are events in context. An old choice does not establish your current position.', 'Decision timeline'],
   search: ['Your conversation archive', 'Pick up the thread.', 'Find the words, choices, and questions you want to return to.', 'Search'],
   sources: ['Your source collection', 'Where every trail begins.', 'A readable archive of the conversations behind your discoveries.', 'Sources']
@@ -90,6 +91,7 @@ async function refresh() {
       api('/api/status'), api(`/api/observations?hidden=${$('include-hidden').checked ? '1' : '0'}`), api('/api/sources')
     ]);
     state.observations = records.observations;
+    state.topics = records.topics || [];
     state.sources = sources.sources;
     $('archive-status').textContent = `${status.conversations} conversations · ${status.messages} messages · ${status.revisions} saved revisions`;
     render();
@@ -114,7 +116,8 @@ function selectView(view) {
   $('page-description').textContent = description;
   $('list-heading').textContent = heading;
   $('list-context').textContent = view === 'profile' ? 'Your confirmed wording' : view === 'timeline' ? 'Events, with context' : 'Yours to review';
-  $('review-view').hidden = view === 'search' || view === 'sources';
+  $('review-view').hidden = ['search', 'sources', 'topics'].includes(view);
+  $('topics-view').hidden = view !== 'topics';
   $('search-view').hidden = view !== 'search';
   $('sources-view').hidden = view !== 'sources';
   $('kind-filter').hidden = view === 'timeline';
@@ -144,6 +147,7 @@ function empty(title, description) {
 }
 
 function render() {
+  if (state.view === 'topics') { renderTopics(); return; }
   if (state.view === 'sources') { renderSources(); return; }
   if (state.view === 'search') return;
   const records = filtered();
@@ -174,6 +178,35 @@ function render() {
   });
   list.scrollTop = previousScroll;
   renderEvidence(records.find((record) => record.id === state.selected));
+}
+
+function renderTopics() {
+  $('topic-count').textContent = state.topics.length;
+  const list = $('topics-list');
+  list.replaceChildren();
+  if (!state.topics.length) {
+    list.append(empty('Connections will take shape.', 'Related topics appear when cited findings come from at least two independent conversations.'));
+    return;
+  }
+  state.topics.forEach((topic) => {
+    const section = node('article', 'search-hit');
+    section.append(node('h3', '', human(topic.topic)), node('p', 'evidence-reference', `${topic.distinct_conversations} independent conversations · ${topic.occurrences} cited messages`));
+    section.append(node('p', '', 'These discussions share a topic. They do not establish an enduring preference or a current choice.'));
+    topic.observation_ids.forEach((id) => {
+      const record = state.observations.find((item) => item.id === id);
+      if (!record) return;
+      const item = node('article', 'evidence-item');
+      item.append(node('p', '', displayText(record)));
+      if (record.observation.context) item.append(node('p', 'detail-context', `Context: ${record.observation.context}`));
+      item.append(button('Review this finding ↗', 'source-link', () => {
+        state.selected = id;
+        selectView('discoveries');
+        [...$('observation-list').querySelectorAll('button')].find((row) => row.dataset.id === id)?.focus({ preventScroll: true });
+      }));
+      section.append(item);
+    });
+    list.append(section);
+  });
 }
 
 function renderEvidence(record) {

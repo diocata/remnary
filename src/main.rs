@@ -107,6 +107,9 @@ enum Command {
     Patterns {
         #[arg(long)]
         json: bool,
+        /// Related discussions sharing a topic, with individual claims preserved.
+        #[arg(long)]
+        topics: bool,
     },
     /// Show confirmed knowledge, with optional unconfirmed candidates.
     Profile {
@@ -556,7 +559,31 @@ fn run() -> Result<()> {
             };
             display_observations(&records, json)?;
         }
-        Command::Patterns { json } => {
+        Command::Patterns { json, topics } => {
+            if topics {
+                let threads = store.topic_threads()?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&threads)?);
+                } else if threads.is_empty() {
+                    println!("No topics with evidence from multiple independent conversations.");
+                } else {
+                    println!(
+                        "Related discussions; individual claims and contexts remain separate. This does not establish an enduring preference.\n"
+                    );
+                    for thread in threads {
+                        println!(
+                            "{} — {} independent conversations, {} cited messages",
+                            terminal(&thread.topic),
+                            thread.distinct_conversations,
+                            thread.occurrences
+                        );
+                        for id in thread.observation_ids {
+                            println!("  Finding: {id}");
+                        }
+                    }
+                }
+                return Ok(());
+            }
             let records = store
                 .observations(false)?
                 .into_iter()

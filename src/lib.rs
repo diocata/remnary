@@ -16,6 +16,7 @@ pub mod projection_store;
 pub mod reports;
 pub mod security;
 pub mod store;
+pub mod topics;
 pub mod vault;
 pub mod vault_feedback;
 pub mod web;
