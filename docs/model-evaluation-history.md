@@ -258,3 +258,7 @@ V33 targeted verification passes **6/6 in 188.90 seconds**: two positive repeate
 ## V33 full generation and V34 verifier schema
 
 V33 full generation passes **39/39 in 722.54 seconds**. The verifier stage stopped after 125.84 seconds with an inconsistent verdict/reason pair and no complete score; later stages did not run. Its schema used independent verdict/reason enums, permitting pairs that strict runtime validation correctly rejects. V34 uses separate schema branches for supported/fully_supported and unsupported-or-uncertain/non-support reasons. No malformed output is coerced or accepted. An exhaustive fifteen-pair regression checks schema choices and runtime behavior; all **207 offline tests**, formatting, Clippy and debug compilation pass. Full current gates remain pending.
+
+## V34 complete verifier and V35 classification priority
+
+V34 completes all 54 verifier cases with consistent verdict/reason output, passing **53/54 in 683.54 seconds**. It accepts an offered implementation option for a concrete goal as a generic topic. The worker stops before generation/review/real extraction, and the follow-on corpus job exits without modifying the baseline. V35 makes the deliberation role mandatory for offered options; topical relevance alone cannot justify the broader kind. Additional transfer cases retain actual explanation topics and correctly classified considerations. Targeted classification passes **5/5 in 88.20 seconds**. All 207 offline tests, formatting, Clippy and debug builds pass. Full current gates remain open.

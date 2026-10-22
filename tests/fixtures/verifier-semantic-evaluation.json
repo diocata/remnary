@@ -672,5 +672,44 @@
     "summary": "Possible pattern: runs tests, inspects failed checks, and uses a checklist for every new release",
     "context": null,
     "expected_supported": false
+  },
+  {
+    "id": "transfer-offered-option-not-topic",
+    "kind": "topic",
+    "topic": "technology",
+    "decision_event": null,
+    "quotes": [
+      "How about SQLite plus plain text for this tracker?"
+    ],
+    "canonical_value": "SQLite plus plain text",
+    "summary": "Topic: SQLite plus plain text (for this tracker)",
+    "context": "for this tracker",
+    "expected_supported": false
+  },
+  {
+    "id": "supported-offered-option-consideration",
+    "kind": "decision",
+    "topic": "technology",
+    "decision_event": "consideration",
+    "quotes": [
+      "What about DuckDB plus JSON files for this prototype?"
+    ],
+    "canonical_value": "DuckDB plus JSON files",
+    "summary": "Consideration: DuckDB plus JSON files (for this prototype)",
+    "context": "for this prototype",
+    "expected_supported": true
+  },
+  {
+    "id": "supported-technology-explanation-question",
+    "kind": "topic",
+    "topic": "technology",
+    "decision_event": null,
+    "quotes": [
+      "Explain how SQLite indexes make searches faster."
+    ],
+    "canonical_value": "how SQLite indexes make searches faster",
+    "summary": "Topic: how SQLite indexes make searches faster",
+    "context": null,
+    "expected_supported": true
   }
 ]
