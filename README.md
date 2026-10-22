@@ -2,7 +2,7 @@
 
 Local AI conversation history, grounded discoveries and a reviewable knowledge vault, written in Rust.
 
-Observr imports selected histories, keeps immutable evidence, extracts candidate preferences/corrections/decision events and lets you confirm, correct or reject them. A localhost dashboard and Markdown vault make results inspectable. **This is an implemented MVP under evaluation; production readiness and useful intelligence are not established.** See [release evidence](docs/readiness.md).
+Observr imports selected histories, keeps immutable evidence, extracts candidate preferences/corrections/decision events and lets you confirm, correct or reject them. A localhost dashboard and Markdown vault make results inspectable. **The local v0.1 MVP is verified on Apple Silicon macOS 27.0.1.** Candidate findings remain reviewable; the release evidence records measured quality and limits. See [release evidence](docs/readiness.md).
 
 ## Storage
 
@@ -23,7 +23,7 @@ cargo run -- discover
 cargo run -- web
 ```
 
-This workspace also provides `./scripts/cargo-local` for its isolated, ignored development toolchain. Use it in place of `cargo` when that toolchain is present. `cargo install --path . --locked` installs the CLI from your checkout; no Homebrew package or published binary is provided yet. A clean commit can produce a local evaluation archive with checksums using `python3 scripts/package-release.py`; see [package contents and checks](docs/releasing.md).
+This workspace also provides `./scripts/cargo-local` for its isolated, ignored development toolchain. Use it in place of `cargo` when that toolchain is present. `cargo install --path . --locked` installs the CLI from your checkout; no Homebrew package or published binary is provided yet. A clean commit can produce a local archive with checksums using `python3 scripts/package-release.py --release`; the default without `--release` produces an evaluation archive; see [package contents and checks](docs/releasing.md).
 
 On macOS, `init` creates a random key in macOS Keychain and an encrypted archive under `~/Library/Application Support/observr`. Keychain access may prompt. `--data-dir DIRECTORY` selects an independent archive. Initialization does not scan sources or call a model.
 
@@ -70,7 +70,7 @@ OLLAMA_NO_CLOUD=1 ollama serve
 observr analyze --engine ollama --model YOUR_INSTALLED_LOCAL_MODEL
 ```
 
-Observr does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices, separately checks claim support and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. Real-data checks pass provenance validation; semantic accuracy/usefulness remain release blockers.
+Observr does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices, separately checks claim support and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. The real-history evaluation meets the initial grounding/usefulness/recurrence targets under owner-delegated agent assessment; it is not an independent human study.
 
 The built-in Rules engine also detects repeated comparison requests. It needs two different eligible owner messages with different question text in a conversation; independent conversations can then support the same pattern. It describes recorded requests, with exact evidence, and leaves confirmation to you. The recognizer covers a bounded set of English request forms; it is not a general habit or personality classifier.
 
