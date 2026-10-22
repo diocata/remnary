@@ -17,7 +17,8 @@ use serde_json::{Value, json};
 use crate::model::{Conversation, Message, digest};
 
 pub const SCHEMA_VERSION: u32 = 1;
-pub const RULES_VERSION: &str = "explicit-rules-v5";
+// Owner-attribution changes must invalidate cached deterministic extractions.
+pub const RULES_VERSION: &str = "explicit-rules-v6";
 const MAX_OBSERVATIONS: usize = 1_000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]

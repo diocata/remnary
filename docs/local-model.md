@@ -70,3 +70,5 @@ Real acceptance uses a private encrypted forty-source corpus and agent source re
 V33 targeted verification passes **6/6 in 188.90 seconds**: two positive repeated-behavior controls and four insufficient-support controls, including concrete project scope and compound actions. This is a targeted regression result, not full acceptance.
 
 V36 full verifier regression passes **57/57 in 832.01 seconds**; remaining current-version gates are still running.
+
+V36 full generation passes **39/39 in 875.86 seconds**. The separate deterministic processor cache tag is now `explicit-rules-v6`; this does not change model prompts or the running frozen producer-36 evaluation.
