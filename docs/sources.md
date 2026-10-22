@@ -5,7 +5,7 @@ Observr imports files you select. It does not sign into providers, read credenti
 | Source | Import input | Detection on macOS | Verification |
 | --- | --- | --- | --- |
 | ChatGPT | Mapping-format `conversations.json`, or ZIP containing one such file or numbered `conversations-*.json` shards | No owner export found in the selected local/indexed filename search | Synthetic JSON/ZIP/shard fixtures plus five published real records with exact reconstruction; [compatibility scope](import-compatibility.md) |
-| Connected app history views | Selected Codex-app `read_thread` JSON snapshot | Available through this assistant session's connected history tools, rather than a filesystem scan | Three selected ChatGPT views imported; partial coverage and truncation retained |
+| Connected app history views | Selected Codex-app `read_thread` JSON snapshot | Available through this assistant session's connected history tools, rather than a filesystem scan | 40 selected ChatGPT views imported; partial coverage and truncation retained |
 | Claude Code | One JSONL file or selected session directory | `~/.claude/projects` | 17 local files imported; synthetic regression and encrypted integration tests |
 | Codex | One rollout JSONL file or selected session directory | `~/.codex/sessions` | 11 local files imported; forked/inherited metadata regression tests |
 | Kiro IDE | One `.chat` JSON file or selected chat directory | `~/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent` | Eight local snapshots coalesced into four chats; synthetic regression tests |
@@ -30,6 +30,14 @@ observr discover --all
 
 Select `--source` for directory imports. File imports may detect their format automatically. Directory traversal skips symlinks, accepts only the selected format's extension and is bounded to 10,000 files / 100,000 entries. Inputs are limited to 256 MiB per file, 512 MiB per local batch and 16 MiB per JSONL record. A malformed or incomplete record fails the batch before any database mutation; retry after the originating application finishes writing. Imports never modify source files.
 
+## Native Claude evaluation captures
+
+A separate authorized evaluation uses fourteen Claude consumer conversations captured through the signed-in native application's accessibility view. This is an assistant-operated private evaluation path, not an automatic collector or a supported consumer-export CLI importer. Account-export compatibility remains unverified.
+
+The captures retain conversation UUIDs and explicit “You said” / “Claude responded” attribution. UI ordinal message identities are labelled as such; provider message UUIDs, timestamps, parents and binary attachments are unavailable. Unattributed tool-only messages cannot supply personal facts. Visible text and the raw accessibility message records are preserved privately. Owner text must agree across overlapping captures; differences fail normalization. Assistant rendering variants are retained in the raw captures.
+
+Four of the fourteen captures omit some virtualized message positions. All native captures remain partial, including those whose visible ordinal sequence covers the reported message count: attachments and unexposed context remain unavailable. The normalized `claude-native-view-v1` collection marker receives the same protection as connected views: partial imports cannot replace complete exports or drop previously retained messages, and the vault/dashboard disclose partial coverage. A regression verifies these safeguards. The fourteen-source model evaluation is separate from the completed v36 acceptance corpus until reviewed.
+
 ## Attribution and retained evidence
 
 The normalized archive retains message IDs, source metadata and original records. Missing dates stay unknown. Binary attachments are not fetched or analyzed. Unknown roles are retained without treating them as user speech. Tool payloads remain source metadata where a format lacks plain text.
@@ -42,7 +50,7 @@ These guards cannot establish that every passage inside a human message is the p
 
 ## Real-data check
 
-The current authorized evaluation corpus contains 40 conversations, 3,061 current messages and 47 retained revisions from local Claude Code, Codex and Kiro files and selected partial ChatGPT views. Earlier imports exposed provider-instruction, task-notification and pasted-transcript attribution errors; the resulting safeguards, reimports and incremental analysis were exercised. Current model-quality results and open acceptance gates are recorded in [readiness.md](readiness.md). Useful real recurring patterns remain unestablished. The owner delegated usefulness assessment to the agent; those ratings are not independent human research or owner confirmation. Private sources, keys and results are ignored by Git.
+The completed authorized v36 evaluation corpus contains 72 conversations, 3,224 current messages and 79 retained revisions from local Claude Code, Codex and Kiro files and selected partial ChatGPT views. Earlier imports exposed provider-instruction, task-notification and pasted-transcript attribution errors; the resulting safeguards, reimports and incremental analysis were exercised. Current model-quality results and open acceptance gates are recorded in [readiness.md](readiness.md). Useful real recurring patterns remain unestablished. The owner delegated usefulness assessment to the agent; those ratings are not independent human research or owner confirmation. Private sources, keys and results are ignored by Git.
 
 Provider references: [Claude Code sessions](https://code.claude.com/docs/en/sessions), [Kiro IDE chat](https://kiro.dev/docs/ide/chat/), [Kiro CLI commands](https://kiro.dev/docs/cli/reference/slash-commands/). The Kiro IDE `.chat` adapter follows the locally observed format; its presence does not imply support for the separately documented CLI export formats.
 

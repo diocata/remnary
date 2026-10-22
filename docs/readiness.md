@@ -4,7 +4,7 @@ Updated 2026-10-22. **Production readiness is not established.** Model regressio
 
 ## Current implementation and checks
 
-Ollama producer/prompt **36**, deterministic processor **explicit-rules-v6**, encrypted schema **5**. All **208 offline tests** pass: 189 library, twelve analysis and seven CLI/source tests. Formatting, locked all-target Clippy with warnings denied and debug compilation pass.
+Ollama producer/prompt **36**, deterministic processor **explicit-rules-v6**, encrypted schema **5**. All **209 offline tests** pass: 190 library, twelve analysis and seven CLI/source tests. Formatting, locked all-target Clippy with warnings denied and debug compilation pass.
 
 The frozen producer-36 model run passes **57/57 verifier cases in 832.01 seconds**, **39/39 generation cases in 875.86 seconds**, and **2/2 model review tests in 150.42 seconds**, including **13/13 identity cases in 48.84 seconds** with zero literal direction overrides. Appended histories preserve rejection feedback, equivalent claims share durable identities across distinct conversations, and recurrence/reset never create owner confirmation. [Model setup and bounds](local-model.md).
 
@@ -46,6 +46,8 @@ The owner delegated evaluation without further questions. All usefulness ratings
 A new local export search found no conversation archive in the checked Downloads/Documents/Desktop locations. The connected archived-ChatGPT listing was empty. The 32 added app views retain 82 nonempty owner text messages (6,345 bytes); zero extracted candidates is not silent loss of their text parts.
 
 The installed Claude consumer app has additional signed-in history. An all-history export was requested through its native Privacy controls; the app and provider email confirmed processing. The email says delivery typically takes a few hours and may take up to twelve; the eventual link expires after 24 hours. No file has yet been retrieved/imported, so Claude consumer-export compatibility and additional quality results remain unestablished.
+
+While export delivery remains pending, fourteen additional Claude consumer native views were captured and normalized into a separate encrypted evaluation archive: 119 visible messages, including 58 owner messages. Four views have missing virtualized ordinals; every native view remains explicitly partial. Message attribution, unknown dates/UUIDs and unextracted attachments are retained as limitations. A new regression preserves partial-view replacement/deletion protections and coverage disclosure. All 209 offline tests, formatting, debug build and locked all-target Clippy pass. Model analysis of these added sources is running; no new quality or recurrence result is claimed yet. [Native capture scope](sources.md#native-claude-evaluation-captures).
 
 The existing Firefox session also exposed ChatGPT's account-export controls, but export requires account verification. The email connector withheld the verification code; no code was entered and the temporary tab was closed. A successful ChatGPT export request is not claimed. No authentication/security settings were changed.
 

@@ -37,10 +37,12 @@ pub fn read_snapshot(path: &Path) -> Result<Conversation> {
 }
 
 pub fn is_partial(metadata: &Value) -> bool {
-    metadata
-        .pointer("/observr_collection/format")
-        .and_then(Value::as_str)
-        == Some("codex-app-view-v1")
+    matches!(
+        metadata
+            .pointer("/observr_collection/format")
+            .and_then(Value::as_str),
+        Some("codex-app-view-v1" | "claude-native-view-v1")
+    )
 }
 
 pub fn parse_snapshot(value: &Value) -> Result<Conversation> {
@@ -198,6 +200,30 @@ mod tests {
         store.import(&[full])?;
         assert!(store.import(&[original]).is_err());
         assert_eq!(store.stats()?.revisions, 2);
+        Ok(())
+    }
+
+    #[test]
+    fn native_views_keep_partial_coverage_and_import_safeguards() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let mut store = crate::store::Store::init(dir.path())?;
+        let mut source = parse_snapshot(&fixture())?;
+        source.provider = "claude".into();
+        source.metadata["observr_collection"]["format"] = json!("claude-native-view-v1");
+        assert!(is_partial(&source.metadata));
+        assert!(
+            crate::vault::snapshot_markdown(&source)?
+                .1
+                .contains("Coverage: partial app history view")
+        );
+        store.import(std::slice::from_ref(&source))?;
+        let mut shorter = source.clone();
+        shorter.messages.pop();
+        assert!(store.import(&[shorter]).is_err());
+        let mut full = source.clone();
+        full.metadata = json!({"complete_provider_export": true});
+        store.import(&[full])?;
+        assert!(store.import(&[source]).is_err());
         Ok(())
     }
 
