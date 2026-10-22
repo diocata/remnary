@@ -1,6 +1,6 @@
 # Synthetic performance check
 
-Measured 2026-10-21 on an Apple M4 Pro Mac with 24 GiB unified memory, Rust 1.99.1 and the optimized packaged v31 executable from commit `4cd19f6b0339` (binary SHA-256 `d7a6a6363df387ccdc480273dc48a4b5d68c22bd1c7b5c4fbfa994f70bb1c7e6`). This is a local engineering check, not a cross-platform guarantee or a model-quality benchmark.
+Measured 2026-10-22 on an Apple M4 Pro Mac with 24 GiB unified memory, Rust 1.99.1 and the optimized packaged v36/rules6 executable from commit `857713c600c8` (binary SHA-256 `41d2c97d0974e716db38553a4fc4e512fd4c5cd897f2b2c1e003783023802e22`). This is a local engineering check, not a cross-platform guarantee or a model-quality benchmark.
 
 ```sh
 python3 scripts/benchmark.py --binary /path/to/extracted/observr \
@@ -9,22 +9,22 @@ python3 scripts/benchmark.py --binary /path/to/extracted/observr \
 
 The script creates a temporary directory containing only generated synthetic history, a private key, an encrypted archive, a vault and backup. It verifies unchanged reimport, cached analysis, unchanged vault generation and final integrity, then removes the temporary directory. It never scans real histories. `/usr/bin/time -l` supplies peak process RSS on macOS.
 
-Input: **2,000 conversations / 32,000 messages**, 16.05 MiB JSON. The encrypted schema-5 database occupied 61.34 MiB. Integrity/foreign keys passed, with zero pending projection cleanup. Local-model inference ran independently during this check, so these figures are not an isolated microbenchmark.
+Input: **2,000 conversations / 32,000 messages**, 16.05 MiB JSON. The encrypted schema-5 database occupied 61.25 MiB. Integrity/foreign keys passed, with zero pending projection cleanup. Local Observr inference had finished before this check. Other desktop activity was not isolated, so these figures remain an engineering observation rather than an isolated microbenchmark.
 
 | Operation | Wall time | Peak process RSS |
 | --- | ---: | ---: |
-| Import | 4.08 s | 282.56 MiB |
-| Unchanged import | 0.89 s | 280.94 MiB |
-| Rules analysis | 5.80 s | 145.28 MiB |
-| Cached analysis | 0.24 s | 142.61 MiB |
-| Search (five runs, including startup/unlock) | 86–89 ms | 12.92–13.09 MiB |
+| Import | 3.00 s | 280.42 MiB |
+| Unchanged import | 0.73 s | 280.33 MiB |
+| Rules analysis | 3.95 s | 145.12 MiB |
+| Cached analysis | 0.17 s | 142.44 MiB |
+| Search (five runs, including startup/unlock) | 75–77 ms | 13.03–13.06 MiB |
 | Discover | 0.04 s | 16.33 MiB |
-| Initial knowledge vault | 35.30 s | 189.59 MiB |
-| Unchanged vault | 6.54 s | 190.23 MiB |
-| Encrypted backup | 0.60 s | 15.47 MiB |
-| Integrity check | 0.29 s | 12.95 MiB |
+| Initial knowledge vault | 36.11 s | 190.05 MiB |
+| Unchanged vault | 5.61 s | 193.89 MiB |
+| Encrypted backup | 0.46 s | 15.56 MiB |
+| Integrity check | 0.25 s | 12.91 MiB |
 
 Current memory costs include buffering input and normalized records. Cached analysis still loads current snapshots before checking run identities; it avoids inference but is not constant-memory. Managed vault writes intentionally synchronize stages/ownership records, so initial output has a larger filesystem cost. Larger real messages, attachment metadata, many distinct claims and slow disks will change these figures. Input/analysis-window bounds and checkpointed conversation commits remain necessary.
 
 
-The earlier v25 package (`62d20b37033a`, binary `e35808ff24d1f937e8e63194b0ae4c4cb502379e6a121382c7b43d569548b870`) recorded import 3.81 seconds, rules analysis 4.54 seconds and initial vault 35.51 seconds on the same fixture size. These are historical observations; neither run isolates background inference or guarantees another machine's latency. The current benchmark verifies Rules processing, not the speed or accuracy of model extraction.
+The earlier v31 package (`4cd19f6b0339`) recorded import 4.08 seconds, rules analysis 5.80 seconds and initial vault 35.30 seconds on the same fixture size while local inference was active. The differing background activity prevents a controlled speed comparison. This benchmark verifies Rules processing, not the speed or accuracy of model extraction.
