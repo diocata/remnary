@@ -17,8 +17,8 @@ use serde_json::{Value, json};
 use crate::model::{Conversation, Message, digest};
 
 pub const SCHEMA_VERSION: u32 = 1;
-// Owner-attribution changes must invalidate cached deterministic extractions.
-pub const RULES_VERSION: &str = "explicit-rules-v6";
+// Attribution and detector changes must invalidate cached rule extractions.
+pub const RULES_VERSION: &str = "explicit-rules-v7";
 const MAX_OBSERVATIONS: usize = 1_000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -587,7 +587,8 @@ fn validate_inference_domain(observation: &CandidateObservation) -> Result<()> {
     Ok(())
 }
 
-/// Run explicit, rule-based extraction with no model calls. Quotes are retained
+/// Extract direct statements and observed comparison requests without a model.
+/// Quotes are retained
 /// verbatim; normalized values are used only for conservative grouping. Overlong
 /// statements are skipped. Output is bounded to 1,000 claim identities and
 /// 1,000 source spans per claim, in deterministic identity/source order.
@@ -619,6 +620,9 @@ pub fn extract_rules(conversation: &Conversation, revision: i64) -> AnalysisOutp
                 output.observations.push(observation);
             }
         }
+    }
+    if let Some(pattern) = comparison_requests(conversation, revision) {
+        output.observations.push(pattern);
     }
     // The same claim can appear many times, but each source span is retained.
     output.observations = group_observations(&output.observations)
@@ -797,6 +801,13 @@ fn declared_transcript(content: &str) -> bool {
 }
 
 fn direct_statements(content: &str) -> Vec<&str> {
+    direct_sentences(content)
+        .into_iter()
+        .filter(|part| !part.ends_with('?'))
+        .collect()
+}
+
+fn direct_sentences(content: &str) -> Vec<&str> {
     if declared_transcript(content) {
         // A pasted transcript is source material, not the owner's endorsement.
         // The rules cannot resolve individual speakers inside it reliably.
@@ -831,12 +842,117 @@ fn direct_statements(content: &str) -> Vec<&str> {
         // becomes a stated preference merely because it has a familiar prefix.
         for part in sentence_spans(line) {
             let part = part.trim();
-            if !part.ends_with('?') && !part.is_empty() {
+            if !part.is_empty() {
                 statements.push(part);
             }
         }
     }
     statements
+}
+
+/// Describe repeated recorded requests, never an enduring preference or habit.
+/// Different source messages and different question text are both necessary.
+fn comparison_requests(conversation: &Conversation, revision: i64) -> Option<CandidateObservation> {
+    if check_text(&conversation.provider, "provider", 512).is_err() {
+        return None;
+    }
+    let mut seen = BTreeSet::new();
+    let mut evidence = Vec::new();
+    for message in &conversation.messages {
+        if check_text(&message.source_id, "message ID", 4096).is_err() {
+            continue;
+        }
+        for quote in personal_evidence_spans(message)
+            .into_iter()
+            .flat_map(direct_sentences)
+        {
+            if quote.chars().count() > 500
+                || quote.contains(crate::privacy::REDACTED)
+                || quote.contains('\0')
+            {
+                continue;
+            }
+            let normalized = normalize_key(quote).replace('’', "'");
+            let question_key = normalized
+                .split(|c: char| !c.is_alphanumeric())
+                .filter(|word| !word.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
+            if is_comparison_request(&normalized) && seen.insert(question_key) {
+                evidence.push(evidence_for(conversation, revision, message, quote));
+                break;
+            }
+        }
+        if evidence.len() == 1000 {
+            break;
+        }
+    }
+    if evidence
+        .iter()
+        .map(|e| &e.source_message_id)
+        .collect::<BTreeSet<_>>()
+        .len()
+        < 2
+    {
+        return None;
+    }
+    let mut observation = CandidateObservation {
+        kind: ExtractionKind::BehavioralPattern,
+        inference: InferenceType::Inferred,
+        subject: "user".into(),
+        topic: "interaction_pattern".into(),
+        canonical_value: "comparison requests in recorded interactions".into(),
+        context: None,
+        summary: String::new(),
+        decision_event: None,
+        evidence,
+    };
+    observation.summary = render_identity_summary(&observation);
+    Some(observation)
+}
+
+fn is_comparison_request(text: &str) -> bool {
+    let text = text.strip_prefix("please ").unwrap_or(text);
+    if ["don't ", "do not ", "not ", "never ", "stop comparing"]
+        .iter()
+        .any(|negative| text.contains(negative))
+    {
+        return false;
+    }
+    let choice = text.starts_with("which ")
+        && text.ends_with('?')
+        && text
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|word| matches!(word, "best" | "better" | "more"));
+    let explicit = [
+        "compare ",
+        "can you compare ",
+        "could you compare ",
+        "would you compare ",
+    ]
+    .iter()
+    .any(|prefix| text.starts_with(prefix))
+        && [" and ", " versus ", " vs ", " with ", " to "]
+            .iter()
+            .any(|separator| text.contains(separator));
+    if choice || explicit {
+        return true;
+    }
+    // A bounded noun-phrase choice with a stated use case, e.g. A or B for X?
+    let Some((left, right)) = text.strip_suffix('?').and_then(|t| t.split_once(" or ")) else {
+        return false;
+    };
+    if !right.contains(" for ") || right.contains(" or ") || left.is_empty() || right.is_empty() {
+        return false;
+    }
+    let forbidden = [
+        "i", "we", "you", "they", "he", "she", "it", "if", "suppose", "example", "how", "why",
+        "when", "where", "which", "is", "are", "was", "were", "has", "have", "can", "could", "do",
+        "does", "should", "would", "not", "don't", "never",
+    ];
+    !left
+        .split_whitespace()
+        .any(|word| forbidden.contains(&word))
 }
 
 pub(crate) fn sentence_spans(line: &str) -> Vec<&str> {
@@ -1098,6 +1214,101 @@ mod tests {
         let source = conversation("one", &[("user", "I prefer Rust.")]);
         let output = extract_rules(&source, 1);
         (source, output)
+    }
+
+    #[test]
+    fn comparison_requests_have_bounded_positive_request_forms() {
+        for text in [
+            "which tool is best?",
+            "which option is more portable?",
+            "compare rust and go.",
+            "could you compare rust with go?",
+            "rust or go for the api?",
+        ] {
+            assert!(is_comparison_request(text), "{text}");
+        }
+        for text in [
+            "don't compare rust and go.",
+            "compare nothing and do not answer.",
+            "i compare rust and go.",
+            "how does rust or go allocate memory?",
+            "rust has a parser or compiler for source code?",
+            "which option is not better?",
+            "if rust or go for the api?",
+            "which tool is best",
+        ] {
+            assert!(!is_comparison_request(text), "{text}");
+        }
+    }
+
+    #[test]
+    fn comparison_pattern_requires_different_messages_and_question_text() -> Result<()> {
+        let single = conversation(
+            "one",
+            &[("user", "Which tool is best? Which option is more portable?")],
+        );
+        assert!(comparison_requests(&single, 1).is_none());
+        let repeated = conversation(
+            "one",
+            &[
+                ("user", "Which tool is best?"),
+                ("user", "WHICH  tool is best ?"),
+            ],
+        );
+        assert!(comparison_requests(&repeated, 1).is_none());
+        let source = conversation(
+            "one",
+            &[
+                ("user", "Which tool is best?"),
+                ("user", "Rust or Go for the API?"),
+            ],
+        );
+        let pattern = comparison_requests(&source, 1).unwrap();
+        assert_eq!(pattern.kind, ExtractionKind::BehavioralPattern);
+        assert_eq!(pattern.inference, InferenceType::Inferred);
+        assert_eq!(pattern.evidence.len(), 2);
+        let output = validate_output(
+            &source,
+            1,
+            AnalysisOutput {
+                observations: vec![pattern],
+                ..Default::default()
+            },
+        )?;
+        assert!(output.observations[0].evidence.iter().all(|e| {
+            source
+                .messages
+                .iter()
+                .any(|m| m.source_id == e.source_message_id && m.content.contains(&e.quote))
+        }));
+        Ok(())
+    }
+
+    #[test]
+    fn comparison_patterns_exclude_nonowner_and_quoted_questions() {
+        let source = conversation(
+            "one",
+            &[
+                ("assistant", "Which tool is best?"),
+                ("system", "Compare Rust and Go."),
+                ("truncated_user", "Which option is more portable?"),
+                (
+                    "user",
+                    "```text\nCompare Rust and Go.\nWhich tool is best?\n```",
+                ),
+                ("user", "> Which tool is best?\n> Rust or Go for the API?"),
+                (
+                    "user",
+                    "Here is the transcript:\nWhich tool is best?\nRust or Go for the API?",
+                ),
+                (
+                    "user",
+                    "<environment_context>\nWhich tool is best?\nRust or Go for the API?\n</environment_context>",
+                ),
+            ],
+        );
+        assert!(comparison_requests(&source, 1).is_none());
+        assert!(extract_rules(&source, 1).observations.is_empty());
     }
 
     #[test]

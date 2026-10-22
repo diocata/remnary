@@ -72,6 +72,8 @@ observr analyze --engine ollama --model YOUR_INSTALLED_LOCAL_MODEL
 
 Observr does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices, separately checks claim support and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. Real-data checks pass provenance validation; semantic accuracy/usefulness remain release blockers.
 
+The built-in Rules engine also detects repeated comparison requests. It needs two different eligible owner messages with different question text in a conversation; independent conversations can then support the same pattern. It describes recorded requests, with exact evidence, and leaves confirmation to you. The recognizer covers a bounded set of English request forms; it is not a general habit or personality classifier.
+
 Related topics are available with `patterns --topics` (or `--topics --json`) and the dashboard’s Topics view. They connect findings with the same normalized topic label across at least two available independent conversations. Each claim keeps its context, evidence and review status. These connections do not establish an enduring preference or a current choice. Review the individual findings to correct or remove support.
 
 ## Generate a vault

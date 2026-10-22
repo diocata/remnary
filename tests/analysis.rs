@@ -582,3 +582,142 @@ fn verified_reprocessing_refreshes_unreviewed_wording_and_preserves_owner_text()
     );
     Ok(())
 }
+
+fn comparison_source(id: &str, first: &str, second: &str) -> observr::model::Conversation {
+    use observr::model::{Conversation, Message};
+    Conversation {
+        provider: "synthetic".into(),
+        source_id: id.into(),
+        title: Some("Synthetic comparisons".into()),
+        created_at: None,
+        updated_at: None,
+        metadata: serde_json::json!({}),
+        messages: [first, second]
+            .into_iter()
+            .enumerate()
+            .map(|(i, text)| Message {
+                source_id: format!("u{i}"),
+                parent_source_id: None,
+                role: "user".into(),
+                content: text.into(),
+                created_at: None,
+                metadata: serde_json::json!({}),
+            })
+            .collect(),
+    }
+}
+
+#[test]
+fn comparison_pattern_review_and_deletion_survive_encrypted_append_and_restore() -> Result<()> {
+    use observr::{
+        analysis::{AnalysisEngine, analyze},
+        intelligence::ExtractionKind,
+        security::SecretKey,
+    };
+    let dir = tempfile::tempdir()?;
+    let key = SecretKey::generate()?;
+    let mut store = Store::init_encrypted(&dir.path().join("archive"), &key)?;
+    let first = comparison_source(
+        "one",
+        "Compare Rust and Go.",
+        "Which option is best for the API?",
+    );
+    let mut second = comparison_source(
+        "two",
+        "Python or Go for the CLI?",
+        "Which option is more portable?",
+    );
+    store.import(std::slice::from_ref(&first))?;
+    analyze(&mut store, AnalysisEngine::Rules)?;
+    let records = store.observations(false)?;
+    assert_eq!(records.len(), 1);
+    assert_eq!(
+        records[0].observation.kind,
+        ExtractionKind::BehavioralPattern
+    );
+    assert_eq!(records[0].status, ObservationStatus::Candidate);
+    let id = records[0].id.clone();
+    store.import(std::slice::from_ref(&second))?;
+    assert_eq!(analyze(&mut store, AnalysisEngine::Rules)?.processed, 1);
+    let records = store.observations(false)?;
+    assert_eq!(records[0].id, id);
+    assert_eq!(records[0].distinct_conversations, 2);
+    assert_eq!(records[0].occurrences, 4);
+    assert_eq!(records[0].status, ObservationStatus::Supported);
+    assert_eq!(records[0].feedback_count, 0);
+    store.feedback(&id, FeedbackAction::Reject, None)?;
+    let mut added = second.messages[0].clone();
+    added.source_id = "u2".into();
+    added.content = "Compare Java and Python.".into();
+    second.messages.push(added);
+    store.import(&[second])?;
+    let result = analyze(&mut store, AnalysisEngine::Rules)?;
+    assert!(result.failures.is_empty());
+    assert_eq!(
+        store.observations(true)?[0].status,
+        ObservationStatus::UserRejected
+    );
+    let backup = dir.path().join("review.sqlite3");
+    store.backup_to(&backup, Some(&key))?;
+    let mut restored = Store::restore_new(&dir.path().join("restored"), &backup, Some(&key))?;
+    assert_eq!(
+        restored.observations(true)?[0].status,
+        ObservationStatus::UserRejected
+    );
+    restored.feedback(&id, FeedbackAction::Reset, None)?;
+    restored.exclude_conversation(&first.stable_id(), true)?;
+    assert_eq!(
+        restored.observations(false)?[0].status,
+        ObservationStatus::Candidate
+    );
+    restored.exclude_conversation(&first.stable_id(), false)?;
+    assert_eq!(
+        restored.observations(false)?[0].status,
+        ObservationStatus::Supported
+    );
+    restored.delete_observation(&id)?;
+    let mut replacement = Processor::rules();
+    replacement.version.push_str("-test-reprocess");
+    process(&mut restored, &replacement)?;
+    assert!(restored.observations(true)?.is_empty());
+    assert!(restored.doctor()?.database_integrity);
+    Ok(())
+}
+
+#[test]
+fn copied_kiro_comparison_questions_do_not_fabricate_independent_recurrence() -> Result<()> {
+    use observr::{
+        analysis::{AnalysisEngine, analyze},
+        local_sources::{SourceFormat, read_source},
+    };
+    use serde_json::json;
+    let dir = tempfile::tempdir()?;
+    let mut store = Store::init(&dir.path().join("archive"))?;
+    let reply = "A substantive response explaining the requested option comparison. ".repeat(8);
+    let original = json!([
+        {"role":"human","content":"Compare Rust and Go."},{"role":"bot","content":reply},
+        {"role":"human","content":"Which option is best for the API?"},{"role":"bot","content":reply}
+    ]);
+    let mut extended = original.clone();
+    extended
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"role":"human","content":"Continue."}));
+    for (id, chat) in [("one", original), ("two", extended)] {
+        let path = dir.path().join(format!("{id}.chat"));
+        std::fs::write(
+            &path,
+            serde_json::to_vec(&json!({"executionId":id,"chat":chat}))?,
+        )?;
+        store.import(&read_source(&path, SourceFormat::Kiro)?)?;
+    }
+    let result = analyze(&mut store, AnalysisEngine::Rules)?;
+    assert!(result.failures.is_empty());
+    let records = store.observations(false)?;
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].observation.evidence.len(), 4);
+    assert_eq!(records[0].distinct_conversations, 1);
+    assert_eq!(records[0].occurrences, 2);
+    assert_eq!(records[0].status, ObservationStatus::Candidate);
+    Ok(())
+}
