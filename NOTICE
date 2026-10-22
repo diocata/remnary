@@ -1,0 +1,9 @@
+Remnary
+Copyright (c) 2026 Diogo Catarino and Remnary contributors
+Your thoughts leave traces. We connect them.
+
+Original Remnary material is offered under MIT OR Apache-2.0, at your option.
+Third-party components retain their own licenses, notices and source obligations.
+See third_party/README.md, third_party/dependencies.json and the notice files
+identified there. The upstream ChatGPT compatibility fixture has its own notice
+at tests/fixtures/upstream-chatgpt-LICENSE.txt.

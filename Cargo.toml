@@ -6,7 +6,7 @@ rust-version = "1.99"
 description = "Your thoughts leave traces. We connect them. Local-first conversation intelligence."
 repository = "https://github.com/diocata/remnary"
 publish = false
-license = "MIT"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1"

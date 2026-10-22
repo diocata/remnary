@@ -1,0 +1,43 @@
+$ remnary init
+Initialized Remnary at <demo>/archive
+
+$ remnary import examples/demo/conversations.json
+Imported 3 new, 0 updated, 0 unchanged, 0 skipped conversations.
+
+$ remnary analyze
+Analyzed 3 conversations; persisted 12 candidate extractions.
+
+$ remnary discover --limit 2
+3dd7f9ff4a5e2df06ff781d95887e2111642aa0a41d68f2b9d7cbe939866de4a
+  Stated preference: I prefer Rust for local tools.
+  Supported / Explicit; 2 occurrences across 2 conversations
+  Evidence chatgpt:735f1dec73eb6de0c94bade589f53060ff2e44ff79f61ebdbc8bb2bdd8b8cccf@1#6ab3a127-73cc-567c-bb57-7c18b4d97155
+    I prefer Rust for local tools.
+  Evidence chatgpt:ea70a13e565b649c8316027d27a1e2b13a8dfee64d8dfd9d55b4f63c4bbe2932@1#a373720d-8632-59d7-a97a-13da00854a71
+    I prefer Rust for local tools.
+
+5af366e9299df69d7d9832fef129ba5eaff61ee9f0fc5b698fe68383355681fb
+  Requested: Keep the implementation simple.
+  Supported / Explicit; 2 occurrences across 2 conversations
+  Evidence chatgpt:735f1dec73eb6de0c94bade589f53060ff2e44ff79f61ebdbc8bb2bdd8b8cccf@1#ef411c8f-5f0e-569c-b034-8f9c6fc4d00e
+    Keep the implementation simple.
+  Evidence chatgpt:ea70a13e565b649c8316027d27a1e2b13a8dfee64d8dfd9d55b4f63c4bbe2932@1#b1c4358f-261f-5f08-b9d3-a17ef02c0522
+    Keep the implementation simple.
+
+
+$ remnary feedback <preference-id> confirm
+Feedback saved for 3dd7f9ff4a5e2df06ff781d95887e2111642aa0a41d68f2b9d7cbe939866de4a. Run `remnary vault sync` to refresh exported knowledge.
+
+$ remnary profile
+3dd7f9ff4a5e2df06ff781d95887e2111642aa0a41d68f2b9d7cbe939866de4a
+  Stated preference: I prefer Rust for local tools.
+  UserConfirmed / Explicit; 2 occurrences across 2 conversations
+  Evidence chatgpt:735f1dec73eb6de0c94bade589f53060ff2e44ff79f61ebdbc8bb2bdd8b8cccf@1#6ab3a127-73cc-567c-bb57-7c18b4d97155
+    I prefer Rust for local tools.
+  Evidence chatgpt:ea70a13e565b649c8316027d27a1e2b13a8dfee64d8dfd9d55b4f63c4bbe2932@1#a373720d-8632-59d7-a97a-13da00854a71
+    I prefer Rust for local tools.
+
+Profile includes user-confirmed observations. Use --candidates to review proposals.
+
+$ remnary vault sync <demo>/vault
+Vault: 26 new or updated, 0 unchanged, 0 conflicts at <demo>/vault.

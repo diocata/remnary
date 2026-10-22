@@ -1,10 +1,10 @@
 # Local model setup and verification
 
-Current producer/prompt: **v36**; encrypted schema: **5**. Model-quality acceptance remains open. The default rules engine works without a model but only recognizes a narrow set of direct statements. This guide describes the current adapter; [historical experiments](model-evaluation-history.md) preserve retired settings and earlier results.
+Current producer/prompt: **v36**; encrypted schema: **5**. The initial local grounding/usefulness/recurrence gates pass under owner-delegated agent assessment; this is not an independent human study. See [current evidence and known errors](readiness.md). The default rules engine works without a model but only recognizes a narrow set of direct statements. This guide describes the current adapter; [historical experiments](model-evaluation-history.md) preserve retired settings and earlier results.
 
 ## Run a local model
 
-The observed setup is Homebrew Ollama **0.40.6** on Apple Silicon. The installed evaluation comparator is `gemma4:12b-it-q4_K_M`: GGUF Q4_K_M, 11.9B, 8,021,618,941 bytes, manifest digest `6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b`. It is under evaluation, not a qualified default. Remnary requires an explicit model name.
+The observed setup is Homebrew Ollama **0.40.6** on Apple Silicon. The installed evaluation comparator is `gemma4:12b-it-q4_K_M`: GGUF Q4_K_M, 11.9B, 8,021,618,941 bytes, manifest digest `6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b`. It is the measured development model, not an automatic default or a guarantee of accuracy. Remnary requires an explicit model name.
 
 ```sh
 brew install ollama

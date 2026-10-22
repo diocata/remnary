@@ -4,6 +4,8 @@
 
 Initial local release for Apple Silicon macOS 27.0.1.
 
+Expanded the project guide with original brand/workflow illustrations, actual synthetic dashboard screenshots, two guided GIFs, a command reference and reproducible fictional examples. Original Remnary code, documentation and artwork are now offered under MIT OR Apache-2.0; third-party licenses remain separate. Local packages include both license texts, NOTICE, documentation media and the demo/rendering scripts.
+
 Renamed the project, Rust crate, CLI, dashboard, vault output, new archive/Keychain namespaces, examples and packaging to **Remnary**. The brand combines remnant and diary: a living record of your thoughts, memories, and experiences. **Your thoughts leave traces. We connect them.** Existing archive, partial-view and Markdown formats retain explicit compatibility readers; see [rename guidance](renaming.md).
 
 - Rust CLI with an embedded SQLCipher archive, immutable source revisions, full-text search and private Keychain/recovery-key handling.

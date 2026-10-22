@@ -1,132 +1,428 @@
+<p align="center">
+  <img src="docs/assets/hero.svg" alt="Remnary — Your thoughts leave traces. We connect them. Conversation fragments connect into a living record." width="100%">
+</p>
+
+<p align="center">
+  <a href="https://github.com/diocata/remnary/actions/workflows/ci.yml"><img src="https://github.com/diocata/remnary/actions/workflows/ci.yml/badge.svg" alt="Rust checks"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-4e5bd9" alt="MIT or Apache-2.0"></a>
+  <a href="docs/platforms.md"><img src="https://img.shields.io/badge/platform-Apple%20Silicon%20macOS-279caf" alt="Apple Silicon macOS"></a>
+  <a href="docs/readiness.md"><img src="https://img.shields.io/badge/offline_tests-223_verified-226754" alt="223 offline tests verified locally"></a>
+</p>
+
 # Remnary
 
-**Your thoughts leave traces. We connect them.**
+**A living record of your thoughts, memories, and experiences.**
 
-A living record of your thoughts, memories, and experiences, written in Rust. Remnary connects fragmented AI conversations into an evolving record of your ideas, decisions, preferences, habits, and discoveries.
+Your conversations contain ideas you return to, decisions you reconsider, and preferences you explain more than once. Remnary brings selected histories into one local archive, finds candidate connections, and keeps the original words attached. You decide which findings belong in your record.
 
-Remnary imports selected histories, keeps immutable evidence, extracts candidate preferences/corrections/decision events and lets you confirm, correct or reject them. A localhost dashboard and Markdown vault make results inspectable. **The local v0.1 MVP is verified on Apple Silicon macOS 27.0.1.** Candidate findings remain reviewable; the release evidence records measured quality and limits. See [release evidence](docs/readiness.md).
+One Rust binary. An encrypted SQLite archive. A localhost dashboard. A readable Markdown vault. Optional local model analysis; no account or model is needed for the built-in rules engine.
 
-## The name
+[See it](#see-it-in-action) · [Install](#install) · [Try the demo](#try-the-fictional-demo) · [Import](#bring-your-own-history) · [Commands](#command-reference) · [How it works](#how-it-works) · [Privacy](#privacy-and-data-ownership) · [Docs](#documentation) · [License](#license)
 
-Remnary is an invented word combining **remnant**—a trace of something from the past—and **diary**—a personal record of experiences, thoughts, and activities. Its meaning comes from that brand story, rather than a dictionary definition. The name leaves room to grow beyond AI conversations.
+> **Release scope:** v0.1 is verified locally on Apple Silicon macOS 27.0.1 with Rust 1.99.1. Other platforms are unverified. Install from source; no registry package, Homebrew formula, signed installer or hosted binary release is published. [Validation and limits →](docs/readiness.md)
 
-## Storage
+## Why Remnary?
 
-One embedded **SQLCipher-encrypted SQLite file** stores conversations, revisions, full-text search, observations and feedback. Markdown is an explicitly generated readable projection. JSON/JSONL is an input format. There is no database server, ORM, vector service or account requirement.
+| The fragment | The useful record |
+| --- | --- |
+| “I already explained how I like this done.” | Candidate preferences and corrections, linked to the messages that support them. |
+| “Did I choose this, or just consider it?” | Decision events that distinguish consideration, choice, reconsideration and reversal. |
+| “This keeps coming up.” | Recurring evidence across independent conversations, with counts and exact citations. |
+| “Where did that idea start?” | Local full-text search and immutable source revisions. |
+| “I want to read it in my own notes.” | An Obsidian-compatible vault with source links and space for your annotations. |
+| “That finding is wrong.” | Confirm, correct, reject, dismiss or undo a review. Automatic findings never confirm themselves. |
 
-SQLite fits transactional imports, edits, deletion and evidence relationships. DuckDB can be added later for analytical exports if needed; maintaining two databases now adds work without improving the core workflow. See [architecture](docs/architecture.md).
+## See it in action
 
-## Build and try
+### From a candidate to the original words, then your profile
 
-The tested toolchain is Rust 1.99.1 on Apple Silicon macOS 27.0.1. Bundled SQLCipher uses Apple CommonCrypto and needs native C build tools. [Platform policy](docs/platforms.md) · [Native dependency baseline](docs/native-dependencies.md).
+<p align="center">
+  <img src="docs/assets/dashboard-demo.gif" alt="Captured demo steps: review a recurring preference, open its original source revision, confirm it, see it in the profile, search SQLite, and inspect a decision timeline." width="100%">
+</p>
+
+**This is the real dashboard using fictional history**, captured as a guided sequence of steps. The demo has three conversations, 28 messages and nine grouped findings. Confirmation happens only in this synthetic archive. [Recreate it below](#try-the-fictional-demo), or open the [static screenshots](docs/assets/README.md) if you prefer no animation.
+
+### The same workflow from your terminal
+
+![Actual synthetic CLI output: initialize, import, analyze, inspect, confirm and generate a vault](docs/assets/cli-demo.gif)
+
+The CLI animation shows excerpts of actual command output; long IDs are abbreviated in the displayed commands. [Text transcript](docs/assets/cli-transcript.txt) · [Media provenance and regeneration](docs/assets/README.md).
+
+<details>
+<summary><strong>Screenshot gallery — source evidence, confirmed profile, search and decisions</strong></summary>
+
+| Exact source revision | Literal conversation search |
+| --- | --- |
+| ![Original source dialog with user and assistant roles, revision and message identities](docs/assets/source-evidence.png) | ![Five synthetic SQLite search results, each linked to its source revision](docs/assets/search.png) |
+
+| Reviewed knowledge | A choice with its earlier consideration |
+| --- | --- |
+| ![Only the explicitly confirmed fictional Rust preference appears in the profile](docs/assets/profile.png) | ![Synthetic decision timeline distinguishes considering SQLite from choosing it](docs/assets/timeline.png) |
+
+[Full discoveries view](docs/assets/discoveries.png). All images use the same bundled fictional history. No private account exports, real quotations, keys or bearer URLs are included.
+
+</details>
+
+## Install
+
+### Build from source
+
+You need Git, the pinned **Rust 1.99.1** toolchain and native C build tools. On the supported Mac, SQLCipher uses Apple CommonCrypto. See the [platform policy](docs/platforms.md) before targeting Linux or Windows.
 
 ```sh
-cargo build --locked
-cargo run -- init
-cargo run -- import tests/fixtures/chatgpt.json
-cargo run -- analyze
-cargo run -- discover
-cargo run -- web
+git clone https://github.com/diocata/remnary.git
+cd remnary
+cargo install --path . --locked
+remnary --version
 ```
 
-This workspace also provides `./scripts/cargo-local` for its isolated, ignored development toolchain. Use it in place of `cargo` when that toolchain is present. `cargo install --path . --locked` installs the CLI from your checkout; no Homebrew package or published binary is provided yet. A clean commit can produce a local archive with checksums using `python3 scripts/package-release.py --release`; the default without `--release` produces an evaluation archive; see [package contents and checks](docs/releasing.md).
-
-On macOS, `init` creates a random key in macOS Keychain and an encrypted archive under `~/Library/Application Support/remnary`. Keychain access may prompt. `--data-dir DIRECTORY` selects an independent archive. Initialization does not scan sources or call a model.
-
-Existing development archives remain readable; see [rename compatibility](docs/renaming.md) before moving an archive or switching its Keychain location.
-
-## Bring your history
+`rust-toolchain.toml` pins the tested toolchain. Make sure Cargo’s binary directory is on your `PATH`. To build without installing:
 
 ```sh
-remnary sources --detect
+cargo build --release --locked
+./target/release/remnary --help
+```
+
+`./scripts/cargo-local` is a convenience for the original development workspace’s isolated toolchain; it falls back to installed Cargo. It is not required for a normal clone.
+
+### Make your own checked local package
+
+From a clean committed checkout:
+
+```sh
+python3 scripts/package-release.py --release
+```
+
+This runs formatting, locked tests, Clippy, optimized compilation, signature verification and an encrypted CLI smoke test. The archive and SHA-256 checksum are written under `target/dist/`. It includes the binary, documentation, visual assets, demo, both project license texts and third-party notices. Packages are ad-hoc signed and unnotarized; this command does not publish them. [Packaging details →](docs/releasing.md)
+
+## Try the fictional demo
+
+The fastest way to explore without importing your history:
+
+```sh
+# From the cloned repository, after installing the CLI:
+python3 scripts/demo.py
+
+# Or use a local build:
+python3 scripts/demo.py --binary ./target/release/remnary
+```
+
+The script uses only [`examples/demo/conversations.json`](examples/demo/conversations.json). It creates a new private `.remnary/demo/` directory, a recovery key, an encrypted archive and a Markdown vault; runs import, rules analysis and integrity checks; and prints the exact command to start its dashboard. Run **one** of the alternatives above. Existing demo directories are never overwritten; choose another with `--directory .remnary/demo-2`.
+
+In the dashboard, open a source citation, confirm the fictional Rust preference, then open **Profile**. Try **Search → SQLite** and **Timeline**. The initial profile is empty until you review something. No account discovery or model call takes place. [Walkthrough and expected results →](examples/demo/README.md)
+
+## Quick start
+
+For your own archive, these commands use macOS Keychain by default:
+
+```sh
+remnary init
 remnary import /path/to/conversations.json
+remnary analyze
+remnary discover
+remnary web
+```
+
+`init` creates a random encryption key in macOS Keychain and an archive under `~/Library/Application Support/remnary`. Initialization does not scan sources or call a model. `web` prints a loopback URL containing a private session token. Open the complete link; stop the server with Ctrl-C.
+
+To keep a separate archive with a recovery key file:
+
+```sh
+# Use an existing private parent directory; choose a new key filename.
+remnary key create /private/keys/remnary.key
+remnary --data-dir /private/archive --key-file /private/keys/remnary.key init
+remnary --data-dir /private/archive --key-file /private/keys/remnary.key import /path/to/conversations.json
+```
+
+Use the same `--data-dir` and `--key-file` with subsequent commands. Key files must be private regular files, with Unix mode `0600`. Keychain access may prompt. [Existing development archives →](docs/renaming.md)
+
+## Bring your own history
+
+| Source | Selected input | Status |
+| --- | --- | --- |
+| **ChatGPT** | Mapping-format `conversations.json`; ZIP with that file or numbered conversation shards | Supported format with synthetic ZIP tests and five published real mapping records. An original account-export ZIP remains unverified. |
+| **Claude Code** | Local session JSONL file or directory | Supported; exercised on local histories. This is different from Claude consumer exports. |
+| **Codex** | Local rollout JSONL file or directory | Supported; attribution and inherited-session handling have regression coverage. |
+| **Kiro IDE** | Local `.chat` JSON file or selected chat directory | Supported observed format; cumulative copied dialogue is correlated conservatively. |
+| **Partial app history views** | Explicitly supplied ChatGPT snapshot JSON | Advanced/manual adapter; missing context and truncation stay labelled. No built-in account connector. |
+
+```sh
+# Inventory known local session locations; this does not import message bodies.
+remnary sources --detect
+
+# Choose the files or directory you want imported.
 remnary import /path/to/chatgpt-export.zip
 remnary import ~/.claude/projects --source claude-code
 remnary import ~/.codex/sessions --source codex
 remnary import "$HOME/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent" --source kiro
+
 remnary status
-remnary analyze
-remnary search "SQLite"
+remnary sources
 ```
 
-Detection inventories known session directories; importing reads the selected location. ChatGPT needs an account export. Collection is manual, with no watcher, browser extension or daemon. [Supported formats, limits and attribution safeguards](docs/sources.md).
+Imports preserve normalized revisions. Reimporting unchanged input does not add duplicate records. Detection is separate from import; there is no automatic watcher, browser extension or provider login flow. Private application formats can change. Claude consumer exports, Kiro CLI exports, Cursor databases and Gemini account histories are not supported adapters today. [Exact format boundaries, limits and attribution →](docs/sources.md)
 
-## Review findings
+## Review what Remnary finds
 
 ```sh
-remnary discover --all
+remnary discover --all --limit 100
 remnary patterns
 remnary patterns --topics
 remnary profile --candidates
 remnary timeline
-remnary today --timezone Europe/Luxembourg
-remnary feedback OBSERVATION_ID confirm
-remnary feedback OBSERVATION_ID correct --text "My corrected preference and context"
-remnary feedback OBSERVATION_ID reject
-remnary web
+remnary today --date 2026-10-18 --timezone Europe/Luxembourg
 ```
 
-`web` prints a loopback-only URL with a random session token. Open that complete link locally; treat it as private while the server runs. The dashboard supports evidence inspection, search and feedback. Ctrl-C stops the server.
-
-The default rules engine is deliberately narrow. It recognizes direct English statements and offers no broad understanding of your history. All findings start as candidates; recurrence alone never confirms a personal fact. Pasted conversations can still be misinterpreted. Only explicit review promotes a finding to the confirmed profile. Daily outputs are activity digests with evidence, rather than assertions that requested work was completed.
-
-An optional Ollama adapter supports a separately installed **local** model:
+Findings carry a type, a source-linked statement, an explicit/inferred label, supporting messages and a review status. Recurring support means the evidence repeats; it does not make a personal fact confirmed.
 
 ```sh
-# Start your trusted Ollama daemon with cloud features disabled first.
-OLLAMA_NO_CLOUD=1 ollama serve
-remnary analyze --engine ollama --model YOUR_INSTALLED_LOCAL_MODEL
+# Replace OBSERVATION_ID with an ID from `discover`.
+remnary feedback OBSERVATION_ID confirm
+remnary feedback OBSERVATION_ID correct --text "My preferred wording and context"
+remnary feedback OBSERVATION_ID reject
+remnary feedback OBSERVATION_ID dismiss
+remnary feedback OBSERVATION_ID reset
+
+remnary profile
 ```
 
-Remnary does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices, separately checks claim support and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. The real-history evaluation meets the initial grounding/usefulness/recurrence targets under owner-delegated agent assessment; it is not an independent human study.
+**Confirm** includes the finding in your profile. **Correct** saves your wording as confirmed. **Reject** records that it is wrong; **dismiss** sets it aside. **Reset** undoes the current review while retaining its history. Source evidence stays attached. The dashboard offers the same main review actions.
 
-The built-in Rules engine also detects repeated comparison requests. It needs two different eligible owner messages with different question text in a conversation; independent conversations can then support the same pattern. It describes recorded requests, with exact evidence, and leaves confirmation to you. The recognizer covers a bounded set of English request forms; it is not a general habit or personality classifier.
+The typed extraction format supports explicit and inferred preferences, corrections, decisions, topics, project references and behavioral patterns. The default rules engine recognizes a deliberately small set of English statements and comparison requests. Richer extraction uses the optional model; no engine gives perfect interpretation. [Evaluation and known errors →](docs/readiness.md)
 
-Related topics are available with `patterns --topics` (or `--topics --json`) and the dashboard’s Topics view. They connect findings with the same normalized topic label across at least two available independent conversations. Each claim keeps its context, evidence and review status. These connections do not establish an enduring preference or a current choice. Review the individual findings to correct or remove support.
+## Search and follow the evidence
 
-## Generate a vault
+```sh
+remnary search "SQLite"
+remnary sources
+remnary show CONVERSATION_ID --revision 1
+```
+
+Search uses SQLite full-text indexing over current, available conversations. Query words are treated literally and must match within a message. Source links in findings open their exact retained revision, even after a newer revision is imported. Missing timestamps stay unknown; partial views remain partial. There is no semantic/vector search service in v0.1.
+
+## Build a readable knowledge vault
 
 ```sh
 remnary vault sync /path/to/Remnary-vault --timezone Europe/Luxembourg
 remnary export /path/to/transcript-snapshots
 ```
 
-The vault contains Home, Profile, Discoveries, Candidates, Patterns, related Topics, Decisions, Daily notes and linked transcript snapshots. Obsidian is optional. Generated sections have ownership hashes; edits outside them survive synchronization. Conflicting generated edits are preserved and reported. [Import an explicit Markdown correction](docs/vault-feedback.md) with `vault apply-feedback FILE --check`, then apply it after reviewing. Stale review counts prevent accidental replay or overwriting another correction.
+`vault sync` creates linked knowledge notes; `export` creates immutable transcript snapshots. Obsidian is optional—these are regular Markdown files.
 
-**Markdown exports are plaintext.** Generate them only in a location you choose to protect. Remnary tracks owned projections for deletion/feedback cleanup, preserving user-written sections and reporting conflicts. Independent copies and older backups remain your responsibility.
+```text
+Remnary-vault/
+├── Home.md                 Your starting point
+├── Profile.md              Only confirmed knowledge
+├── Discoveries.md          Ranked, reviewable findings
+├── Topics.md               Related-topic threads
+├── Candidates/             Individual unconfirmed findings
+├── Decisions/              Decision-event notes
+├── Patterns/               Evidence-linked pattern notes
+├── Topics/                 Individual related-topic notes
+├── Daily/                  Activity digests by local date
+└── Transcripts/            Source-revision snapshots
+```
 
-## Protect and recover your archive
+Generated sections have ownership hashes. Write your own annotations **outside** those sections; synchronization preserves them. Edited generated sections produce conflicts rather than silent overwrites. You can also author an explicit `remnary-feedback` block and validate it before applying it. [Markdown feedback example →](docs/vault-feedback.md)
+
+**Vaults and transcript exports are plaintext.** Generate them in a location you choose to protect. Sync again after review changes; `cleanup` retries managed projection cleanup. Original exports, independent copies and older backups remain outside the canonical deletion boundary.
+
+## Optional local model
+
+Rules analysis works without a model. For richer candidate extraction, install Ollama and a local model separately, then start a trusted loopback daemon with cloud features disabled:
+
+```sh
+OLLAMA_NO_CLOUD=1 ollama serve
+remnary analyze --engine ollama --model YOUR_INSTALLED_LOCAL_MODEL
+```
+
+The evaluated setup uses `gemma4:12b-it-q4_K_M` on an M4 Pro with 24 GiB memory. Model downloads and inference require additional disk space, memory and time. Remnary does not download models automatically. [Exact setup, model identity and evaluation →](docs/local-model.md)
+
+Remnary rejects advertised cloud models and non-loopback endpoints, applies best-effort redaction, constrains citations, separately checks claim support and validates exact eligible-owner evidence. It still depends on a trustworthy local daemon. Model errors can remain; your review determines confirmed knowledge.
+
+## How it works
+
+![Five stages: select histories, retain encrypted evidence, extract candidates, review, and read the dashboard or vault](docs/assets/workflow.svg)
+
+```mermaid
+flowchart LR
+    A[Selected JSON / JSONL / ZIP] --> B[Normalize + deduplicate]
+    B --> C[(SQLCipher archive)]
+    C --> D[Rules or local Ollama]
+    D --> E[Typed candidates + exact evidence]
+    E --> F[Your review]
+    F --> C
+    C --> G[Loopback dashboard]
+    C --> H[Explicit Markdown projection]
+    F --> I[Confirmed-only profile]
+```
+
+The archive stores conversations, immutable revisions, full-text indexes, observations, feedback and deletion tombstones in **one SQLCipher-encrypted SQLite file**. Direct `rusqlite` calls keep the core small. No ORM, database server, vector service or cloud account is required.
+
+Why SQLite rather than DuckDB or a folder of JSON? The core workload needs transactional imports, revisions, relationships, review changes and deletion. JSON/JSONL is useful interchange; Markdown is useful reading and annotation. DuckDB could serve a future analytics export, but maintaining a second database adds work to the present workflow. [Architecture and invariants →](docs/architecture.md)
+
+## Privacy and data ownership
+
+| Boundary | Current behavior |
+| --- | --- |
+| Collection | Files you explicitly select. Detection inventories known locations separately. |
+| Canonical storage | SQLCipher encrypts conversations, metadata, derived records and full-text indexes. |
+| Keys | macOS Keychain or an explicit private recovery-key file. No automatic replacement of a missing original key. |
+| Dashboard | Authenticated loopback server with bearer, Host/Origin, content and CSP checks. No external assets in the app. |
+| Analysis | Built-in rules, or an explicitly selected trusted local Ollama daemon. No cloud extraction or telemetry. |
+| Personal profile | Only explicit confirmation or correction promotes a finding. |
+| Markdown | Explicitly generated plaintext; owned sections tracked for cleanup. |
+| Deletion | Canonical data and tracked projections; cannot erase original exports, independent copies or historical backups. |
+
+```sh
+remnary exclude CONVERSATION_ID
+remnary include CONVERSATION_ID
+remnary privacy list
+remnary cleanup
+```
+
+Persistent provider, project, directory and literal-topic exclusions can cover retained sources and future imports. Permanent deletion commands are available separately; review their help and backup boundaries before use. [Privacy controls →](docs/privacy.md) · [Security and reporting →](SECURITY.md)
+
+## Back up and recover
 
 ```sh
 remnary doctor
-remnary key export /private/location/recovery.key
-remnary backup /private/location/archive-backup.sqlite3
-remnary --data-dir /path/to/new-archive --key-file /private/location/recovery.key restore /private/location/archive-backup.sqlite3
+remnary key export /private/keys/recovery.key
+remnary backup /private/backups/archive.sqlite3
+remnary --data-dir /path/to/new-archive --key-file /private/keys/recovery.key restore /private/backups/archive.sqlite3
+remnary --data-dir /path/to/new-archive --key-file /private/keys/recovery.key doctor
 ```
 
-Keep recovery keys separate from backups. Restore requires an unused destination and the key that encrypted that backup. It validates integrity and does not take ownership of the original archive's Markdown files. Losing both Keychain access and the recovery key loses access to encrypted data.
+Keep recovery keys separate from backups. Restore uses the key that encrypted that backup and requires an unused destination. Losing both Keychain access and the recovery key loses access to the encrypted data. Key rotation uses a verified new-key copy/new-archive workflow. [Recovery, plaintext upgrades and key rotation →](docs/recovery.md)
 
-For explicit key-file operation (also the available path on non-macOS systems):
+## Command reference
+
+Run `remnary COMMAND --help` for arguments and flags. `--data-dir` and `--key-file` are global options.
+
+| Command | Purpose |
+| --- | --- |
+| `init`, `status`, `doctor` | Initialize, inspect counts, check integrity and pending cleanup. |
+| `import`, `import-app-snapshot` | Import selected files or an explicitly supplied partial view. |
+| `sources --detect`, `sources` | Inventory known local locations; list imported source identities. |
+| `analyze` | Incremental rules or local-model extraction. |
+| `discover`, `patterns`, `patterns --topics` | Review ranked findings, recurring evidence and related topics. |
+| `profile`, `profile --candidates` | Confirmed knowledge or candidate review. |
+| `timeline`, `today` | Decision events and local-day activity digests. |
+| `search`, `show` | Literal full-text search and exact normalized revisions. |
+| `feedback` | Confirm, correct, reject, dismiss, supersede or reset a review. |
+| `web` | Start the authenticated localhost dashboard. |
+| `vault sync`, `vault apply-feedback`, `export` | Managed knowledge notes, explicit Markdown review and transcript snapshots. |
+| `exclude`, `include`, `privacy` | Manual and persistent source exclusions. |
+| `delete`, `cleanup` | Canonical deletion and managed projection cleanup. |
+| `key`, `backup`, `restore`, `encrypt-copy` | Recovery keys, encrypted snapshots and explicit legacy conversion. |
+
+`--insecure-plaintext` is an explicit development/legacy mode. It never decrypts an encrypted archive. Prefer the default encrypted workflow.
+
+## Validation and performance
+
+**223 offline tests pass locally**, including encrypted CLI workflows and rename compatibility. The local release recipe also checks formatting, Clippy with warnings denied, optimized builds, ad-hoc signatures and encrypted smoke behavior. Separate model suites and process-interruption recovery checks are recorded in [release evidence](docs/readiness.md).
+
+A prior optimized build on an M4 Pro / 24 GiB imported a synthetic **2,000-conversation / 32,000-message** dataset in **3.04 seconds**, searched in **75.6–76.4 ms including startup/unlock**, and completed cached rules analysis in **0.17 seconds**. The browser also rendered 2,000 source rows and a 2,000-citation finding. These are local engineering observations, not performance guarantees. [Benchmark scope, memory and reproduction →](docs/performance.md)
+
+The 86-conversation real-history development assessment rated 33/34 observations grounded and four of the top five useful. It was agent-assessed under the owner’s delegation, **not an independent human study**. One uncertainty-loss error remains documented. No owner confirmation was fabricated; findings stay candidates until reviewed. [Assessment limitations →](docs/readiness.md)
+
+## Roadmap and current limits
+
+| Available in v0.1 | Later work |
+| --- | --- |
+| Manual selected-source imports | Universal live collection and browser extension |
+| CLI + localhost dashboard | Complete TUI and production daemon |
+| Rules + optional local Ollama | Broader extraction and independently assessed quality |
+| Full-text search + related topics | Semantic/vector search |
+| Local encrypted archive + explicit Markdown | Mobile clients and cloud sync |
+| Conservative review workflow | Autonomous rule enforcement |
+| Local Apple Silicon Mac validation | Other platforms, signed/notarized distribution |
+
+The [product brief](docs/product-brief.md) describes the broader vision; its first-release boundary is §24. A roadmap item is not a supported feature.
+
+## Frequently asked questions
+
+<details>
+<summary><strong>Does Remnary need an LLM, subscription or provider account?</strong></summary>
+
+No for the rules workflow. The demo runs entirely from bundled fictional files. An optional local model needs its own separately installed runtime and model. To import your account history, you provide an export or supported local session files.
+
+</details>
+
+<details>
+<summary><strong>Can it read all my ChatGPT or Claude conversations automatically?</strong></summary>
+
+No. The CLI does not log into provider accounts or scrape your browser. ChatGPT mapping exports and selected local Claude Code/Codex/Kiro files are supported. Partial app snapshots are an explicit advanced input, not a built-in account connector. Claude consumer exports are a separate unsupported format.
+
+</details>
+
+<details>
+<summary><strong>Does recurring evidence mean a preference is confirmed?</strong></summary>
+
+No. It means the available evidence repeats across counted conversations. Only your confirmation or correction adds a finding to the confirmed profile. Related topics preserve separate claims and contexts instead of silently merging them into an enduring personal trait.
+
+</details>
+
+<details>
+<summary><strong>Do I need Obsidian? Can I edit generated notes?</strong></summary>
+
+Obsidian is optional. Any Markdown reader works. Edit your annotations outside generated sections; managed-body edits become conflicts. Explicit review blocks can change findings through the validated feedback workflow.
+
+</details>
+
+<details>
+<summary><strong>Why is the profile empty after analysis?</strong></summary>
+
+That is expected. Analysis creates candidates. Review one with `feedback ID confirm`, correct its wording, or use the dashboard. The fictional demo also starts with an empty profile.
+
+</details>
+
+<details>
+<summary><strong>Where does the name come from?</strong></summary>
+
+**Remnant + diary.** A remnant is a trace of something from the past; a diary is a personal record of experiences, thoughts and activities. Remnary is an invented word, not an established dictionary entry. It represents a living record built from fragmented conversations, with room to grow beyond AI tools.
+
+</details>
+
+## Documentation
+
+| Guide | What you will find |
+| --- | --- |
+| [Demo walkthrough](examples/demo/README.md) | Recreate the screenshots with fictional history. |
+| [Source adapters](docs/sources.md) | Formats, attribution, partial views and input bounds. |
+| [Architecture](docs/architecture.md) | Storage, identity, extraction and evidence invariants. |
+| [Local model](docs/local-model.md) | Runtime setup, model identity and regression evidence. |
+| [Vault feedback](docs/vault-feedback.md) | Review blocks, validation and stale-review protection. |
+| [Privacy](docs/privacy.md) | Exclusion scopes, deletion and projection boundaries. |
+| [Recovery](docs/recovery.md) | Backups, restore, key changes and plaintext conversion. |
+| [Platforms](docs/platforms.md) | Tested target and portability limits. |
+| [Readiness](docs/readiness.md) | Acceptance evidence, measured quality and known errors. |
+| [Performance](docs/performance.md) | Reproducible synthetic benchmark and limitations. |
+| [Releasing](docs/releasing.md) | Local packaging, hashes, notices and signing scope. |
+| [Rename compatibility](docs/renaming.md) | Existing archives and older development formats. |
+| [Changelog](docs/changelog.md) | Release history. |
+| [Media sources](docs/assets/README.md) | Artwork, screenshots, GIFs and regeneration. |
+
+## Contributing
+
+Focused fixes, adapter fixtures, reproducible bug reports and documentation improvements are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```sh
-remnary key create /private/location/remnary.key
-remnary --data-dir /path/to/archive --key-file /private/location/remnary.key init
+cargo fmt --check
+cargo test --locked --all-targets
+cargo clippy --locked --all-targets -- -D warnings
+cargo build --release --locked
 ```
 
-Use that same `--key-file` with subsequent commands. On Unix key files must be private regular files, with mode `0600`. `--insecure-plaintext` explicitly selects development/legacy storage and never decrypts an encrypted archive. Default commands refuse plaintext stores; `encrypt-copy --new-key-file KEY` creates a separate encrypted copy. [Upgrade, restore and key-change workflows](docs/recovery.md).
-
-`exclude CONVERSATION_ID` hides retained evidence from search, analysis and projections; `include` reverses it. `delete conversation ID` purges canonical source revisions and derived dependencies; `delete observation ID` removes a finding and records an identity tombstone. `cleanup` retries projection conflicts. Persistent provider/project/directory/literal-topic rules are available through `privacy add/list/remove`. [Matching and limits](docs/privacy.md). Key changes use a verified backup/new-archive workflow. Deletion cannot erase independent backups or original exports. [Security boundaries](SECURITY.md).
-
-## Development
-
-```sh
-./scripts/cargo-local fmt --check
-./scripts/cargo-local test --locked
-./scripts/cargo-local clippy --locked --all-targets -- -D warnings
-```
-
-Only synthetic fixtures belong in Git. Keep real histories, keys, generated vaults and local model data outside the checkout or under ignored `.remnary/`. The [original product brief](docs/product-brief.md) is unchanged; [current release evidence](docs/readiness.md) distinguishes implementation from unverified requirements and future work.
+Use synthetic fixtures only. Keep real exports, histories, keys, generated personal vaults and model traces outside Git. Report sensitive issues privately to the repository owner; public issues should use nonsensitive reproductions. [Security reporting →](SECURITY.md)
 
 ## License
 
-Remnary is licensed under [MIT](LICENSE). Native dependency notices are included under [third_party/notices](third_party/notices/).
+Remnary’s original code, documentation and artwork are dual-licensed under **MIT OR Apache-2.0**, at your option:
+
+- [MIT License](LICENSE-MIT)
+- [Apache License, Version 2.0](LICENSE-APACHE)
+
+Copyright © 2026 Diogo Catarino and Remnary contributors. See the [license overview](LICENSE) and [NOTICE](NOTICE).
+
+Dependencies and separately licensed fixtures retain their own terms. The repository includes [native notices](third_party/notices/), [153 target-specific dependency notice sets](third_party/README.md), a [dependency inventory](third_party/dependencies.json) and the unmodified MPL dependency source required by that inventory. The published upstream ChatGPT compatibility fixture has [its own license](tests/fixtures/upstream-chatgpt-LICENSE.txt). These materials are not relicensed by the Remnary license choice.

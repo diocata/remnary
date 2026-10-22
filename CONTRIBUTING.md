@@ -19,4 +19,6 @@ Importer changes need stable identity, branch/role attribution, unknown-time, bo
 
 Schema changes must migrate transactionally and preserve existing source revisions, user feedback and deletion tombstones. Filesystem changes must preserve unowned/edited content and user-written sections. Test failure/recovery paths where canonical transactions and generated files cross boundaries.
 
-Prefer direct, small modules over new services and frameworks. Changes should explain the user-visible result and relevant validation. CI is configured, but a local successful run is not evidence that hosted CI has run. No remote is configured or public contribution/license policy finalized yet; do not publish private evaluation data as part of setup.
+Prefer direct, small modules over new services and frameworks. Changes should explain the user-visible result and relevant validation. CI is configured, but a local successful run is not evidence that hosted CI has run. Open focused pull requests at https://github.com/diocata/remnary with the behavior change and verification. Never publish private evaluation data.
+
+Unless explicitly stated otherwise, original contributions intentionally submitted for inclusion are offered under the project’s MIT OR Apache-2.0 terms, without additional terms. Third-party material must retain its original attribution and compatible license. Documentation screenshots must use the fictional archive under `examples/demo`, never real histories. See [documentation media](docs/assets/README.md) for provenance and regeneration.

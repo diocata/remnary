@@ -92,7 +92,9 @@ def main():
         "developer_id_signed": False, "notarized": False,
     }
     files = [("remnary", binary)]
-    for selected in ["README.md", "LICENSE", "SECURITY.md", "docs", "third_party"]:
+    for selected in ["README.md", "LICENSE", "LICENSE-MIT", "LICENSE-APACHE", "NOTICE", "SECURITY.md",
+                     "docs", "third_party", "examples/demo", "scripts/demo.py",
+                     "scripts/render-doc-art.py", "scripts/render-doc-media.py"]:
         path = ROOT / selected
         files.extend((str(file.relative_to(ROOT)), file) for file in
                      (sorted(path.rglob("*")) if path.is_dir() else [path]) if file.is_file())

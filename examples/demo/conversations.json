@@ -1,0 +1,694 @@
+[
+  {
+    "id": "604c8158-38e6-5d60-aee4-579c6afee663",
+    "title": "Demo · Storage that stays simple",
+    "create_time": 1792317600,
+    "update_time": 1792317990,
+    "current_node": "5b851556-93a5-5070-868a-3b86fa8e8ab9",
+    "synthetic_demo": true,
+    "mapping": {
+      "604c8158-38e6-5d60-aee4-579c6afee663-root": {
+        "id": "604c8158-38e6-5d60-aee4-579c6afee663-root",
+        "parent": null,
+        "children": [
+          "6ab3a127-73cc-567c-bb57-7c18b4d97155"
+        ],
+        "message": null
+      },
+      "6ab3a127-73cc-567c-bb57-7c18b4d97155": {
+        "id": "6ab3a127-73cc-567c-bb57-7c18b4d97155",
+        "parent": "604c8158-38e6-5d60-aee4-579c6afee663-root",
+        "children": [
+          "0ae0f926-cf58-52d1-a00c-2a4568d6a89a"
+        ],
+        "message": {
+          "id": "6ab3a127-73cc-567c-bb57-7c18b4d97155",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792317630,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "I prefer Rust for local tools."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "0ae0f926-cf58-52d1-a00c-2a4568d6a89a": {
+        "id": "0ae0f926-cf58-52d1-a00c-2a4568d6a89a",
+        "parent": "6ab3a127-73cc-567c-bb57-7c18b4d97155",
+        "children": [
+          "ef411c8f-5f0e-569c-b034-8f9c6fc4d00e"
+        ],
+        "message": {
+          "id": "0ae0f926-cf58-52d1-a00c-2a4568d6a89a",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792317660,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "ef411c8f-5f0e-569c-b034-8f9c6fc4d00e": {
+        "id": "ef411c8f-5f0e-569c-b034-8f9c6fc4d00e",
+        "parent": "0ae0f926-cf58-52d1-a00c-2a4568d6a89a",
+        "children": [
+          "e21c21ff-cf15-5a32-bf2b-c1ac6c95bb4e"
+        ],
+        "message": {
+          "id": "ef411c8f-5f0e-569c-b034-8f9c6fc4d00e",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792317690,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Keep the implementation simple."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "e21c21ff-cf15-5a32-bf2b-c1ac6c95bb4e": {
+        "id": "e21c21ff-cf15-5a32-bf2b-c1ac6c95bb4e",
+        "parent": "ef411c8f-5f0e-569c-b034-8f9c6fc4d00e",
+        "children": [
+          "a246050c-4c1f-568a-9cc4-13390aab42ad"
+        ],
+        "message": {
+          "id": "e21c21ff-cf15-5a32-bf2b-c1ac6c95bb4e",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792317720,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "a246050c-4c1f-568a-9cc4-13390aab42ad": {
+        "id": "a246050c-4c1f-568a-9cc4-13390aab42ad",
+        "parent": "e21c21ff-cf15-5a32-bf2b-c1ac6c95bb4e",
+        "children": [
+          "4c0192ea-4708-5688-b5e0-0331ca29a197"
+        ],
+        "message": {
+          "id": "a246050c-4c1f-568a-9cc4-13390aab42ad",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792317750,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "I am considering SQLite for this prototype."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "4c0192ea-4708-5688-b5e0-0331ca29a197": {
+        "id": "4c0192ea-4708-5688-b5e0-0331ca29a197",
+        "parent": "a246050c-4c1f-568a-9cc4-13390aab42ad",
+        "children": [
+          "839eb4ce-ad6a-5871-8ce1-45a350b25966"
+        ],
+        "message": {
+          "id": "4c0192ea-4708-5688-b5e0-0331ca29a197",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792317780,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "839eb4ce-ad6a-5871-8ce1-45a350b25966": {
+        "id": "839eb4ce-ad6a-5871-8ce1-45a350b25966",
+        "parent": "4c0192ea-4708-5688-b5e0-0331ca29a197",
+        "children": [
+          "c15ee99a-e33f-5d3b-9216-1b2d491cc683"
+        ],
+        "message": {
+          "id": "839eb4ce-ad6a-5871-8ce1-45a350b25966",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792317810,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Which is better for this prototype, SQLite or DuckDB?"
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "c15ee99a-e33f-5d3b-9216-1b2d491cc683": {
+        "id": "c15ee99a-e33f-5d3b-9216-1b2d491cc683",
+        "parent": "839eb4ce-ad6a-5871-8ce1-45a350b25966",
+        "children": [
+          "8b73912b-c79e-5c98-9636-d21fde721496"
+        ],
+        "message": {
+          "id": "c15ee99a-e33f-5d3b-9216-1b2d491cc683",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792317840,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "8b73912b-c79e-5c98-9636-d21fde721496": {
+        "id": "8b73912b-c79e-5c98-9636-d21fde721496",
+        "parent": "c15ee99a-e33f-5d3b-9216-1b2d491cc683",
+        "children": [
+          "95f06834-66cb-5201-9494-9592f2a1d04f"
+        ],
+        "message": {
+          "id": "8b73912b-c79e-5c98-9636-d21fde721496",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792317870,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Can you compare JSON files and SQLite for local history?"
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "95f06834-66cb-5201-9494-9592f2a1d04f": {
+        "id": "95f06834-66cb-5201-9494-9592f2a1d04f",
+        "parent": "8b73912b-c79e-5c98-9636-d21fde721496",
+        "children": [
+          "e312f566-dda3-5512-84b8-b91e68a9b524"
+        ],
+        "message": {
+          "id": "95f06834-66cb-5201-9494-9592f2a1d04f",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792317900,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "e312f566-dda3-5512-84b8-b91e68a9b524": {
+        "id": "e312f566-dda3-5512-84b8-b91e68a9b524",
+        "parent": "95f06834-66cb-5201-9494-9592f2a1d04f",
+        "children": [
+          "5b851556-93a5-5070-868a-3b86fa8e8ab9"
+        ],
+        "message": {
+          "id": "e312f566-dda3-5512-84b8-b91e68a9b524",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792317930,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "I chose SQLite for this prototype."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "5b851556-93a5-5070-868a-3b86fa8e8ab9": {
+        "id": "5b851556-93a5-5070-868a-3b86fa8e8ab9",
+        "parent": "e312f566-dda3-5512-84b8-b91e68a9b524",
+        "children": [],
+        "message": {
+          "id": "5b851556-93a5-5070-868a-3b86fa8e8ab9",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792317960,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "037f7dbc-3fc7-5c5f-a619-232c4eacb6b6",
+    "title": "Demo · A smaller search stack",
+    "create_time": 1792404000,
+    "update_time": 1792404330,
+    "current_node": "c21d4ef9-e1af-54cd-9998-b33ab59a5098",
+    "synthetic_demo": true,
+    "mapping": {
+      "037f7dbc-3fc7-5c5f-a619-232c4eacb6b6-root": {
+        "id": "037f7dbc-3fc7-5c5f-a619-232c4eacb6b6-root",
+        "parent": null,
+        "children": [
+          "a373720d-8632-59d7-a97a-13da00854a71"
+        ],
+        "message": null
+      },
+      "a373720d-8632-59d7-a97a-13da00854a71": {
+        "id": "a373720d-8632-59d7-a97a-13da00854a71",
+        "parent": "037f7dbc-3fc7-5c5f-a619-232c4eacb6b6-root",
+        "children": [
+          "fe8a6179-e6e4-51e7-b737-06290df81784"
+        ],
+        "message": {
+          "id": "a373720d-8632-59d7-a97a-13da00854a71",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792404030,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "I prefer Rust for local tools."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "fe8a6179-e6e4-51e7-b737-06290df81784": {
+        "id": "fe8a6179-e6e4-51e7-b737-06290df81784",
+        "parent": "a373720d-8632-59d7-a97a-13da00854a71",
+        "children": [
+          "1fff39bd-b1f6-5194-9c4f-38c1f4de2075"
+        ],
+        "message": {
+          "id": "fe8a6179-e6e4-51e7-b737-06290df81784",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792404060,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "1fff39bd-b1f6-5194-9c4f-38c1f4de2075": {
+        "id": "1fff39bd-b1f6-5194-9c4f-38c1f4de2075",
+        "parent": "fe8a6179-e6e4-51e7-b737-06290df81784",
+        "children": [
+          "3c0730f3-faf6-51f6-9d51-3298689a878e"
+        ],
+        "message": {
+          "id": "1fff39bd-b1f6-5194-9c4f-38c1f4de2075",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792404090,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Do not add new dependencies."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "3c0730f3-faf6-51f6-9d51-3298689a878e": {
+        "id": "3c0730f3-faf6-51f6-9d51-3298689a878e",
+        "parent": "1fff39bd-b1f6-5194-9c4f-38c1f4de2075",
+        "children": [
+          "9beb9098-01a2-5f24-a22d-173cb8c338ed"
+        ],
+        "message": {
+          "id": "3c0730f3-faf6-51f6-9d51-3298689a878e",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792404120,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "9beb9098-01a2-5f24-a22d-173cb8c338ed": {
+        "id": "9beb9098-01a2-5f24-a22d-173cb8c338ed",
+        "parent": "3c0730f3-faf6-51f6-9d51-3298689a878e",
+        "children": [
+          "b1bb1ca3-add6-56f7-810d-a4320822cca9"
+        ],
+        "message": {
+          "id": "9beb9098-01a2-5f24-a22d-173cb8c338ed",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792404150,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Which is better for local search, SQLite FTS or a separate service?"
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "b1bb1ca3-add6-56f7-810d-a4320822cca9": {
+        "id": "b1bb1ca3-add6-56f7-810d-a4320822cca9",
+        "parent": "9beb9098-01a2-5f24-a22d-173cb8c338ed",
+        "children": [
+          "96f21a49-1cc9-5915-9a51-8ca4b71fb21d"
+        ],
+        "message": {
+          "id": "b1bb1ca3-add6-56f7-810d-a4320822cca9",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792404180,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "96f21a49-1cc9-5915-9a51-8ca4b71fb21d": {
+        "id": "96f21a49-1cc9-5915-9a51-8ca4b71fb21d",
+        "parent": "b1bb1ca3-add6-56f7-810d-a4320822cca9",
+        "children": [
+          "f94e9351-97eb-502b-9010-9493a565f335"
+        ],
+        "message": {
+          "id": "96f21a49-1cc9-5915-9a51-8ca4b71fb21d",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792404210,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Can you compare keyword search and semantic search for a small archive?"
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "f94e9351-97eb-502b-9010-9493a565f335": {
+        "id": "f94e9351-97eb-502b-9010-9493a565f335",
+        "parent": "96f21a49-1cc9-5915-9a51-8ca4b71fb21d",
+        "children": [
+          "b1c4358f-261f-5f08-b9d3-a17ef02c0522"
+        ],
+        "message": {
+          "id": "f94e9351-97eb-502b-9010-9493a565f335",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792404240,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "b1c4358f-261f-5f08-b9d3-a17ef02c0522": {
+        "id": "b1c4358f-261f-5f08-b9d3-a17ef02c0522",
+        "parent": "f94e9351-97eb-502b-9010-9493a565f335",
+        "children": [
+          "c21d4ef9-e1af-54cd-9998-b33ab59a5098"
+        ],
+        "message": {
+          "id": "b1c4358f-261f-5f08-b9d3-a17ef02c0522",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792404270,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Keep the implementation simple."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "c21d4ef9-e1af-54cd-9998-b33ab59a5098": {
+        "id": "c21d4ef9-e1af-54cd-9998-b33ab59a5098",
+        "parent": "b1c4358f-261f-5f08-b9d3-a17ef02c0522",
+        "children": [],
+        "message": {
+          "id": "c21d4ef9-e1af-54cd-9998-b33ab59a5098",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792404300,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "12825197-be21-57d2-b70a-bd98d4a91019",
+    "title": "Demo · Explanations I can use",
+    "create_time": 1792490400,
+    "update_time": 1792490610,
+    "current_node": "f76dcd09-e924-55ca-87a8-75d05a1cb070",
+    "synthetic_demo": true,
+    "mapping": {
+      "12825197-be21-57d2-b70a-bd98d4a91019-root": {
+        "id": "12825197-be21-57d2-b70a-bd98d4a91019-root",
+        "parent": null,
+        "children": [
+          "43fa16f2-55cb-51df-987f-ed747627e9bb"
+        ],
+        "message": null
+      },
+      "43fa16f2-55cb-51df-987f-ed747627e9bb": {
+        "id": "43fa16f2-55cb-51df-987f-ed747627e9bb",
+        "parent": "12825197-be21-57d2-b70a-bd98d4a91019-root",
+        "children": [
+          "cddab115-d7b5-5c93-93d0-c9d66811c42f"
+        ],
+        "message": {
+          "id": "43fa16f2-55cb-51df-987f-ed747627e9bb",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792490430,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "I prefer concise explanations."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "cddab115-d7b5-5c93-93d0-c9d66811c42f": {
+        "id": "cddab115-d7b5-5c93-93d0-c9d66811c42f",
+        "parent": "43fa16f2-55cb-51df-987f-ed747627e9bb",
+        "children": [
+          "6a0a685c-940c-52ba-a105-ce016f72f811"
+        ],
+        "message": {
+          "id": "cddab115-d7b5-5c93-93d0-c9d66811c42f",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792490460,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "6a0a685c-940c-52ba-a105-ce016f72f811": {
+        "id": "6a0a685c-940c-52ba-a105-ce016f72f811",
+        "parent": "cddab115-d7b5-5c93-93d0-c9d66811c42f",
+        "children": [
+          "df4cadc2-1c40-5f21-af0d-ee2bef93763a"
+        ],
+        "message": {
+          "id": "6a0a685c-940c-52ba-a105-ce016f72f811",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792490490,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Keep explanations concise."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "df4cadc2-1c40-5f21-af0d-ee2bef93763a": {
+        "id": "df4cadc2-1c40-5f21-af0d-ee2bef93763a",
+        "parent": "6a0a685c-940c-52ba-a105-ce016f72f811",
+        "children": [
+          "8971ff7c-2a92-5dce-b978-a7b80ab322af"
+        ],
+        "message": {
+          "id": "df4cadc2-1c40-5f21-af0d-ee2bef93763a",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792490520,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "8971ff7c-2a92-5dce-b978-a7b80ab322af": {
+        "id": "8971ff7c-2a92-5dce-b978-a7b80ab322af",
+        "parent": "df4cadc2-1c40-5f21-af0d-ee2bef93763a",
+        "children": [
+          "f76dcd09-e924-55ca-87a8-75d05a1cb070"
+        ],
+        "message": {
+          "id": "8971ff7c-2a92-5dce-b978-a7b80ab322af",
+          "author": {
+            "role": "user"
+          },
+          "create_time": 1792490550,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "I prefer examples with working code."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      },
+      "f76dcd09-e924-55ca-87a8-75d05a1cb070": {
+        "id": "f76dcd09-e924-55ca-87a8-75d05a1cb070",
+        "parent": "8971ff7c-2a92-5dce-b978-a7b80ab322af",
+        "children": [],
+        "message": {
+          "id": "f76dcd09-e924-55ca-87a8-75d05a1cb070",
+          "author": {
+            "role": "assistant"
+          },
+          "create_time": 1792490580,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Demo response: we can compare the tradeoffs and keep the source evidence attached."
+            ]
+          },
+          "metadata": {
+            "synthetic_demo": true
+          }
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,91 @@
+{
+  "synthetic_data_only": true,
+  "dataset": "examples/demo/conversations.json",
+  "capture_date": "2026-10-22",
+  "runtime_source_commit": "44abcf4d738c7312520539382750a6b47f3c5228",
+  "license": "MIT OR Apache-2.0",
+  "assets": {
+    "dashboard-demo.gif": {
+      "sha256": "82ba6fd492d61ce24bccc005558a7c71c21c652914849636286f94afe96d9680",
+      "bytes": 705249,
+      "format": "GIF",
+      "dimensions": [
+        1280,
+        798
+      ],
+      "frames": 6
+    },
+    "cli-transcript.txt": {
+      "sha256": "c595371997fbfe6680ee633639e3eff69450597c097c8752b54c1860248c088e",
+      "bytes": 2155
+    },
+    "hero.svg": {
+      "sha256": "1f7edf007d16c4a507bd43dd6e47f7f60846ad18cf559e3bda5ba425d91403d7",
+      "bytes": 3188
+    },
+    "search.png": {
+      "sha256": "c4703afdc5a94c8a1e6c90c46c2108f7a40c2983629a29c8ca2ef86b723d42c7",
+      "bytes": 222606,
+      "format": "PNG",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "frames": 1
+    },
+    "workflow.svg": {
+      "sha256": "78b7db39bcc8ea5e9982b9f05f56aaac3ac05ba73aaf81e98b60f65cb5d1eba3",
+      "bytes": 3318
+    },
+    "timeline.png": {
+      "sha256": "7cbad495bd11064b2e8e3a04794e6af48baaf0c2227cd00f9ebe2d5daf0799da",
+      "bytes": 313934,
+      "format": "PNG",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "frames": 1
+    },
+    "profile.png": {
+      "sha256": "864faa612f05febe8cb189d1ac1cfb18233e616089c3fef130a0dfd0f0eece87",
+      "bytes": 348781,
+      "format": "PNG",
+      "dimensions": [
+        1280,
+        974
+      ],
+      "frames": 1
+    },
+    "discoveries.png": {
+      "sha256": "9b81aa1efccb1fdee0b489140beea6b7fe2a601309ad70ecb0b195003a23f5d5",
+      "bytes": 455281,
+      "format": "PNG",
+      "dimensions": [
+        1280,
+        1151
+      ],
+      "frames": 1
+    },
+    "source-evidence.png": {
+      "sha256": "67b71e261284161503a1497c059670fa4202c7fdfdf5b5a100954f4f55673c79",
+      "bytes": 195988,
+      "format": "PNG",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "frames": 1
+    },
+    "cli-demo.gif": {
+      "sha256": "0f9d977ad0ada63d2a6dc1992316460dd2eed06bc4dd997b699d2ed5b9856fe0",
+      "bytes": 154150,
+      "format": "GIF",
+      "dimensions": [
+        1000,
+        570
+      ],
+      "frames": 7
+    }
+  }
+}
