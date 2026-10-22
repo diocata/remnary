@@ -11,11 +11,11 @@ Remnary v0.2.0 builds native **x86-64 and ARM64 packages for all three operating
 | `x86_64-unknown-linux-gnu` | Ubuntu 22.04 x64 | Bundled OpenSSL; explicit private key file |
 | `aarch64-unknown-linux-gnu` | Ubuntu 22.04 ARM64 | Bundled OpenSSL; explicit private key file |
 | `x86_64-apple-darwin` | macOS 15 Intel | CommonCrypto; Keychain or private key file |
-| `aarch64-apple-darwin` | macOS 15 Apple Silicon | CommonCrypto; Keychain or private key file |
+| `aarch64-apple-darwin` | macOS 26 Apple Silicon | CommonCrypto; Keychain or private key file |
 
 A tag publishes only after every native job and the dependency advisory job pass. Each native job runs locked all-target tests, formatting, Clippy with warnings denied, an optimized build, executable smoke checks and target-specific license collection. `BUILD.json` records the actual runner, toolchain, source commit, target, executable hash and runtime-smoke result. [Workflow](../.github/workflows/ci.yml).
 
-Linux binaries use glibc and are built on Ubuntu 22.04; the release baseline is **glibc 2.35+**. Alpine/musl, 32-bit CPUs, BSD and other triples are outside this matrix. macOS builds set a **13.0 deployment target**, with CI execution on macOS 15; the minimum linker target is not a claim that every macOS version was independently exercised. Local development was also tested on Apple Silicon macOS 27.0.1. Windows x64 CI runs on Server 2022; ARM64 runs on Windows 11. Other Windows versions are not independently covered by the runner matrix.
+Linux binaries use glibc and are built on Ubuntu 22.04; the release baseline is **glibc 2.35+**. Alpine/musl, 32-bit CPUs, BSD and other triples are outside this matrix. macOS builds set a **13.0 deployment target**, with CI execution on macOS 15 (Intel) and 26 (Apple Silicon); the minimum linker target is not a claim that every macOS version was independently exercised. Local development was also tested on Apple Silicon macOS 27.0.1. Windows x64 CI runs on Server 2022; ARM64 runs on Windows 11. Other Windows versions are not independently covered by the runner matrix.
 
 ## Run a downloaded binary
 

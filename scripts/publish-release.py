@@ -53,7 +53,9 @@ def main():
     print('All six targets and executable/archive identities verified.')
     if args.verify_only:
         return
-    subprocess.run(['git', 'rev-parse', '--verify', 'refs/tags/' + args.tag], check=True, capture_output=True)
+    tag_commit = subprocess.check_output(['git', 'rev-parse', '--verify', 'refs/tags/' + args.tag + '^{commit}'], text=True).strip()
+    if tag_commit != commit:
+        raise SystemExit('Tag does not identify the checked source commit.')
     notes = ROOT / 'docs/releases' / (args.tag + '.md')
     subprocess.run(['gh', 'release', 'create', args.tag, '--repo', REPO, '--draft', '--verify-tag',
                     '--title', 'Remnary ' + args.tag, '--notes-file', str(notes)], check=True)

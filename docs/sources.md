@@ -12,6 +12,10 @@ Remnary imports files you select. It does not sign into providers, read credenti
 
 These private application formats can change. Local compatibility evidence is from this machine on 2026-10-20, rather than a promise about every application version. Unknown formats fail with a diagnostic instead of being reported as connected. Claude consumer exports, Kiro CLI exports, Cursor databases, Gemini and other account histories are currently unsupported. Finding an installed application does not provide access to its account history.
 
+## Platform source locations
+
+v0.2 detects Claude Code and Codex below the home directory on every platform. Kiro detection uses `~/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent` on macOS, `~/.config/Kiro/User/globalStorage/kiro.kiroagent` on Linux, and `~/AppData/Roaming/Kiro/User/globalStorage/kiro.kiroagent` on Windows. Custom or redirected locations can be supplied explicitly to `import --source kiro`; detection does not silently scan other directories. The compatibility input/coverage limits above still apply.
+
 ## Partial connected-app views
 
 `remnary import-app-snapshot /path/to/snapshot.json` accepts a selected ChatGPT `read_thread` result from Codex app. Codex task views are refused here because their human/subagent attribution is not established by this view; use local Codex JSONL instead. `remnary import-app-snapshot -` reads one compact JSON line from standard input, allowing a caller to send an authorized tool result directly into encryption without a plaintext export file. The Rust application does not itself connect to Codex/ChatGPT accounts; these tools are available to the assistant in this app session.

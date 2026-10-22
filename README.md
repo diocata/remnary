@@ -80,7 +80,7 @@ Open [the latest release](https://github.com/diocata/remnary/releases/latest) an
 
 Extract the archive into a folder you own. In that folder, run `./remnary --help` on Linux/macOS or `.\remnary.exe --help` in PowerShell. Add that folder to your `PATH` for convenience, or keep using the explicit executable path. The dashboard opens in your browser; there is no separate desktop installer.
 
-Each archive includes the guides, demo, both licenses, target-specific notices and `BUILD.json`. Verify its SHA-256 against the accompanying `.sha256` or `SHA256SUMS` file. Linux binaries require **glibc 2.35+**; musl/Alpine is outside this matrix. macOS builds target **13.0+** and are runtime-tested on macOS 15. Windows binaries bundle the MSVC runtime. These are unsigned on Windows and ad-hoc signed/unnotarized on macOS; source builds remain available for environments that require other distribution policies.
+Each archive includes the guides, demo, both licenses, target-specific notices and `BUILD.json`. Verify its SHA-256 against the accompanying `.sha256` or `SHA256SUMS` file. Linux binaries require **glibc 2.35+**; musl/Alpine is outside this matrix. macOS builds target **13.0+** and are runtime-tested on macOS 15 (Intel) and 26 (Apple Silicon). Windows binaries bundle the MSVC runtime. These are unsigned on Windows and ad-hoc signed/unnotarized on macOS; source builds remain available for environments that require other distribution policies.
 
 ### Build from source
 
@@ -454,4 +454,4 @@ Remnary’s original code, documentation and artwork are dual-licensed under **M
 
 Copyright © 2026 Diogo Catarino and Remnary contributors. See the [license overview](LICENSE) and [NOTICE](NOTICE).
 
-Dependencies and separately licensed fixtures retain their own terms. The repository includes [native notices](third_party/notices/), [153 target-specific dependency notice sets](third_party/README.md), a [dependency inventory](third_party/dependencies.json) and the unmodified MPL dependency source required by that inventory. The published upstream ChatGPT compatibility fixture has [its own license](tests/fixtures/upstream-chatgpt-LICENSE.txt). These materials are not relicensed by the Remnary license choice.
+Dependencies and separately licensed fixtures retain their own terms. The repository includes [native notices](third_party/notices/), [target-specific dependency notice sets](third_party/README.md), a [dependency inventory](third_party/dependencies.json) and the unmodified MPL dependency source required by that inventory. The published upstream ChatGPT compatibility fixture has [its own license](tests/fixtures/upstream-chatgpt-LICENSE.txt). These materials are not relicensed by the Remnary license choice.

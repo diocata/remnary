@@ -34,7 +34,7 @@ jobs:
           - runner: windows-11-arm
             target: aarch64-pc-windows-msvc
             arch: arm64
-          - runner: macos-15
+          - runner: macos-26
             target: aarch64-apple-darwin
             arch: arm64
           - runner: macos-15-intel
