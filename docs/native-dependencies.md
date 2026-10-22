@@ -1,4 +1,14 @@
-# Native dependency baseline
+# Native dependency provenance
+
+## Cross-platform v0.2
+
+All six targets retain SQLCipher 4.19.0 / SQLite 3.53.4 from the same pinned rusqlite revision. macOS uses CommonCrypto. Windows and Linux enable `bundled-sqlcipher-vendored-openssl`; the lockfile pins `openssl-sys 0.9.117` and `openssl-src 300.6.1+3.6.3` (OpenSSL 3.6.3). Release builds link that crypto implementation statically, and Windows also uses a static MSVC runtime. No runtime database or OpenSSL installation is required.
+
+Each native package has a freshly resolved target dependency inventory and preserves the bundled OpenSSL LICENSE/NOTICE material as well as the SQLCipher notices. Its BUILD.json, checksum and completed encrypted smoke workflow identify the actual executable. The checked-in third_party inventory and the evidence below describe the earlier Mac baseline; they are not substituted for the other targets' inventories. See [platforms](platforms.md) and [release checks](releasing.md).
+
+## Historical Apple Silicon baseline
+
+### Recorded native engine upgrade
 
 Verified locally on 2026-10-20:
 

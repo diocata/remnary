@@ -300,9 +300,9 @@ mod tests {
                 conflicts: 0
             }
         );
-        let path = fs::read_dir(&output)?.next().unwrap()?.path();
         #[cfg(unix)]
         {
+            let path = fs::read_dir(&output)?.next().unwrap()?.path();
             use std::os::unix::fs::PermissionsExt;
             assert_eq!(fs::metadata(&output)?.permissions().mode() & 0o777, 0o700);
             assert_eq!(fs::metadata(path)?.permissions().mode() & 0o777, 0o600);
