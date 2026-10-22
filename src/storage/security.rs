@@ -2,9 +2,9 @@
 //! plaintext exports. Key material is never serialized, printed or put in SQL.
 //!
 //! SQLCipher's supported raw-key syntax and first-schema-read validation:
-//! https://www.zetetic.net/sqlcipher/sqlcipher-api/#setting-the-key
+//! <https://www.zetetic.net/sqlcipher/sqlcipher-api/#setting-the-key>
 //! Native Keychain access uses keyring's binary get_secret/set_secret API:
-//! https://docs.rs/keyring/3.6.3/keyring/struct.Entry.html
+//! <https://docs.rs/keyring/3.6.3/keyring/struct.Entry.html>
 
 use std::fs::{self, File, Metadata};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
