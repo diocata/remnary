@@ -40,9 +40,9 @@ impl Processor {
     pub fn ollama(model: &str) -> Self {
         Self {
             engine: "ollama".into(),
-            version: "35".into(),
+            version: "36".into(),
             model: model.into(),
-            prompt_version: "35".into(),
+            prompt_version: "36".into(),
         }
     }
 

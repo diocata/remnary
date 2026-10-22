@@ -675,6 +675,49 @@ fn strip_instruction_prefix<'a>(text: &'a str, prefixes: &[(usize, &str)]) -> &'
     text
 }
 
+// The observed Kiro Included Rules envelope is automatically supplied context,
+// despite its native human role. Match its normalized boilerplate fingerprint
+// and balanced rule envelope, preserving only the original-byte owner tail.
+const KIRO_INCLUDED_RULE_GUIDANCE: &str =
+    "6f0f29f3b67341a83dc17dda22ee6fbe4e98c970c826339f07b249e19821219c";
+fn strip_included_rules<'a>(mut text: &'a str, guidance_hash: &str) -> &'a str {
+    loop {
+        let candidate = text.trim_start();
+        let Some((header, body)) = candidate.split_once('\n') else {
+            return text;
+        };
+        let Some(name) = header
+            .trim_end_matches('\r')
+            .strip_prefix("## Included Rules (")
+            .and_then(|s| s.strip_suffix(") [Workspace]"))
+        else {
+            return text;
+        };
+        if name.is_empty() || name.len() > 1024 || name.contains(['<', '>', '\r']) {
+            return text;
+        }
+        let Some(open_at) = body.find("<user-rule id=") else {
+            return text;
+        };
+        let guidance = body[..open_at]
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        if digest(guidance.as_bytes()) != guidance_hash {
+            return text;
+        }
+        let opening = format!("<user-rule id={name}>");
+        let Some(rule) = body[open_at..].strip_prefix(&opening) else {
+            // A recognized machine envelope with no reliable owner boundary.
+            return "";
+        };
+        let Some((_, tail)) = rule.split_once("</user-rule>") else {
+            return "";
+        };
+        text = tail;
+    }
+}
+
 /// UI question replies contain an assistant-authored question beside the user's
 /// answer. Only the raw JSON string interiors of answer fields supply evidence.
 /// Keeping the original escapes preserves exact source byte attribution.
@@ -684,6 +727,7 @@ pub(crate) fn personal_evidence_spans(message: &Message) -> Vec<&str> {
 
 pub(crate) fn personal_evidence_text<'a>(role: &str, raw: &'a str) -> Vec<&'a str> {
     let owner_content = strip_instruction_prefix(raw, KIRO_STEERING_PREFIXES);
+    let owner_content = strip_included_rules(owner_content, KIRO_INCLUDED_RULE_GUIDANCE);
     let content = owner_content.trim();
     if !role.eq_ignore_ascii_case("user") || content.is_empty() || declared_transcript(content) {
         return Vec::new();
@@ -1069,6 +1113,36 @@ mod tests {
         assert_eq!(strip_instruction_prefix(personal, &known), personal);
         let modified = prefix.replace("initialization", "discussion");
         assert_eq!(strip_instruction_prefix(&modified, &known), modified);
+    }
+
+    #[test]
+    fn included_rule_envelopes_preserve_only_original_owner_tail() {
+        let guidance = "Synthetic automatically supplied guidance.";
+        let hash = digest(guidance.as_bytes());
+        let block = |name: &str| {
+            format!(
+                "## Included Rules ({name}) [Workspace]\n\n  {guidance}\n\n<user-rule id={name}>\n```\nI prefer generated rule content.\n```\n</user-rule>"
+            )
+        };
+        let one = block("one.md");
+        assert!(strip_included_rules(&one, &hash).is_empty());
+        let tail = "\n\nI prefer Rust for local tools.";
+        let combined = format!("{}\n\n{}{tail}", one, block("two.md"));
+        assert_eq!(strip_included_rules(&combined, &hash), tail);
+        assert!(combined.contains(strip_included_rules(&combined, &hash)));
+        let crlf = combined.replace('\n', "\r\n");
+        assert_eq!(
+            strip_included_rules(&crlf, &hash),
+            tail.replace('\n', "\r\n")
+        );
+        let ordinary = "I prefer flat code organization and want to discuss user-rule tags.";
+        assert_eq!(strip_included_rules(ordinary, &hash), ordinary);
+        let changed = one.replace(guidance, "Owner-authored notes about rule design.");
+        assert_eq!(strip_included_rules(&changed, &hash), changed);
+        let unclosed = one.replace("</user-rule>", "");
+        assert!(strip_included_rules(&unclosed, &hash).is_empty());
+        let wrong_id = one.replace("id=one.md", "id=other.md");
+        assert!(strip_included_rules(&wrong_id, &hash).is_empty());
     }
 
     #[test]

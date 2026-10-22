@@ -53,3 +53,5 @@ Kiro's execution ID is retained as a source-record identity. Different execution
 
 
 The observed Kiro steering-initialization template is excluded from personal evidence by exact LF/CRLF prefix fingerprints. Owner text appended after a recognized prefix remains eligible, and the raw message is retained. This is observed-template compatibility, not universal recognition of future provider prompts. Source-origin correlation requires a substantive reply after eligible owner text; machine initialization frames alone cannot make independent owner requests look copied.
+
+The observed Kiro Included Rules workspace envelope also supplies machine context under a native human role. A normalized guidance fingerprint and matching header/tag identify consecutive blocks; original owner text following them stays eligible. Raw source records remain unchanged. This is bounded compatibility with the observed envelope, not universal recognition of future provider formats.
