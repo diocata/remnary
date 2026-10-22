@@ -2,7 +2,7 @@
 
 Remnary is the project name, Rust crate and CLI executable. New archives use `remnary.sqlite3`, new macOS Keychain entries use `dev.remnary`, and the default data directory is `~/Library/Application Support/remnary`. New snapshots and managed Markdown use the Remnary namespace. The dashboard, release filenames and commands use the same name.
 
-The previous development name was Observr. Compatibility identifiers retain that spelling only where needed to read existing data; they are not current branding. The database application ID and schema remain unchanged so encrypted backups stay compatible.
+The previous development name was Observr. Compatibility identifiers retain that spelling only where needed to read existing data; they are not current branding. Kiro message-origin hash domains also remain unchanged so existing evidence identities stay stable. The database application ID and schema remain unchanged so encrypted backups stay compatible.
 
 ## Keep using an existing archive
 

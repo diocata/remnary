@@ -41,7 +41,8 @@ impl OriginIndex {
                 histories.push(History {
                     id,
                     prefixes: vec![],
-                    hash: digest(b"remnary-kiro-prefix-v1"),
+                    // Persisted/exposed origin keys keep their original hash domain.
+                    hash: digest(b"observr-kiro-prefix-v1"),
                     has_user: false,
                     reply_bytes: 0,
                 });
