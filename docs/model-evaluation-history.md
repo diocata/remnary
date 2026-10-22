@@ -262,3 +262,5 @@ V33 full generation passes **39/39 in 722.54 seconds**. The verifier stage stopp
 ## V34 complete verifier and V35 classification priority
 
 V34 completes all 54 verifier cases with consistent verdict/reason output, passing **53/54 in 683.54 seconds**. It accepts an offered implementation option for a concrete goal as a generic topic. The worker stops before generation/review/real extraction, and the follow-on corpus job exits without modifying the baseline. V35 makes the deliberation role mandatory for offered options; topical relevance alone cannot justify the broader kind. Additional transfer cases retain actual explanation topics and correctly classified considerations. Targeted classification passes **5/5 in 88.20 seconds**. All 207 offline tests, formatting, Clippy and debug builds pass. Full current gates remain open.
+
+Full v35 verification passes **57/57 in 829.53 seconds**, fixture SHA-256 `7ee697169619e404b30044af5a9303476ef4404ddd21e6284b4a484010cd3932`, frozen executable/code at `acd155e`. The gated pipeline continues with generation, identity/review and real histories; no full real-quality acceptance is claimed.
