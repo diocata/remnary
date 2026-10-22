@@ -68,3 +68,5 @@ V31 passed 38/38 generation cases, 48/48 verifier cases, 13/13 identity cases an
 Real acceptance uses a private encrypted forty-source corpus and agent source review under the owner's explicit delegation, without fabricated owner confirmation or independent-human ratings. Real histories bypass synthetic tracing proxies. Current results, exact package provenance and acceptance limits are in [readiness.md](readiness.md); source/format boundaries are in [sources.md](sources.md). No private corpus, model trace or key is committed.
 
 V33 targeted verification passes **6/6 in 188.90 seconds**: two positive repeated-behavior controls and four insufficient-support controls, including concrete project scope and compound actions. This is a targeted regression result, not full acceptance.
+
+V36 full verifier regression passes **57/57 in 832.01 seconds**; remaining current-version gates are still running.
