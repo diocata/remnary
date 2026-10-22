@@ -1,6 +1,6 @@
 # Synthetic performance check
 
-Measured 2026-10-22 on an Apple M4 Pro Mac with 24 GiB unified memory, Rust 1.99.1 and the optimized packaged v36/rules6 executable from commit `857713c600c8` (binary SHA-256 `41d2c97d0974e716db38553a4fc4e512fd4c5cd897f2b2c1e003783023802e22`). This is a local engineering check, not a cross-platform guarantee or a model-quality benchmark.
+Measured 2026-10-22 on an Apple M4 Pro Mac with 24 GiB unified memory, Rust 1.99.1 and the optimized packaged topic-view executable from commit `b329dc524447` (binary SHA-256 `3e1695edc50f9cc9aae4710f700f965bceb651174717007c7325000c88a976cf`). This is a local engineering check, not a cross-platform guarantee or a model-quality benchmark.
 
 ```sh
 python3 scripts/benchmark.py --binary /path/to/extracted/observr \
@@ -9,20 +9,22 @@ python3 scripts/benchmark.py --binary /path/to/extracted/observr \
 
 The script creates a temporary directory containing only generated synthetic history, a private key, an encrypted archive, a vault and backup. It verifies unchanged reimport, cached analysis, unchanged vault generation and final integrity, then removes the temporary directory. It never scans real histories. `/usr/bin/time -l` supplies peak process RSS on macOS.
 
-Input: **2,000 conversations / 32,000 messages**, 16.05 MiB JSON. The encrypted schema-5 database occupied 61.25 MiB. Integrity/foreign keys passed, with zero pending projection cleanup. Local Observr inference had finished before this check. Other desktop activity was not isolated, so these figures remain an engineering observation rather than an isolated microbenchmark.
+Input: **2,000 conversations / 32,000 messages**, 16.05 MiB JSON. The encrypted schema-5 database occupied 65.32 MiB. Integrity/foreign keys passed, with zero pending projection cleanup. Local Observr inference had finished before this check. Other desktop activity was not isolated, so these figures remain an engineering observation rather than an isolated microbenchmark.
 
 | Operation | Wall time | Peak process RSS |
 | --- | ---: | ---: |
-| Import | 3.00 s | 280.42 MiB |
-| Unchanged import | 0.73 s | 280.33 MiB |
-| Rules analysis | 3.95 s | 145.12 MiB |
-| Cached analysis | 0.17 s | 142.44 MiB |
-| Search (five runs, including startup/unlock) | 75–77 ms | 13.03–13.06 MiB |
-| Discover | 0.04 s | 16.33 MiB |
-| Initial knowledge vault | 36.11 s | 190.05 MiB |
-| Unchanged vault | 5.61 s | 193.89 MiB |
-| Encrypted backup | 0.46 s | 15.56 MiB |
-| Integrity check | 0.25 s | 12.91 MiB |
+| Import | 3.11 s | 280.78 MiB |
+| Unchanged import | 0.74 s | 280.39 MiB |
+| Rules analysis | 4.07 s | 145.42 MiB |
+| Cached analysis | 0.17 s | 142.39 MiB |
+| Search (five runs, including startup/unlock) | 76–78 ms | 12.91–13.02 MiB |
+| Discover | 0.04 s | 16.38 MiB |
+| Initial knowledge vault | 40.07 s | 191.33 MiB |
+| Unchanged vault | 6.89 s | 196.03 MiB |
+| Encrypted backup | 0.49 s | 15.53 MiB |
+| Integrity check | 0.26 s | 12.97 MiB |
+
+The topic-view package also writes a Topics index and evidence-linked related-topic notes with managed source/claim dependencies. These add projection output and ownership metadata.
 
 Current memory costs include buffering input and normalized records. Cached analysis still loads current snapshots before checking run identities; it avoids inference but is not constant-memory. Managed vault writes intentionally synchronize stages/ownership records, so initial output has a larger filesystem cost. Larger real messages, attachment metadata, many distinct claims and slow disks will change these figures. Input/analysis-window bounds and checkpointed conversation commits remain necessary.
 
