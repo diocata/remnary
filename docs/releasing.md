@@ -1,34 +1,46 @@
-# Local evaluation packages
+# Native packages and GitHub Releases
 
-The initial package target is `aarch64-apple-darwin`. This recipe creates an **evaluation build**, not a production sign-off. Current acceptance evidence and unresolved findings are in [readiness.md](readiness.md).
+## Build a checked local package
 
-From a clean committed checkout with Python 3.11+, the pinned Rust toolchain and macOS C build tools:
-
-```sh
-python3 scripts/package-release.py
-```
-
-The script runs formatting, locked tests and Clippy, builds an optimized binary with local source/cache paths remapped, then exercises encrypted initialization, synthetic import, analysis, search and integrity checks using that exact binary. Source changes during the build stop publication of the package. The result goes into the ignored `target/dist` directory; no remote repository or release is created.
-
-The archive includes the CLI, README, MIT and Apache-2.0 license texts, NOTICE, security guidance, synthetic demo, product documentation and visual assets and complete target-specific dependency notices/source obligations. `BUILD.json` records the source commit, target, Cargo.lock hash and binary hash. An adjacent `.sha256` file records the archive checksum. Archive timestamps, ownership and ordering are fixed; this does not assert cross-machine reproducible native compilation.
-
-Extract the archive into a directory you own and run `./remnary --version` there. To verify the archive before extraction:
+From a clean committed checkout with Rust 1.99.1, Python 3.11+, the `rust-docs` component for license inventory, and the platform's [native build prerequisites](platforms.md):
 
 ```sh
-shasum -a 256 -c remnary-VERSION-evaluation-COMMIT-aarch64-apple-darwin.tar.gz.sha256
+python scripts/package-release.py --release
 ```
 
-The binary has the Apple Silicon linker’s ad-hoc signature, which the recipe verifies. It has no Developer ID distribution signature and is unnotarized. Public distribution, code signing, notarization, hosted CI evidence and a repository-specific private security reporting channel require separate release setup. This script performs no publication, signing, installation or model download.
+On systems where Python is named `python3`, use that instead. `--target TARGET` selects one of the six supported triples on the same operating system; CI also supplies a native runner for its CPU. The default is the Rust compiler's host triple. No publication occurs in this script. Omitting `--release` adds an evaluation/commit suffix.
 
+The recipe requires a clean source commit, runs formatting, locked all-target tests and Clippy, builds an optimized executable with local build/cache paths remapped, and exercises that exact executable. Windows/Linux use vendored OpenSSL for SQLCipher; Windows release binaries statically link the MSVC runtime. macOS uses CommonCrypto and an explicit ad-hoc signature. The recipe then collects the actual target's dependency notices, including OpenSSL's own bundled notices and required unmodified MPL source. The existing checked-in Mac inventory is not reused as a Windows/Linux inventory.
 
-## Local release after acceptance
+The runtime smoke check uses only a temporary fictional archive. It verifies Unicode/spaced paths, encrypted headers, import/reimport, cached rules analysis, review/profile, annotation-preserving vault writes, search, encrypted backup/restore, integrity, authenticated localhost HTTP and denial without a bearer token. It prints no key or dashboard token.
 
-After completing the applicable acceptance gates in [readiness.md](readiness.md), create the local release archive with:
+Outputs under ignored `target/dist/`:
+
+```text
+remnary-vVERSION-TARGET.zip          # Windows
+remnary-vVERSION-TARGET.tar.gz       # Linux or macOS
+ARCHIVE.sha256
+```
+
+Each archive includes `remnary`/`remnary.exe`, `BUILD.json`, README, both license texts, NOTICE, security guidance, documentation/images/GIFs, the fictional demo and rendering scripts, and freshly resolved target-specific third-party notices/source obligations. Python is required only for the optional demo/rendering scripts, not to run the binary or dashboard. System fonts and model weights are not bundled.
+
+`BUILD.json` records version, source commit, target, toolchain, runner environment, Cargo.lock and binary hashes, crypto/runtime distribution policy, signing state and completed runtime smoke. The adjacent checksum identifies the whole archive. Archive metadata/order is fixed; this is not a cross-machine reproducibility claim. Existing packages are never overwritten by this script.
+
+## Publish a version
+
+Update Cargo.toml/Cargo.lock and `docs/releases/vVERSION.md`, push the source commit, and verify the ordinary matrix run. Create and push an annotated tag matching the package version:
 
 ```sh
-python3 scripts/package-release.py --release
+git tag -a vVERSION -m "Remnary vVERSION"
+git push origin vVERSION
 ```
 
-This uses the same clean-checkout, test, lint, optimized-build, signature and encrypted-smoke checks. The flag labels the archive `remnary-VERSION-COMMIT-aarch64-apple-darwin.tar.gz` and records local-release status in `BUILD.json`; the linked acceptance evidence supplies the qualification. The default command continues to produce evaluation archives. Both modes remain local and unpublished, with the same signing/distribution limits above.
+The [release workflow](../.github/workflows/ci.yml) repeats the six native jobs and advisory scan. Build jobs have read-only repository permissions and upload only `target/dist` artifacts. A tag-only publisher has scoped content-write permission, downloads the six artifact sets and invokes `scripts/publish-release.py`.
 
-The package smoke loop uses its own `smoke_args` variable so it cannot overwrite parsed release options before archive naming and `BUILD.json` creation. Both modes keep the same mandatory build/signature/encrypted-workflow checks.
+The publisher verifies all six archive checksums, version/commit/target metadata, executable hashes and smoke receipts. A missing target, mismatched version/commit or bad checksum stops publication. It creates a draft, uploads all archives and checksum files plus combined `SHA256SUMS`, then publishes and marks the release latest. No build failure publishes a partial platform set. The script refuses to silently overwrite an existing release; inspect a failed draft before retrying.
+
+Users download from [the latest release](https://github.com/diocata/remnary/releases/latest). SHA-256 files detect byte mismatch; they are not an independent signing identity. macOS remains ad-hoc signed/unnotarized, Windows remains unsigned, and no installer or auto-updater is implied.
+
+## Historical packages
+
+The earlier v0.1 recipe produced only local Apple Silicon evaluation/release archives with commit-prefixed names and a narrower macOS baseline. Hashes in the historical readiness/performance documents identify those binaries. v0.2 introduces the versioned six-platform archives, native runtime matrix and public tag-based publishing; it does not retroactively change those historical measurements.

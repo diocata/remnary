@@ -1,8 +1,8 @@
 # Security and privacy
 
-Remnary has a tested local v0.1 release for the documented Mac target and has no independent security audit. Do not post personal exports, databases, keys, bearer URLs, model payloads or source quotations in public issues.
+Remnary publishes native CI-checked release packages for the documented Windows, Linux and macOS targets and has no independent security audit. Do not post personal exports, databases, keys, bearer URLs, model payloads or source quotations in public issues.
 
-The default CLI uses SQLCipher for conversations, metadata, derived records and FTS in one encrypted archive. macOS Keychain stores the key by archive location; explicit private recovery files are an alternative. Keys use OS randomness, are never printed, and are zeroized where supported by owned Rust buffers. New private files use restrictive Unix permissions. Native libraries, operating-system memory and copied buffers are not a guaranteed zeroization boundary.
+The default CLI uses SQLCipher for conversations, metadata, derived records and FTS in one encrypted archive. macOS Keychain and Windows Credential Manager store keys by archive location. Explicit private recovery files are available on every platform and required on Linux. Windows file permissions depend on the selected directory’s ACL; Unix key files require mode 0600. Keys use OS randomness, are never printed, and are zeroized where supported by owned Rust buffers. New private files use restrictive Unix permissions. Native libraries, operating-system memory and copied buffers are not a guaranteed zeroization boundary.
 
 Wrong/missing keys fail closed. Existing archives never silently receive replacement keys. Export a recovery key and keep it separate from backups. Encrypted backups are validated; restore requires a new target. Key changes use a new-key backup/new-archive workflow. Explicit plaintext conversion uses a separate keyed export while preserving the read-only original. No in-place key change or automatic Keychain reassignment is performed. [Recovery instructions and remaining crash-test limits](docs/recovery.md).
 

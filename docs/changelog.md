@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-10-22
+
+First downloadable cross-platform release. Six native targets cover Windows, Linux and macOS on x86-64 and ARM64. Every package runs the locked tests, Clippy, encryption/review/vault/backup/HTTP smoke workflow and target-specific notice collection. Tagged releases publish a complete checksummed asset set through GitHub Actions.
+
+Windows adds native Credential Manager support and a static MSVC runtime. Windows/Linux statically bundle OpenSSL for SQLCipher. Source detection uses each platform’s standard Kiro directory. Directory exclusions recognize Windows drive/UNC paths and portable POSIX source paths across hosts. Existing schema-5 archives and evidence identities remain compatible. The repository About section now carries Remnary’s tagline and description.
+
+See [release notes](releases/v0.2.0.md), [platform policy](platforms.md) and [release process](releasing.md).
+
 ## 0.1.0 — 2026-10-22
 
 Initial local release for Apple Silicon macOS 27.0.1.

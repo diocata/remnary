@@ -7,7 +7,9 @@
 //! https://docs.rs/keyring/3.6.3/keyring/struct.Entry.html
 
 use std::fs::{self, File, Metadata};
-use std::io::{ErrorKind, Read};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::io::ErrorKind;
+use std::io::Read;
 use std::path::Path;
 
 use anyhow::{Result, anyhow, ensure};

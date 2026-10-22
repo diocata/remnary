@@ -1,4 +1,16 @@
-# Local v0.1 acceptance evidence
+# Release validation
+
+## Cross-platform v0.2.0
+
+The v0.2 release workflow builds and executes Windows, Linux and macOS packages on native x86-64 and ARM64 runners. Public tag-based publication requires all six matrix jobs plus the advisory scan to pass. Every target runs the actual packaged CLI through encryption, import/deduplication, rules/review/profile, vault, search, Unicode-path, backup/restore and authenticated dashboard smoke checks, with a freshly collected target-specific license inventory. See [platform baselines](platforms.md), [the release process](releasing.md) and [the actual workflow runs](https://github.com/diocata/remnary/actions/workflows/ci.yml).
+
+The current local Mac suite passes **224 offline tests** after adding portable Windows/POSIX exclusion coverage. Platform-conditional tests mean exact counts can differ between runners. No new LLM quality claim is inferred from a platform port. The original 86-conversation assessment, model suites and performance checks below remain historical evidence for the named binaries; runtime portability is established separately by native CI and each release's BUILD.json.
+
+The About description is set to “Your thoughts leave traces. We connect them. A local-first, encrypted record of your ideas, decisions and discoveries.”
+
+---
+
+# Historical local v0.1 acceptance evidence
 
 Updated 2026-10-22. **The v0.1 acceptance gates pass for local use on Apple Silicon macOS 27.0.1.** The [product brief](product-brief.md), §24, defines this first release boundary. This does not implement its later roadmap or establish public-distribution or cross-platform readiness. The final local release archive is produced by the checked [release recipe](releasing.md); its `BUILD.json` and adjacent checksum identify the exact commit and binary.
 

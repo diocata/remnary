@@ -5,8 +5,8 @@
 <p align="center">
   <a href="https://github.com/diocata/remnary/actions/workflows/ci.yml"><img src="https://github.com/diocata/remnary/actions/workflows/ci.yml/badge.svg" alt="Rust checks"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-4e5bd9" alt="MIT or Apache-2.0"></a>
-  <a href="docs/platforms.md"><img src="https://img.shields.io/badge/platform-Apple%20Silicon%20macOS-279caf" alt="Apple Silicon macOS"></a>
-  <a href="docs/readiness.md"><img src="https://img.shields.io/badge/offline_tests-223_verified-226754" alt="223 offline tests verified locally"></a>
+  <a href="docs/platforms.md"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-279caf" alt="Windows, Linux and macOS"></a>
+  <a href="docs/readiness.md"><img src="https://img.shields.io/badge/offline_tests-224_verified-226754" alt="224 offline tests verified locally"></a>
 </p>
 
 # Remnary
@@ -19,7 +19,7 @@ One Rust binary. An encrypted SQLite archive. A localhost dashboard. A readable 
 
 [See it](#see-it-in-action) · [Install](#install) · [Try the demo](#try-the-fictional-demo) · [Import](#bring-your-own-history) · [Commands](#command-reference) · [How it works](#how-it-works) · [Privacy](#privacy-and-data-ownership) · [Docs](#documentation) · [License](#license)
 
-> **Release scope:** v0.1 is verified locally on Apple Silicon macOS 27.0.1 with Rust 1.99.1. Other platforms are unverified. Install from source; no registry package, Homebrew formula, signed installer or hosted binary release is published. [Validation and limits →](docs/readiness.md)
+> **Cross-platform release:** download the archive for **Windows, Linux or macOS**, on **x86-64 or ARM64**, from [GitHub Releases](https://github.com/diocata/remnary/releases/latest). Every published release is gated on the native platform tests and executable smoke workflow. [Supported versions and signing limits →](docs/platforms.md)
 
 ## Why Remnary?
 
@@ -65,9 +65,26 @@ The CLI animation shows excerpts of actual command output; long IDs are abbrevia
 
 ## Install
 
+### Download a binary — no Rust required
+
+Open [the latest release](https://github.com/diocata/remnary/releases/latest) and choose your system:
+
+| System | CPU | Archive suffix |
+| --- | --- | --- |
+| Windows | Intel/AMD x64 | `x86_64-pc-windows-msvc.zip` |
+| Windows | ARM64 | `aarch64-pc-windows-msvc.zip` |
+| Linux | Intel/AMD x64 | `x86_64-unknown-linux-gnu.tar.gz` |
+| Linux | ARM64 | `aarch64-unknown-linux-gnu.tar.gz` |
+| macOS | Intel | `x86_64-apple-darwin.tar.gz` |
+| macOS | Apple Silicon | `aarch64-apple-darwin.tar.gz` |
+
+Extract the archive into a folder you own. In that folder, run `./remnary --help` on Linux/macOS or `.\remnary.exe --help` in PowerShell. Add that folder to your `PATH` for convenience, or keep using the explicit executable path. The dashboard opens in your browser; there is no separate desktop installer.
+
+Each archive includes the guides, demo, both licenses, target-specific notices and `BUILD.json`. Verify its SHA-256 against the accompanying `.sha256` or `SHA256SUMS` file. Linux binaries require **glibc 2.35+**; musl/Alpine is outside this matrix. macOS builds target **13.0+** and are runtime-tested on macOS 15. Windows binaries bundle the MSVC runtime. These are unsigned on Windows and ad-hoc signed/unnotarized on macOS; source builds remain available for environments that require other distribution policies.
+
 ### Build from source
 
-You need Git, the pinned **Rust 1.99.1** toolchain and native C build tools. On the supported Mac, SQLCipher uses Apple CommonCrypto. See the [platform policy](docs/platforms.md) before targeting Linux or Windows.
+You need Git, the pinned **Rust 1.99.1** toolchain and native C build tools. macOS uses CommonCrypto. Linux and Windows build bundled OpenSSL and additionally need Perl and make/MSVC build tools; see the [platform build instructions](docs/platforms.md). Downloaded binaries do not need those build tools.
 
 ```sh
 git clone https://github.com/diocata/remnary.git
@@ -93,7 +110,7 @@ From a clean committed checkout:
 python3 scripts/package-release.py --release
 ```
 
-This runs formatting, locked tests, Clippy, optimized compilation, signature verification and an encrypted CLI smoke test. The archive and SHA-256 checksum are written under `target/dist/`. It includes the binary, documentation, visual assets, demo, both project license texts and third-party notices. Packages are ad-hoc signed and unnotarized; this command does not publish them. [Packaging details →](docs/releasing.md)
+This runs formatting, locked tests, Clippy, optimized compilation, signature verification and an encrypted CLI smoke test. The archive and SHA-256 checksum are written under `target/dist/`. It includes the binary, documentation, visual assets, demo, both project license texts and third-party notices. macOS packages are ad-hoc signed/unnotarized, and Windows packages are unsigned. This command does not publish them; version tags publish through the gated GitHub workflow. [Packaging details →](docs/releasing.md)
 
 ## Try the fictional demo
 
@@ -113,7 +130,7 @@ In the dashboard, open a source citation, confirm the fictional Rust preference,
 
 ## Quick start
 
-For your own archive, these commands use macOS Keychain by default:
+On macOS and Windows, these commands use the native credential store by default:
 
 ```sh
 remnary init
@@ -123,9 +140,21 @@ remnary discover
 remnary web
 ```
 
-`init` creates a random encryption key in macOS Keychain and an archive under `~/Library/Application Support/remnary`. Initialization does not scan sources or call a model. `web` prints a loopback URL containing a private session token. Open the complete link; stop the server with Ctrl-C.
+`init` creates a random encryption key in macOS Keychain or Windows Credential Manager. The default archive is under `~/Library/Application Support/remnary` on macOS and your Windows local application-data directory on Windows. Initialization does not scan sources or call a model. `web` prints a loopback URL containing a private session token. Open the complete link; stop the server with Ctrl-C.
 
-To keep a separate archive with a recovery key file:
+**On Linux, create a private key once and select it on each command:**
+
+```sh
+mkdir -p "$HOME/.config/remnary"
+chmod 700 "$HOME/.config/remnary"
+remnary key create "$HOME/.config/remnary/recovery.key"
+remnary --key-file "$HOME/.config/remnary/recovery.key" init
+remnary --key-file "$HOME/.config/remnary/recovery.key" import /path/to/conversations.json
+remnary --key-file "$HOME/.config/remnary/recovery.key" analyze
+remnary --key-file "$HOME/.config/remnary/recovery.key" web
+```
+
+To choose a separate archive and private key on any platform:
 
 ```sh
 # Use an existing private parent directory; choose a new key filename.
@@ -134,7 +163,7 @@ remnary --data-dir /private/archive --key-file /private/keys/remnary.key init
 remnary --data-dir /private/archive --key-file /private/keys/remnary.key import /path/to/conversations.json
 ```
 
-Use the same `--data-dir` and `--key-file` with subsequent commands. Key files must be private regular files, with Unix mode `0600`. Keychain access may prompt. [Existing development archives →](docs/renaming.md)
+On Linux, choose a private location such as `$HOME/.local/share/remnary` and create the parent directory first. The `/private/...` paths above are placeholders, not required OS directories. On PowerShell, use Windows paths and `remnary.exe`. Use the same `--data-dir` and `--key-file` with subsequent commands. Key files must be private regular files, with Unix mode `0600`. Keychain access may prompt. [Existing development archives →](docs/renaming.md)
 
 ## Bring your own history
 
@@ -198,7 +227,7 @@ remnary sources
 remnary show CONVERSATION_ID --revision 1
 ```
 
-Search uses SQLite full-text indexing over current, available conversations. Query words are treated literally and must match within a message. Source links in findings open their exact retained revision, even after a newer revision is imported. Missing timestamps stay unknown; partial views remain partial. There is no semantic/vector search service in v0.1.
+Search uses SQLite full-text indexing over current, available conversations. Query words are treated literally and must match within a message. Source links in findings open their exact retained revision, even after a newer revision is imported. Missing timestamps stay unknown; partial views remain partial. There is no semantic/vector search service in this release.
 
 ## Build a readable knowledge vault
 
@@ -267,7 +296,7 @@ Why SQLite rather than DuckDB or a folder of JSON? The core workload needs trans
 | --- | --- |
 | Collection | Files you explicitly select. Detection inventories known locations separately. |
 | Canonical storage | SQLCipher encrypts conversations, metadata, derived records and full-text indexes. |
-| Keys | macOS Keychain or an explicit private recovery-key file. No automatic replacement of a missing original key. |
+| Keys | macOS Keychain, Windows Credential Manager, or an explicit private recovery-key file (required on Linux). No automatic replacement of a missing original key. |
 | Dashboard | Authenticated loopback server with bearer, Host/Origin, content and CSP checks. No external assets in the app. |
 | Analysis | Built-in rules, or an explicitly selected trusted local Ollama daemon. No cloud extraction or telemetry. |
 | Personal profile | Only explicit confirmation or correction promotes a finding. |
@@ -320,7 +349,7 @@ Run `remnary COMMAND --help` for arguments and flags. `--data-dir` and `--key-fi
 
 ## Validation and performance
 
-**223 offline tests pass locally**, including encrypted CLI workflows and rename compatibility. The local release recipe also checks formatting, Clippy with warnings denied, optimized builds, ad-hoc signatures and encrypted smoke behavior. Separate model suites and process-interruption recovery checks are recorded in [release evidence](docs/readiness.md).
+**224 offline tests pass locally**, including encrypted CLI workflows and rename compatibility. The local release recipe also checks formatting, Clippy with warnings denied, optimized builds, ad-hoc signatures and encrypted smoke behavior. Separate model suites and process-interruption recovery checks are recorded in [release evidence](docs/readiness.md).
 
 A prior optimized build on an M4 Pro / 24 GiB imported a synthetic **2,000-conversation / 32,000-message** dataset in **3.04 seconds**, searched in **75.6–76.4 ms including startup/unlock**, and completed cached rules analysis in **0.17 seconds**. The browser also rendered 2,000 source rows and a 2,000-citation finding. These are local engineering observations, not performance guarantees. [Benchmark scope, memory and reproduction →](docs/performance.md)
 
@@ -328,7 +357,7 @@ The 86-conversation real-history development assessment rated 33/34 observations
 
 ## Roadmap and current limits
 
-| Available in v0.1 | Later work |
+| Available | Later work |
 | --- | --- |
 | Manual selected-source imports | Universal live collection and browser extension |
 | CLI + localhost dashboard | Complete TUI and production daemon |
@@ -336,7 +365,7 @@ The 86-conversation real-history development assessment rated 33/34 observations
 | Full-text search + related topics | Semantic/vector search |
 | Local encrypted archive + explicit Markdown | Mobile clients and cloud sync |
 | Conservative review workflow | Autonomous rule enforcement |
-| Local Apple Silicon Mac validation | Other platforms, signed/notarized distribution |
+| Native CI packages for Windows, Linux and macOS; x64/ARM64 | Signed/notarized installers and additional OS/CPU targets |
 
 The [product brief](docs/product-brief.md) describes the broader vision; its first-release boundary is §24. A roadmap item is not a supported feature.
 

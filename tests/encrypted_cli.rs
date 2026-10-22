@@ -287,3 +287,39 @@ fn ambiguous_archive_names_fail_without_changing_either_file() {
     assert_eq!(fs::read(current).unwrap(), before);
     assert_eq!(fs::read(legacy).unwrap(), before);
 }
+
+#[cfg(target_os = "windows")]
+#[test]
+fn windows_default_credentials_unlock_the_same_archive_and_export_recovery() {
+    let temp = tempfile::tempdir().unwrap();
+    let data = temp.path().join("native-credentials");
+    fs::create_dir(&data).unwrap();
+    let canonical = fs::canonicalize(&data).unwrap();
+    let account = remnary::model::digest(canonical.as_os_str().as_encoded_bytes());
+    struct Cleanup(keyring::Entry);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = self.0.delete_credential();
+        }
+    }
+    let _cleanup = Cleanup(keyring::Entry::new("dev.remnary", &account).unwrap());
+    let native = |args: &[&str]| {
+        let result = Command::new(env!("CARGO_BIN_EXE_remnary"))
+            .arg("--data-dir")
+            .arg(&data)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        result
+    };
+    native(&["init"]);
+    native(&["doctor"]);
+    let key = temp.path().join("recovery.key");
+    native(&["key", "export", key.to_str().unwrap()]);
+    assert!(run(&data, &key, &["doctor"]).status.success());
+}
