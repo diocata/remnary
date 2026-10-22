@@ -59,12 +59,23 @@ enum Reason {
 }
 
 fn schema(count: usize) -> Value {
+    let branch = |verdicts: Value, reasons: Value| {
+        json!({"type":"object","additionalProperties":false,
+            "required":["candidate_id","verdict","reason"],
+            "properties":{
+                "candidate_id":{"type":"integer","enum":(0..count).collect::<Vec<_>>()},
+                "verdict":{"enum":verdicts},"reason":{"enum":reasons}}})
+    };
+    // Constrain the pair during decoding as well as validating it afterward.
+    // Independent enums otherwise permit contradictory supported/reason pairs.
     json!({"type":"object","additionalProperties":false,"required":["schema_version","verdicts"],
- "properties":{"schema_version":{"const":1},"verdicts":{"type":"array","minItems":count,"maxItems":count,
- "items":{"type":"object","additionalProperties":false,"required":["candidate_id","verdict","reason"],
- "properties":{"candidate_id":{"type":"integer","enum":(0..count).collect::<Vec<_>>()},
- "verdict":{"enum":["supported","unsupported","uncertain"]},
- "reason":{"enum":["fully_supported","unsupported_detail","overstated_scope","wrong_kind_or_inference","ambiguous_evidence"]}}}}}})
+        "properties":{"schema_version":{"const":1},
+            "verdicts":{"type":"array","minItems":count,"maxItems":count,
+                "items":{"anyOf":[
+                    branch(json!(["supported"]),json!(["fully_supported"])),
+                    branch(json!(["unsupported","uncertain"]),json!([
+                        "unsupported_detail","overstated_scope",
+                        "wrong_kind_or_inference","ambiguous_evidence"]))]}}}})
 }
 
 fn apply(output: AnalysisOutput, result: Value) -> Result<(AnalysisOutput, usize)> {
@@ -1184,6 +1195,48 @@ mod tests {
             assert!(apply(output(), json!({"schema_version":1,"verdicts":verdicts})).is_err());
         }
     }
+    #[test]
+    fn all_verdict_reason_pairs_obey_support_contract() {
+        let branches = schema(1)["properties"]["verdicts"]["items"]["anyOf"]
+            .as_array()
+            .unwrap()
+            .clone();
+        for verdict in ["supported", "unsupported", "uncertain"] {
+            for reason in [
+                "fully_supported",
+                "unsupported_detail",
+                "overstated_scope",
+                "wrong_kind_or_inference",
+                "ambiguous_evidence",
+            ] {
+                let consistent = (verdict == "supported") == (reason == "fully_supported");
+                let allowed = branches.iter().any(|branch| {
+                    branch["properties"]["verdict"]["enum"]
+                        .as_array()
+                        .unwrap()
+                        .contains(&json!(verdict))
+                        && branch["properties"]["reason"]["enum"]
+                            .as_array()
+                            .unwrap()
+                            .contains(&json!(reason))
+                });
+                assert_eq!(allowed, consistent, "{verdict}/{reason}");
+                let mut original = output();
+                original.observations.truncate(1);
+                let result = apply(
+                    original,
+                    json!({"schema_version":1,"verdicts":[{
+                    "candidate_id":0,"verdict":verdict,"reason":reason}]}),
+                );
+                assert_eq!(result.is_ok(), consistent, "{verdict}/{reason}");
+                if let Ok((kept, omitted)) = result {
+                    assert_eq!(kept.observations.len(), usize::from(verdict == "supported"));
+                    assert_eq!(omitted, usize::from(verdict != "supported"));
+                }
+            }
+        }
+    }
+
     #[test]
     fn abstention_filters_without_modifying_surviving_claims_or_evidence() {
         let original = output();
