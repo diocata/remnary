@@ -89,7 +89,7 @@ impl Store {
         )?;
         ensure!(
             !pending,
-            "projection has pending cleanup; run observr cleanup first"
+            "projection has pending cleanup; run remnary cleanup first"
         );
         for id in conversation_ids {
             let valid: bool = transaction.query_row("SELECT EXISTS(SELECT 1 FROM conversations c WHERE c.id = ?1 AND NOT EXISTS(SELECT 1 FROM excluded_sources x WHERE x.conversation_id = c.id))", [id], |r| r.get(0))?;

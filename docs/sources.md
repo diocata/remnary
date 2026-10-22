@@ -1,6 +1,6 @@
 # Supported local sources
 
-Observr imports files you select. It does not sign into providers, read credentials, monitor applications or enable background collection. `observr sources --detect` inventories filenames and sizes in the three locations below; it reads no message bodies and needs no initialized archive. Import is a separate action.
+Remnary imports files you select. It does not sign into providers, read credentials, monitor applications or enable background collection. `remnary sources --detect` inventories filenames and sizes in the three locations below; it reads no message bodies and needs no initialized archive. Import is a separate action.
 
 | Source | Import input | Detection on macOS | Verification |
 | --- | --- | --- | --- |
@@ -14,18 +14,18 @@ These private application formats can change. Local compatibility evidence is fr
 
 ## Partial connected-app views
 
-`observr import-app-snapshot /path/to/snapshot.json` accepts a selected ChatGPT `read_thread` result from Codex app. Codex task views are refused here because their human/subagent attribution is not established by this view; use local Codex JSONL instead. `observr import-app-snapshot -` reads one compact JSON line from standard input, allowing a caller to send an authorized tool result directly into encryption without a plaintext export file. The Rust application does not itself connect to Codex/ChatGPT accounts; these tools are available to the assistant in this app session.
+`remnary import-app-snapshot /path/to/snapshot.json` accepts a selected ChatGPT `read_thread` result from Codex app. Codex task views are refused here because their human/subagent attribution is not established by this view; use local Codex JSONL instead. `remnary import-app-snapshot -` reads one compact JSON line from standard input, allowing a caller to send an authorized tool result directly into encryption without a plaintext export file. The Rust application does not itself connect to Codex/ChatGPT accounts; these tools are available to the assistant in this app session.
 
 Provider/message IDs and source text are retained. Message timestamps/parents absent from the view stay unknown; turn timing remains metadata. Partial history, pagination and truncated items remain explicit, including in the dashboard/transcripts. Truncated user items cannot supply personal findings. Snapshots never replace a full provider export, and an updated partial view must retain every previously imported message ID. Combine source pages before importing a larger view. Identical snapshots are unchanged. This does not validate ChatGPT's account-export ZIP format against real data or imply access to every account conversation.
 
 ```sh
-observr sources --detect
-observr import ~/Downloads/conversations.json
-observr import ~/.claude/projects --source claude-code
-observr import ~/.codex/sessions --source codex
-observr import "$HOME/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent" --source kiro
-observr analyze
-observr discover --all
+remnary sources --detect
+remnary import ~/Downloads/conversations.json
+remnary import ~/.claude/projects --source claude-code
+remnary import ~/.codex/sessions --source codex
+remnary import "$HOME/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent" --source kiro
+remnary analyze
+remnary discover --all
 ```
 
 Select `--source` for directory imports. File imports may detect their format automatically. Directory traversal skips symlinks, accepts only the selected format's extension and is bounded to 10,000 files / 100,000 entries. Inputs are limited to 256 MiB per file, 512 MiB per local batch and 16 MiB per JSONL record. A malformed or incomplete record fails the batch before any database mutation; retry after the originating application finishes writing. Imports never modify source files.
@@ -44,7 +44,7 @@ The normalized archive retains message IDs, source metadata and original records
 
 Claude Code's `origin.kind` distinguishes human messages from generated task notifications. Sidechain/agent requests and tool results cannot supply personal facts. Codex uses the rollout's first session identity, retains child identity across inherited parent metadata and marks subagent requests and internal context separately. Event-message copies of response messages are not imported twice.
 
-Kiro's observed format labels both its system prompt and genuine requests `human`. Observr recognizes the provider identity prompt as system content, separates the known environment suffix from normalized user text, and retains the full original entry in metadata. It coalesces only exact cumulative message prefixes under one execution ID. Divergent snapshots fail for review. Source snapshot metadata is retained, session time spans use the available generation times and individual message times remain unknown.
+Kiro's observed format labels both its system prompt and genuine requests `human`. Remnary recognizes the provider identity prompt as system content, separates the known environment suffix from normalized user text, and retains the full original entry in metadata. It coalesces only exact cumulative message prefixes under one execution ID. Divergent snapshots fail for review. Source snapshot metadata is retained, session time spans use the available generation times and individual message times remain unknown.
 
 These guards cannot establish that every passage inside a human message is the person's own statement. Pasted transcripts, examples and quoted instructions still need semantic review. A valid quote establishes provenance; it does not establish endorsement. The deterministic rules are deliberately limited and all extracted findings remain candidates until reviewed.
 

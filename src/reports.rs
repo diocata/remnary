@@ -417,8 +417,8 @@ mod tests {
             revision: 1,
             conversation: Conversation {
                 provider: "chatgpt".to_owned(),
-                source_id: "project-observr".to_owned(),
-                title: Some("Observr architecture".to_owned()),
+                source_id: "project-remnary".to_owned(),
+                title: Some("Remnary architecture".to_owned()),
                 created_at: Some(before_midnight),
                 updated_at: None,
                 metadata: Value::Null,

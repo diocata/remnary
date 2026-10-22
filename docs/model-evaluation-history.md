@@ -13,7 +13,7 @@ brew install ollama
 ./scripts/ollama-local
 # In another terminal:
 OLLAMA_HOST=127.0.0.1:11435 ollama pull qwen3.5:9b-q4_K_M
-observr analyze --engine ollama --model qwen3.5:9b-q4_K_M --endpoint http://127.0.0.1:11435
+remnary analyze --engine ollama --model qwen3.5:9b-q4_K_M --endpoint http://127.0.0.1:11435
 ```
 
 The script binds `127.0.0.1:11435`, disables cloud features/request-body debug logging and limits parallel/loaded models. It runs in the foreground; no login/background service is installed. Stop it with Ctrl-C. Homebrew may install/upgrade shared dependencies: the local setup installed MLX support and upgraded its Python, OpenSSL and related dependencies. It did not change shell profiles or start a login service.
@@ -39,7 +39,7 @@ The fixture contains ten synthetic, hand-labeled cases. Processor v4 passed 10/1
 
 Processor v5 isolates the answer fields in structured question-panel replies, instead of treating the adjacent assistant-authored question as user speech. It keeps exact raw JSON string interiors (including escapes) as citation spans, without rewriting canonical history. Malformed/nontext answers and quoted transcripts cannot supply facts; separate answers are batched without duplicate message IDs. Both rules and model validation enforce this boundary.
 
-A larger local comparator, `qwen3.5:9b-q4_K_M`, is installed (6,550,825,550 bytes; digest `sha256:56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90`). With v5 it passed the same ten development cases in 54.2 seconds. The subsequent real-history run completed all 35 sources with 45 candidates (42 preferences, three corrections) and retired the 35 older Ollama result sets in the evaluation copy. It still mislabeled execution requests and inferred more than some quoted spans established; no recurring claim had two sources. A larger non-reasoning model therefore did not close the quality gate. Both installed models remain local; neither is automatically downloaded by Observr.
+A larger local comparator, `qwen3.5:9b-q4_K_M`, is installed (6,550,825,550 bytes; digest `sha256:56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90`). With v5 it passed the same ten development cases in 54.2 seconds. The subsequent real-history run completed all 35 sources with 45 candidates (42 preferences, three corrections) and retired the 35 older Ollama result sets in the evaluation copy. It still mislabeled execution requests and inferred more than some quoted spans established; no recurring claim had two sources. A larger non-reasoning model therefore did not close the quality gate. Both installed models remain local; neither is automatically downloaded by Remnary.
 
 Processor v7 restores all seven typed extraction kinds, with at most eight candidates per window. It requests reasoning only when `/api/show` advertises `thinking`, increasing that request's total token budget to 8,192 with a bounded 240-second generation timeout and strict response bounds; metadata calls and completion-only generation retain 120 seconds. Completion-only models retain 4,096 tokens and `think: false`.
 
@@ -56,7 +56,7 @@ Discovery ranking now favors explicit corrections/preferences/decisions over gen
 When switching models, explicitly retire older automatic results after a successful run:
 
 ```sh
-observr analyze --engine ollama --model qwen3.5:9b-q4_K_M --endpoint http://127.0.0.1:11435 --replace-other-models
+remnary analyze --engine ollama --model qwen3.5:9b-q4_K_M --endpoint http://127.0.0.1:11435 --replace-other-models
 ```
 
 Without this flag, explicitly selected models contribute concurrently. With it, a fully successful analysis selects the exact current processor/model/prompt result for each current included source with a completed run, and retires the other Ollama active results for that source. Incomplete sources, other engines, historical runs and human feedback remain intact. If analysis fails, this selection step is not applied. A later explicit switch back can select that exact cached processor result; cache lookup alone does not reactivate a retired model. Generated notes affected by replacement enter cleanup; refresh the vault explicitly.
@@ -136,7 +136,7 @@ The source-revision lookup fix also passed actual local-model lifecycle coverage
 
 ## Producer v17: reasoned verification and complete statements
 
-The current policy keeps Qwen generation and canonical matching non-thinking, but enables reasoning for verification when the daemon advertises that capability. Verification runs at most four candidates per request, with 8,192 output tokens and a 240-second deadline; no reasoning text is returned or persisted by Observr. Generation remains bounded to 4,096 tokens and 240 seconds. Other structured matching calls retain their shorter deadline.
+The current policy keeps Qwen generation and canonical matching non-thinking, but enables reasoning for verification when the daemon advertises that capability. Verification runs at most four candidates per request, with 8,192 output tokens and a 240-second deadline; no reasoning text is returned or persisted by Remnary. Generation remains bounded to 4,096 tokens and 240 seconds. Other structured matching calls retain their shorter deadline.
 
 Explicit preferences must cite complete source statements, including their scope, without speculative questions. The constrained decoder uses the same statement gate as postvalidation. A conservative English/Portuguese decision-cue gate precedes semantic checking; ordinary formatting, translation, summarization and execution requests do not qualify merely because they request an action. Generated topic/context labels supply no evidence. These gates can omit valid formulations in unsupported wording or languages.
 
@@ -150,11 +150,11 @@ The v17 verifier attempt timed out during quotation-only support, so no verifier
 
 The v18 verifier was stopped after more than twenty minutes without a completed score; it is not an acceptance pass. Runtime metadata showed active decoding, including a single claim generating thousands of reasoning tokens. V19 keeps one-claim verification and uses Qwen35's recommended general-thinking sampler: temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5 and repetition penalty 1.0. A fixed seed of 42 supports local comparisons without promising exact reproducibility across runtimes. Generation and identity matching retain their separately measured non-thinking policy. The policy is selected by the daemon's advertised model family/capability, not a tag-name guess.
 
-Source: [Qwen3.5-9B official model card, sampling guidance](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices), checked 2026-10-21. The locally installed model metadata already declares the same temperature, top-p, top-k and presence penalty; Observr had overridden its temperature with greedy decoding.
+Source: [Qwen3.5-9B official model card, sampling guidance](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices), checked 2026-10-21. The locally installed model metadata already declares the same temperature, top-p, top-k and presence penalty; Remnary had overridden its temperature with greedy decoding.
 
 ### Producer v20: routine test/summary/translation evidence
 
-The v19 verifier run stopped on a strict-JSON error: the local daemon returned a terminal response with an empty final answer for the synthetic repeated-test-commands case. An isolated rerun reproduced the empty final answer. Observr rejected it and did not parse reasoning or repair JSON. V20 adds ordinary test, summary and translation execution prefixes to the existing routine-evidence gate, independently preventing those requests from becoming preferences, decisions or inferred habits. Genuine mixed declarations and choices remain eligible. Backend response validation remains strict; future empty/malformed model answers leave the source pending.
+The v19 verifier run stopped on a strict-JSON error: the local daemon returned a terminal response with an empty final answer for the synthetic repeated-test-commands case. An isolated rerun reproduced the empty final answer. Remnary rejected it and did not parse reasoning or repair JSON. V20 adds ordinary test, summary and translation execution prefixes to the existing routine-evidence gate, independently preventing those requests from becoming preferences, decisions or inferred habits. Genuine mixed declarations and choices remain eligible. Backend response validation remains strict; future empty/malformed model answers leave the source pending.
 
 The verifier example accepts optional case IDs after endpoint and model for focused reproduction. Reported selected cases and the whole fixture hash distinguish targeted checks from the full fixture.
 
@@ -210,7 +210,7 @@ A local [Ministral 3 14B comparator](https://ollama.com/library/ministral-3:14b)
 
 V27 additionally requires a recognizable reaffirmation cue for confirmation events; a first selection alone is insufficient. Marker matching respects word/identifier boundaries, and these cues authorize confirmation eligibility without broadening other decision stages. Unresolved relation-only project fragments cannot stand alone as concrete project findings; other substantive cited statements remain eligible. These conservative gates recognize common English/Portuguese forms and do not prove support on their own. Semantic verification still follows, and event confirmation never changes the owner-review status.
 
-The complete blinded verifier development suite passes **43/43 in 89.20 seconds**, including three transfer cases with different entities and project descriptions. Fixture SHA-256: `ca8432f9b66d6b4f01b238a1d1d5fd457dc04d45852c913483cb5ecf609b616f`. This is development evidence, not an independent accuracy estimate. Full generation and real-history acceptance remain pending. The separately invoked identity/review tests accept `OBSERVR_TEST_OLLAMA_MODEL` and `OBSERVR_TEST_OLLAMA_ENDPOINT` to verify the selected local model explicitly.
+The complete blinded verifier development suite passes **43/43 in 89.20 seconds**, including three transfer cases with different entities and project descriptions. Fixture SHA-256: `ca8432f9b66d6b4f01b238a1d1d5fd457dc04d45852c913483cb5ecf609b616f`. This is development evidence, not an independent accuracy estimate. Full generation and real-history acceptance remain pending. The separately invoked identity/review tests accept `REMNARY_TEST_OLLAMA_MODEL` and `REMNARY_TEST_OLLAMA_ENDPOINT` to verify the selected local model explicitly.
 
 
 ## V28 comparator and grounding changes

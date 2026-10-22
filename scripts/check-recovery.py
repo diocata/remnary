@@ -15,11 +15,11 @@ import time
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--binary', type=Path, default=Path('target/release/observr'))
+    parser.add_argument('--binary', type=Path, default=Path('target/release/remnary'))
     args = parser.parse_args()
     binary = args.binary.resolve(strict=True)
     results = []
-    with tempfile.TemporaryDirectory(prefix='observr-synthetic-recovery-') as work:
+    with tempfile.TemporaryDirectory(prefix='remnary-synthetic-recovery-') as work:
         root = Path(work)
         data, key, source = root/'data', root/'key', root/'conversations.json'
         records = []
@@ -87,31 +87,31 @@ def main():
             results.append({'stage': stage, 'observed_live_write': True, 'destination_absent_after_kill': True,
                             'encrypted_private_stage_retained': True})
 
-        original = checksum(data/'observr.sqlite3')
+        original = checksum(data/'remnary.sqlite3')
         backups = root/'backups'
         backup = backups/'archive.sqlite3'
         interrupted('backup', ['backup', backup], backups, backup)
-        assert checksum(data/'observr.sqlite3') == original
+        assert checksum(data/'remnary.sqlite3') == original
         health(data)
         run(['backup', backup])
         restored = root/'restored'
-        interrupted('restore', ['restore', backup], restored, restored/'observr.sqlite3', restored)
-        assert checksum(data/'observr.sqlite3') == original
+        interrupted('restore', ['restore', backup], restored, restored/'remnary.sqlite3', restored)
+        assert checksum(data/'remnary.sqlite3') == original
         run(['restore', backup], restored)
         health(restored)
 
         legacy = root/'plaintext'
         run(['init'], legacy, True)
         run(['import', source], legacy, True)
-        legacy_hash = checksum(legacy/'observr.sqlite3')
+        legacy_hash = checksum(legacy/'remnary.sqlite3')
         converted = root/'conversion'/'converted.sqlite3'
         interrupted('encrypt_copy', ['encrypt-copy', converted, '--new-key-file', key], converted.parent, converted, legacy, True)
-        assert checksum(legacy/'observr.sqlite3') == legacy_hash
+        assert checksum(legacy/'remnary.sqlite3') == legacy_hash
         run(['encrypt-copy', converted, '--new-key-file', key], legacy, True)
         final = root/'converted-restored'
         run(['restore', converted], final)
         health(final)
-        assert checksum(legacy/'observr.sqlite3') == legacy_hash
+        assert checksum(legacy/'remnary.sqlite3') == legacy_hash
         print(json.dumps({'synthetic': True, 'originals_preserved': True, 'retry_and_integrity_passed': True,
                           'checks': results, 'limits': 'SIGKILL during observed writes; not hardware power loss or every publication boundary'}, indent=2))
 

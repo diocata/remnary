@@ -58,7 +58,7 @@ pub enum DecisionEventType {
 #[serde(deny_unknown_fields)]
 pub struct EvidenceRef {
     pub provider: String,
-    /// Observr's stable conversation ID, not the provider's external source ID.
+    /// Remnary's stable conversation ID, not the provider's external source ID.
     pub conversation_id: String,
     pub revision: i64,
     pub source_message_id: String,

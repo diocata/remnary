@@ -7,7 +7,21 @@ use crate::model::{Conversation, Message};
 
 pub(crate) const SCHEMA_VERSION: i64 = 5;
 pub(crate) const APPLICATION_ID: i64 = 0x4f425352;
-const DATABASE_NAME: &str = "observr.sqlite3";
+const DATABASE_NAME: &str = "remnary.sqlite3";
+pub(crate) const LEGACY_DATABASE_NAME: &str = "observr.sqlite3";
+
+// Keep existing archives usable without renaming live SQLite/WAL files.
+pub(crate) fn database_path(data_dir: &Path) -> Result<std::path::PathBuf> {
+    let current = data_dir.join(DATABASE_NAME);
+    let legacy = data_dir.join(LEGACY_DATABASE_NAME);
+    let current_exists = fs::symlink_metadata(&current).is_ok();
+    let legacy_exists = fs::symlink_metadata(&legacy).is_ok();
+    ensure!(
+        !(current_exists && legacy_exists),
+        "directory contains both current and legacy archive filenames; select an unambiguous archive directory"
+    );
+    Ok(if legacy_exists { legacy } else { current })
+}
 
 pub struct Store {
     pub(crate) connection: Connection,
@@ -60,7 +74,7 @@ impl Store {
         builder
             .create(data_dir)
             .context("creating data directory")?;
-        let path = data_dir.join(DATABASE_NAME);
+        let path = database_path(data_dir)?;
         let mut options = fs::OpenOptions::new();
         options.write(true).create_new(true);
         #[cfg(unix)]
@@ -114,15 +128,15 @@ impl Store {
     }
 
     fn connect(data_dir: &Path, key: Option<&crate::security::SecretKey>) -> Result<Self> {
-        let path = data_dir.join(DATABASE_NAME);
+        let path = database_path(data_dir)?;
         ensure!(
             fs::symlink_metadata(&path)
                 .map(|m| m.file_type().is_file())
                 .unwrap_or(false),
-            "database must be an existing regular file; run observr init first"
+            "database must be an existing regular file; run remnary init first"
         );
         let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)
-            .with_context(|| format!("opening {}; run `observr init` first", path.display()))?;
+            .with_context(|| format!("opening {}; run `remnary init` first", path.display()))?;
         if let Some(key) = key {
             crate::security::apply_key(&connection, key)?;
         }
@@ -141,7 +155,7 @@ impl Store {
             transaction.pragma_query_value(None, "application_id", |r| r.get(0))?;
         ensure!(
             application == APPLICATION_ID,
-            "this file is not an initialized Observr database"
+            "this file is not an initialized Remnary database"
         );
         let version: i64 = transaction.pragma_query_value(None, "user_version", |r| r.get(0))?;
         ensure!(
@@ -174,7 +188,7 @@ impl Store {
             .pragma_query_value(None, "application_id", |r| r.get(0))?;
         ensure!(
             application == APPLICATION_ID,
-            "this file is not an initialized Observr database"
+            "this file is not an initialized Remnary database"
         );
         let version: i64 = self
             .connection
@@ -196,7 +210,7 @@ impl Store {
             .pragma_query_value(None, "user_version", |r| r.get(0))?;
         ensure!(
             application == APPLICATION_ID,
-            "this file is not an initialized Observr database"
+            "this file is not an initialized Remnary database"
         );
         ensure!(
             (1..=SCHEMA_VERSION).contains(&version),

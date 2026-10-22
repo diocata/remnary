@@ -39,7 +39,8 @@ pub fn read_snapshot(path: &Path) -> Result<Conversation> {
 pub fn is_partial(metadata: &Value) -> bool {
     matches!(
         metadata
-            .pointer("/observr_collection/format")
+            .pointer("/remnary_collection/format")
+            .or_else(|| metadata.pointer("/observr_collection/format"))
             .and_then(Value::as_str),
         Some("codex-app-view-v1" | "claude-native-view-v1")
     )
@@ -139,7 +140,7 @@ pub fn parse_snapshot(value: &Value) -> Result<Conversation> {
         created_at: time(thread, "createdAt")?,
         updated_at: time(thread, "updatedAt")?,
         messages,
-        metadata: json!({"observr_collection":{"format":"codex-app-view-v1","partial":true,"page":value.get("page"),"source_pages":value.get("source_pages")},
+        metadata: json!({"remnary_collection":{"format":"codex-app-view-v1","partial":true,"page":value.get("page"),"source_pages":value.get("source_pages")},
             "turn_metadata":turn_metadata,"other_items":other_items}),
     })
 }
@@ -204,12 +205,24 @@ mod tests {
     }
 
     #[test]
+    fn legacy_collection_metadata_remains_partial() {
+        for format in ["codex-app-view-v1", "claude-native-view-v1"] {
+            assert!(is_partial(
+                &json!({"observr_collection": {"format": format}})
+            ));
+        }
+        assert!(!is_partial(
+            &json!({"observr_collection": {"format": "unknown"}})
+        ));
+    }
+
+    #[test]
     fn native_views_keep_partial_coverage_and_import_safeguards() -> Result<()> {
         let dir = tempfile::tempdir()?;
         let mut store = crate::store::Store::init(dir.path())?;
         let mut source = parse_snapshot(&fixture())?;
         source.provider = "claude".into();
-        source.metadata["observr_collection"]["format"] = json!("claude-native-view-v1");
+        source.metadata["remnary_collection"]["format"] = json!("claude-native-view-v1");
         assert!(is_partial(&source.metadata));
         assert!(
             crate::vault::snapshot_markdown(&source)?

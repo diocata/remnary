@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{Result, ensure};
-use observr::{
+use remnary::{
     analysis::{AnalysisEngine, analyze},
     analysis_store::{FeedbackAction, ObservationStatus},
     local_sources::{SourceFormat, read_source},
@@ -83,7 +83,7 @@ fn local_sources_survive_encrypted_reimport_review_and_revision_changes() -> Res
 fn detection_runs_without_initializing_or_unlocking_an_archive() -> Result<()> {
     let temp = tempfile::tempdir()?;
     let unused = temp.path().join("must-not-be-created");
-    let output = Command::new(env!("CARGO_BIN_EXE_observr"))
+    let output = Command::new(env!("CARGO_BIN_EXE_remnary"))
         .arg("--data-dir")
         .arg(&unused)
         .args(["sources", "--detect", "--json"])
@@ -103,7 +103,7 @@ fn app_snapshot_stdin_is_encrypted_without_creating_a_plaintext_source_file() ->
     key.write_new(&path)?;
     drop(Store::init_encrypted(&data, &key)?);
     let snapshot = json!({"schemaVersion":1,"thread":{"id":"native-chatgpt","kind":"chatgpt","title":"Synthetic native view"},"page":{"order":"newest_first","hasMore":true},"turns":[{"id":"turn","items":[{"type":"userMessage","id":"user","content":[{"type":"text","text":"I prefer exact evidence in every observation."}]}]}]});
-    let mut child = Command::new(env!("CARGO_BIN_EXE_observr"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_remnary"))
         .arg("--data-dir")
         .arg(&data)
         .arg("--key-file")
@@ -124,7 +124,7 @@ fn app_snapshot_stdin_is_encrypted_without_creating_a_plaintext_source_file() ->
     let store = Store::open_encrypted(&data, &key)?;
     assert_eq!(store.stats()?.messages, 1);
     assert_eq!(store.search("exact evidence", 10)?.len(), 1);
-    let bytes = fs::read(data.join("observr.sqlite3"))?;
+    let bytes = fs::read(data.join("remnary.sqlite3"))?;
     assert!(!String::from_utf8_lossy(&bytes).contains("I prefer exact evidence"));
     assert_eq!(fs::read_dir(temp.path())?.count(), 2);
     Ok(())

@@ -26,4 +26,4 @@ jobs:
         run: cargo install cargo-audit --version 0.22.2 --locked
       - run: cargo audit
       - name: Release binary starts
-        run: target/release/observr --version
+        run: target/release/remnary --version

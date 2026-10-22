@@ -3,25 +3,25 @@
   "conversations": [
     {
       "provider": "chatgpt",
-      "source_id": "observr-architecture",
+      "source_id": "remnary-architecture",
       "messages": [
         {"role": "user", "content": "Keep implementations simple."},
         {"role": "user", "content": "Again, keep the code simple."},
         {"role": "assistant", "content": "I prefer MongoDB."},
         {"role": "user", "content": "I prefer short explanations for status reports."},
-        {"role": "user", "content": "I am considering DuckDB for Observr."},
-        {"role": "user", "content": "I chose SQLite for Observr."}
+        {"role": "user", "content": "I am considering DuckDB for Remnary."},
+        {"role": "user", "content": "I chose SQLite for Remnary."}
       ]
     },
     {
       "provider": "claude",
-      "source_id": "observr-review",
+      "source_id": "remnary-review",
       "messages": [
         {"role": "user", "content": "Keep implementations simple."},
         {"role": "user", "content": "Keep implementations simple for production migrations."},
         {"role": "user", "content": "I prefer detailed explanations for learning."},
-        {"role": "user", "content": "I changed my mind about DuckDB for Observr."},
-        {"role": "user", "content": "I confirm SQLite for Observr."}
+        {"role": "user", "content": "I changed my mind about DuckDB for Remnary."},
+        {"role": "user", "content": "I confirm SQLite for Remnary."}
       ]
     },
     {
@@ -45,10 +45,10 @@
     {"kind": "explicit_preference", "inference": "explicit", "canonical_value": "prefer detailed explanations for learning", "decision_event": null, "occurrences": 1, "distinct_conversations": 1},
     {"kind": "explicit_preference", "inference": "explicit", "canonical_value": "dislike short explanations for learning", "decision_event": null, "occurrences": 1, "distinct_conversations": 1},
     {"kind": "explicit_preference", "inference": "explicit", "canonical_value": "prefer rust", "decision_event": null, "occurrences": 2, "distinct_conversations": 1},
-    {"kind": "decision", "inference": "explicit", "canonical_value": "duckdb for observr", "decision_event": "consideration", "occurrences": 1, "distinct_conversations": 1},
-    {"kind": "decision", "inference": "explicit", "canonical_value": "sqlite for observr", "decision_event": "decision", "occurrences": 1, "distinct_conversations": 1},
-    {"kind": "decision", "inference": "explicit", "canonical_value": "about duckdb for observr", "decision_event": "reversal", "occurrences": 1, "distinct_conversations": 1},
-    {"kind": "decision", "inference": "explicit", "canonical_value": "sqlite for observr", "decision_event": "confirmation", "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "decision", "inference": "explicit", "canonical_value": "duckdb for remnary", "decision_event": "consideration", "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "decision", "inference": "explicit", "canonical_value": "sqlite for remnary", "decision_event": "decision", "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "decision", "inference": "explicit", "canonical_value": "about duckdb for remnary", "decision_event": "reversal", "occurrences": 1, "distinct_conversations": 1},
+    {"kind": "decision", "inference": "explicit", "canonical_value": "sqlite for remnary", "decision_event": "confirmation", "occurrences": 1, "distinct_conversations": 1},
     {"kind": "decision", "inference": "explicit", "canonical_value": "duckdb for analytics", "decision_event": "decision", "occurrences": 1, "distinct_conversations": 1}
   ]
 }

@@ -1,6 +1,6 @@
 //! Synthetic semantic acceptance check for the optional local verifier.
 use anyhow::{Result, ensure};
-use observr::{
+use remnary::{
     intelligence::{
         AnalysisOutput, CandidateObservation, DecisionEventType, EvidenceRef, ExtractionKind,
         InferenceType,
@@ -71,11 +71,11 @@ fn main() -> Result<()> {
                 .map(|(index, quote)| EvidenceRef {
                     provider: "synthetic".into(),
                     conversation_id: digest(
-                        format!("observr-synthetic-verifier-conversation:{}", case.id).as_bytes(),
+                        format!("remnary-synthetic-verifier-conversation:{}", case.id).as_bytes(),
                     ),
                     revision: 1,
                     source_message_id: digest(
-                        format!("observr-synthetic-verifier-message:{}:{index}", case.id)
+                        format!("remnary-synthetic-verifier-message:{}:{index}", case.id)
                             .as_bytes(),
                     ),
                     quote: quote.clone(),
@@ -105,7 +105,7 @@ fn main() -> Result<()> {
                     );
                     Message {
                         source_id: digest(
-                            format!("observr-synthetic-verifier-message:{}:{index}", case.id)
+                            format!("remnary-synthetic-verifier-message:{}:{index}", case.id)
                                 .as_bytes(),
                         ),
                         parent_source_id: None,
@@ -130,7 +130,7 @@ fn main() -> Result<()> {
         },
     )?;
     let results=cases.iter().map(|case|{
-  let accepted=verified.observations.iter().any(|o|o.evidence[0].conversation_id==digest(format!("observr-synthetic-verifier-conversation:{}",case.id).as_bytes()));
+  let accepted=verified.observations.iter().any(|o|o.evidence[0].conversation_id==digest(format!("remnary-synthetic-verifier-conversation:{}",case.id).as_bytes()));
   json!({"case":case.id,"expected_supported":case.expected_supported,"accepted":accepted,"passed":accepted==case.expected_supported})
  }).collect::<Vec<_>>();
     let passed = results.iter().filter(|r| r["passed"] == true).count();

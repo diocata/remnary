@@ -1,10 +1,10 @@
 #!/bin/sh
 # Use the isolated development toolchain when present; otherwise use installed Cargo.
 set -eu
-observr_root=$(cd "$(dirname "$0")/.." && pwd)
-if [ -x "$observr_root/.tools/cargo/bin/cargo" ]; then
-    export CARGO_HOME="$observr_root/.tools/cargo"
-    export RUSTUP_HOME="$observr_root/.tools/rustup"
+remnary_root=$(cd "$(dirname "$0")/.." && pwd)
+if [ -x "$remnary_root/.tools/cargo/bin/cargo" ]; then
+    export CARGO_HOME="$remnary_root/.tools/cargo"
+    export RUSTUP_HOME="$remnary_root/.tools/rustup"
     exec "$CARGO_HOME/bin/cargo" "$@"
 fi
 exec cargo "$@"

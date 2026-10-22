@@ -6,7 +6,7 @@ fn encrypted_cli_exclusions_survive_backup_and_keep_manual_controls_independent(
     let temp = tempfile::tempdir().unwrap();
     let data = temp.path().join("data");
     let key = temp.path().join("key");
-    let binary = env!("CARGO_BIN_EXE_observr");
+    let binary = env!("CARGO_BIN_EXE_remnary");
     let created = Command::new(binary)
         .args(["key", "create"])
         .arg(&key)

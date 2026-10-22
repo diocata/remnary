@@ -1,8 +1,14 @@
-# Observr
+# Remnary
 
-Local AI conversation history, grounded discoveries and a reviewable knowledge vault, written in Rust.
+**Your thoughts leave traces. We connect them.**
 
-Observr imports selected histories, keeps immutable evidence, extracts candidate preferences/corrections/decision events and lets you confirm, correct or reject them. A localhost dashboard and Markdown vault make results inspectable. **The local v0.1 MVP is verified on Apple Silicon macOS 27.0.1.** Candidate findings remain reviewable; the release evidence records measured quality and limits. See [release evidence](docs/readiness.md).
+A living record of your thoughts, memories, and experiences, written in Rust. Remnary connects fragmented AI conversations into an evolving record of your ideas, decisions, preferences, habits, and discoveries.
+
+Remnary imports selected histories, keeps immutable evidence, extracts candidate preferences/corrections/decision events and lets you confirm, correct or reject them. A localhost dashboard and Markdown vault make results inspectable. **The local v0.1 MVP is verified on Apple Silicon macOS 27.0.1.** Candidate findings remain reviewable; the release evidence records measured quality and limits. See [release evidence](docs/readiness.md).
+
+## The name
+
+Remnary is an invented word combining **remnant**—a trace of something from the past—and **diary**—a personal record of experiences, thoughts, and activities. Its meaning comes from that brand story, rather than a dictionary definition. The name leaves room to grow beyond AI conversations.
 
 ## Storage
 
@@ -25,20 +31,22 @@ cargo run -- web
 
 This workspace also provides `./scripts/cargo-local` for its isolated, ignored development toolchain. Use it in place of `cargo` when that toolchain is present. `cargo install --path . --locked` installs the CLI from your checkout; no Homebrew package or published binary is provided yet. A clean commit can produce a local archive with checksums using `python3 scripts/package-release.py --release`; the default without `--release` produces an evaluation archive; see [package contents and checks](docs/releasing.md).
 
-On macOS, `init` creates a random key in macOS Keychain and an encrypted archive under `~/Library/Application Support/observr`. Keychain access may prompt. `--data-dir DIRECTORY` selects an independent archive. Initialization does not scan sources or call a model.
+On macOS, `init` creates a random key in macOS Keychain and an encrypted archive under `~/Library/Application Support/remnary`. Keychain access may prompt. `--data-dir DIRECTORY` selects an independent archive. Initialization does not scan sources or call a model.
+
+Existing development archives remain readable; see [rename compatibility](docs/renaming.md) before moving an archive or switching its Keychain location.
 
 ## Bring your history
 
 ```sh
-observr sources --detect
-observr import /path/to/conversations.json
-observr import /path/to/chatgpt-export.zip
-observr import ~/.claude/projects --source claude-code
-observr import ~/.codex/sessions --source codex
-observr import "$HOME/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent" --source kiro
-observr status
-observr analyze
-observr search "SQLite"
+remnary sources --detect
+remnary import /path/to/conversations.json
+remnary import /path/to/chatgpt-export.zip
+remnary import ~/.claude/projects --source claude-code
+remnary import ~/.codex/sessions --source codex
+remnary import "$HOME/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent" --source kiro
+remnary status
+remnary analyze
+remnary search "SQLite"
 ```
 
 Detection inventories known session directories; importing reads the selected location. ChatGPT needs an account export. Collection is manual, with no watcher, browser extension or daemon. [Supported formats, limits and attribution safeguards](docs/sources.md).
@@ -46,16 +54,16 @@ Detection inventories known session directories; importing reads the selected lo
 ## Review findings
 
 ```sh
-observr discover --all
-observr patterns
-observr patterns --topics
-observr profile --candidates
-observr timeline
-observr today --timezone Europe/Luxembourg
-observr feedback OBSERVATION_ID confirm
-observr feedback OBSERVATION_ID correct --text "My corrected preference and context"
-observr feedback OBSERVATION_ID reject
-observr web
+remnary discover --all
+remnary patterns
+remnary patterns --topics
+remnary profile --candidates
+remnary timeline
+remnary today --timezone Europe/Luxembourg
+remnary feedback OBSERVATION_ID confirm
+remnary feedback OBSERVATION_ID correct --text "My corrected preference and context"
+remnary feedback OBSERVATION_ID reject
+remnary web
 ```
 
 `web` prints a loopback-only URL with a random session token. Open that complete link locally; treat it as private while the server runs. The dashboard supports evidence inspection, search and feedback. Ctrl-C stops the server.
@@ -67,10 +75,10 @@ An optional Ollama adapter supports a separately installed **local** model:
 ```sh
 # Start your trusted Ollama daemon with cloud features disabled first.
 OLLAMA_NO_CLOUD=1 ollama serve
-observr analyze --engine ollama --model YOUR_INSTALLED_LOCAL_MODEL
+remnary analyze --engine ollama --model YOUR_INSTALLED_LOCAL_MODEL
 ```
 
-Observr does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices, separately checks claim support and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. The real-history evaluation meets the initial grounding/usefulness/recurrence targets under owner-delegated agent assessment; it is not an independent human study.
+Remnary does not install/download models automatically. It accepts loopback HTTP only, rejects advertised remote/cloud models before sending content, applies best-effort secret redaction, constrains citation choices, separately checks claim support and checks output against original user-message evidence. The tested local setup and model tag are in [local-model.md](docs/local-model.md). A trusted daemon is necessary. The real-history evaluation meets the initial grounding/usefulness/recurrence targets under owner-delegated agent assessment; it is not an independent human study.
 
 The built-in Rules engine also detects repeated comparison requests. It needs two different eligible owner messages with different question text in a conversation; independent conversations can then support the same pattern. It describes recorded requests, with exact evidence, and leaves confirmation to you. The recognizer covers a bounded set of English request forms; it is not a general habit or personality classifier.
 
@@ -79,21 +87,21 @@ Related topics are available with `patterns --topics` (or `--topics --json`) and
 ## Generate a vault
 
 ```sh
-observr vault sync /path/to/Observr-vault --timezone Europe/Luxembourg
-observr export /path/to/transcript-snapshots
+remnary vault sync /path/to/Remnary-vault --timezone Europe/Luxembourg
+remnary export /path/to/transcript-snapshots
 ```
 
 The vault contains Home, Profile, Discoveries, Candidates, Patterns, related Topics, Decisions, Daily notes and linked transcript snapshots. Obsidian is optional. Generated sections have ownership hashes; edits outside them survive synchronization. Conflicting generated edits are preserved and reported. [Import an explicit Markdown correction](docs/vault-feedback.md) with `vault apply-feedback FILE --check`, then apply it after reviewing. Stale review counts prevent accidental replay or overwriting another correction.
 
-**Markdown exports are plaintext.** Generate them only in a location you choose to protect. Observr tracks owned projections for deletion/feedback cleanup, preserving user-written sections and reporting conflicts. Independent copies and older backups remain your responsibility.
+**Markdown exports are plaintext.** Generate them only in a location you choose to protect. Remnary tracks owned projections for deletion/feedback cleanup, preserving user-written sections and reporting conflicts. Independent copies and older backups remain your responsibility.
 
 ## Protect and recover your archive
 
 ```sh
-observr doctor
-observr key export /private/location/recovery.key
-observr backup /private/location/archive-backup.sqlite3
-observr --data-dir /path/to/new-archive --key-file /private/location/recovery.key restore /private/location/archive-backup.sqlite3
+remnary doctor
+remnary key export /private/location/recovery.key
+remnary backup /private/location/archive-backup.sqlite3
+remnary --data-dir /path/to/new-archive --key-file /private/location/recovery.key restore /private/location/archive-backup.sqlite3
 ```
 
 Keep recovery keys separate from backups. Restore requires an unused destination and the key that encrypted that backup. It validates integrity and does not take ownership of the original archive's Markdown files. Losing both Keychain access and the recovery key loses access to encrypted data.
@@ -101,8 +109,8 @@ Keep recovery keys separate from backups. Restore requires an unused destination
 For explicit key-file operation (also the available path on non-macOS systems):
 
 ```sh
-observr key create /private/location/observr.key
-observr --data-dir /path/to/archive --key-file /private/location/observr.key init
+remnary key create /private/location/remnary.key
+remnary --data-dir /path/to/archive --key-file /private/location/remnary.key init
 ```
 
 Use that same `--key-file` with subsequent commands. On Unix key files must be private regular files, with mode `0600`. `--insecure-plaintext` explicitly selects development/legacy storage and never decrypts an encrypted archive. Default commands refuse plaintext stores; `encrypt-copy --new-key-file KEY` creates a separate encrypted copy. [Upgrade, restore and key-change workflows](docs/recovery.md).
@@ -117,8 +125,8 @@ Use that same `--key-file` with subsequent commands. On Unix key files must be p
 ./scripts/cargo-local clippy --locked --all-targets -- -D warnings
 ```
 
-Only synthetic fixtures belong in Git. Keep real histories, keys, generated vaults and local model data outside the checkout or under ignored `.observr/`. The [original product brief](docs/product-brief.md) is unchanged; [current release evidence](docs/readiness.md) distinguishes implementation from unverified requirements and future work.
+Only synthetic fixtures belong in Git. Keep real histories, keys, generated vaults and local model data outside the checkout or under ignored `.remnary/`. The [original product brief](docs/product-brief.md) is unchanged; [current release evidence](docs/readiness.md) distinguishes implementation from unverified requirements and future work.
 
 ## License
 
-Observr is licensed under [MIT](LICENSE). Native dependency notices are included under [third_party/notices](third_party/notices/).
+Remnary is licensed under [MIT](LICENSE). Native dependency notices are included under [third_party/notices](third_party/notices/).

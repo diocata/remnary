@@ -1,20 +1,22 @@
-# OBSERVR
+> Project naming updated to Remnary; requirements retain the original brief’s scope. Brand: **Your thoughts leave traces. We connect them.** Remnary combines remnant and diary: a living record of your thoughts, memories, and experiences.
+
+# REMNARY
 ## Universal AI Observability & Personal Intelligence Engine
 
-> **Your conversations tell a story. Observr helps you understand it.**
+> **Your conversations tell a story. Remnary helps you understand it.**
 
 **Status:** Concept / Planning  
 **Version:** 0.1.0 (Proposed MVP)  
 **Type:** Open-source, local-first application  
 **Platforms:** macOS, Linux, Windows (eventually)  
 **Interfaces:** CLI, Local Web Dashboard, TUI (future), Obsidian  
-**Working Name:** Observr (subject to availability checks)
+**Working Name:** Remnary (subject to availability checks)
 
 ---
 
 # 1. Executive Summary
 
-Observr is an always-on, local-first personal intelligence system that observes interactions across AI assistants and transforms them into structured, evolving personal knowledge.
+Remnary is an always-on, local-first personal intelligence system that observes interactions across AI assistants and transforms them into structured, evolving personal knowledge.
 
 The system collects conversation history from platforms such as:
 
@@ -27,7 +29,7 @@ The system collects conversation history from platforms such as:
 - OpenCode
 - Other supported AI assistants
 
-Instead of simply storing conversations, Observr analyzes them to identify:
+Instead of simply storing conversations, Remnary analyzes them to identify:
 
 - Recurring patterns
 - Personal preferences
@@ -45,7 +47,7 @@ Instead of simply storing conversations, Observr analyzes them to identify:
 
 These findings are organized into a persistent, evidence-backed knowledge system.
 
-Observr can automatically maintain a dedicated Obsidian vault containing daily summaries, personal profiles, project histories, observations, decisions, and meaningful insights.
+Remnary can automatically maintain a dedicated Obsidian vault containing daily summaries, personal profiles, project histories, observations, decisions, and meaningful insights.
 
 Users can explore this information using a CLI, terminal interface, or local web dashboard.
 
@@ -92,7 +94,7 @@ A user discusses building an application in January, revisits the idea in March,
 
 Today, these conversations may exist independently across several AI applications.
 
-Observr should connect them into one coherent project history.
+Remnary should connect them into one coherent project history.
 
 ## 2.2 Repeated Corrections
 
@@ -111,7 +113,7 @@ These corrections often disappear into conversation histories.
 
 Users may not realize how frequently they repeat themselves.
 
-Observr should discover these patterns and provide supporting evidence.
+Remnary should discover these patterns and provide supporting evidence.
 
 ## 2.3 Invisible Habits
 
@@ -131,7 +133,7 @@ Individual conversations may not reveal these patterns.
 
 Analyzing interactions longitudinally can.
 
-Observr should identify meaningful recurring behaviors without making unsupported psychological judgments.
+Remnary should identify meaningful recurring behaviors without making unsupported psychological judgments.
 
 ## 2.4 Fragmented Personal Memory
 
@@ -141,7 +143,7 @@ A preference expressed in ChatGPT may not be available in Claude.
 
 A project decision discussed in Codex may not be reflected elsewhere.
 
-Observr should provide a provider-independent record of relevant knowledge that the user can inspect, modify, export, and selectively share.
+Remnary should provide a provider-independent record of relevant knowledge that the user can inspect, modify, export, and selectively share.
 
 ## 2.5 No Historical Understanding
 
@@ -156,7 +158,7 @@ They often fail to explain:
 - Which conversations support an observation.
 - Whether information is still relevant.
 
-Observr should preserve the evolution of knowledge, not merely its latest state.
+Remnary should preserve the evolution of knowledge, not merely its latest state.
 
 ---
 
@@ -164,19 +166,19 @@ Observr should preserve the evolution of knowledge, not merely its latest state.
 
 ## 3.1 One-Liner
 
-**Observr is a personal intelligence layer that continuously transforms your AI conversations into an evolving understanding of your interests, habits, decisions, and work.**
+**Remnary is a personal intelligence layer that continuously transforms your AI conversations into an evolving understanding of your interests, habits, decisions, and work.**
 
 ## 3.2 Extended Pitch
 
 Every conversation with AI contains information about what you're working on, what matters to you, and how your ideas evolve.
 
-Observr connects these conversations across AI platforms, discovers meaningful patterns, and automatically maintains a personal knowledge base.
+Remnary connects these conversations across AI platforms, discovers meaningful patterns, and automatically maintains a personal knowledge base.
 
 It runs locally, requires minimal intervention, and gives you complete control over the information it collects.
 
 ## 3.3 Product Philosophy
 
-Observr should help users understand themselves and their history.
+Remnary should help users understand themselves and their history.
 
 It should not claim to know users better than they know themselves.
 
@@ -190,7 +192,7 @@ Its observations must be:
 6. Useful
 7. Non-intrusive
 
-Observr should distinguish between what someone explicitly states and what the system infers.
+Remnary should distinguish between what someone explicitly states and what the system infers.
 
 ---
 
@@ -206,22 +208,22 @@ Users should retain ownership of their data.
 
 ## 4.2 Passive Observation
 
-After setup, Observr should require little ongoing interaction.
+After setup, Remnary should require little ongoing interaction.
 
 The intended workflow:
 
 1. User enables supported conversation sources.
-2. Observr collects new conversations.
-3. Observr processes them incrementally.
-4. Observr discovers relevant information.
-5. Observr updates the knowledge base.
+2. Remnary collects new conversations.
+3. Remnary processes them incrementally.
+4. Remnary discovers relevant information.
+5. Remnary updates the knowledge base.
 6. User reviews insights when desired.
 
 The collection mechanisms must be explicit and permission-based.
 
 ## 4.3 Platform Independence
 
-Observr should support different AI platforms through independent adapters.
+Remnary should support different AI platforms through independent adapters.
 
 The analysis engine should operate on a normalized conversation format.
 
@@ -264,7 +266,7 @@ Users must be able to:
 
 ## 4.6 Useful Intelligence Over Analytics
 
-Observr should prioritize meaningful discoveries over vanity metrics.
+Remnary should prioritize meaningful discoveries over vanity metrics.
 
 "142 prompts sent" is information.
 
@@ -274,7 +276,7 @@ The latter is the product's primary value.
 
 ## 4.7 Incremental Knowledge
 
-Observr should not recreate an entire personal profile every time a new conversation appears.
+Remnary should not recreate an entire personal profile every time a new conversation appears.
 
 Instead, it should incrementally update the relevant records.
 
@@ -323,13 +325,13 @@ This user has hundreds or thousands of AI conversations containing potentially v
 Proposed future installation:
 
 ```bash
-brew install observr
+brew install remnary
 ```
 
 Alternative:
 
 ```bash
-npm install -g observr
+npm install -g remnary
 ```
 
 The installation mechanism will be finalized before publishing.
@@ -337,18 +339,18 @@ The installation mechanism will be finalized before publishing.
 ## 6.2 Initialization
 
 ```bash
-observr init
+remnary init
 ```
 
 Example setup:
 
 ```text
 ╭─────────────────────────────────────────────╮
-│ OBSERVR                                     │
+│ REMNARY                                     │
 │ Your Personal Intelligence Layer            │
 ╰─────────────────────────────────────────────╯
 
-Welcome to Observr.
+Welcome to Remnary.
 
 Detected local AI applications:
 
@@ -399,37 +401,37 @@ The application must clearly distinguish between:
 Proposed interface:
 
 ```bash
-observr init
-observr status
-observr import <file>
-observr analyze
-observr discover
-observr profile
-observr patterns
-observr timeline
-observr today
-observr week
-observr ask "What do I repeatedly correct?"
-observr vault sync
-observr web
-observr doctor
-observr export
-observr delete
+remnary init
+remnary status
+remnary import <file>
+remnary analyze
+remnary discover
+remnary profile
+remnary patterns
+remnary timeline
+remnary today
+remnary week
+remnary ask "What do I repeatedly correct?"
+remnary vault sync
+remnary web
+remnary doctor
+remnary export
+remnary delete
 ```
 
 Future daemon commands:
 
 ```bash
-observr start
-observr stop
-observr restart
-observr logs
+remnary start
+remnary stop
+remnary restart
+remnary logs
 ```
 
 Future TUI:
 
 ```bash
-observr tui
+remnary tui
 ```
 
 The CLI should remain useful without the web interface.
@@ -532,7 +534,7 @@ Do not assume that a model API provides access to conversations held in the prov
 
 # 8. Intelligence Engine
 
-This is the most important component of Observr.
+This is the most important component of Remnary.
 
 The intelligence engine must transform unstructured conversations into reliable structured knowledge.
 
@@ -703,7 +705,7 @@ The user frequently asks an agent to:
 4. Create a PRD.
 5. Start implementation.
 
-Observr may suggest creating a reusable workflow.
+Remnary may suggest creating a reusable workflow.
 
 ### K. Evolving Knowledge
 
@@ -1120,7 +1122,7 @@ Counts and dates must be derived from stored evidence.
 
 Track how decisions evolve.
 
-Unlike conventional memory systems, Observr should preserve historical states.
+Unlike conventional memory systems, Remnary should preserve historical states.
 
 ## 12.2 Example
 
@@ -1194,7 +1196,7 @@ Platforms: ChatGPT, Codex
 
 ## Projects
 
-### Observr
+### Remnary
 
 - Explored universal AI observability.
 - Discussed background monitoring.
@@ -1279,7 +1281,7 @@ The system must work with ordinary Markdown folders.
 ## 14.2 Default Vault Structure
 
 ```text
-Observr/
+Remnary/
 │
 ├── Home.md
 │
@@ -1502,7 +1504,7 @@ The TUI is a future feature.
 
 ```text
 ╭──────────────────────────────────────────────╮
-│ OBSERVR                           ● ACTIVE   │
+│ REMNARY                           ● ACTIVE   │
 ├──────────────────────────────────────────────┤
 │                                              │
 │ TODAY                                        │
@@ -1549,23 +1551,23 @@ Allow users to ask questions about their historical AI interactions.
 Examples:
 
 ```bash
-observr ask "What do I repeatedly correct?"
+remnary ask "What do I repeatedly correct?"
 ```
 
 ```bash
-observr ask "What projects have I discussed this year?"
+remnary ask "What projects have I discussed this year?"
 ```
 
 ```bash
-observr ask "How has my development style changed?"
+remnary ask "How has my development style changed?"
 ```
 
 ```bash
-observr ask "What decisions did I reconsider?"
+remnary ask "What decisions did I reconsider?"
 ```
 
 ```bash
-observr ask "What ideas have I discussed but not revisited?"
+remnary ask "What ideas have I discussed but not revisited?"
 ```
 
 ## 17.2 Requirements
@@ -2022,7 +2024,7 @@ The product must communicate this clearly.
 
 ## 22.1 Model Independence
 
-Observr should not depend on one specific LLM provider.
+Remnary should not depend on one specific LLM provider.
 
 Support a common model interface.
 
@@ -2098,7 +2100,7 @@ Unsupported claims should not be included in the established personal profile.
 
 This is a foundational product requirement.
 
-Observr may process highly sensitive personal information.
+Remnary may process highly sensitive personal information.
 
 ## 23.1 Core Requirements
 
@@ -2181,7 +2183,7 @@ Do not implement:
 
 ## 24.1 Goal
 
-Prove that Observr can generate genuinely useful personal intelligence from historical AI conversations.
+Prove that Remnary can generate genuinely useful personal intelligence from historical AI conversations.
 
 Do not start by building the complete always-on platform.
 
@@ -2226,25 +2228,25 @@ Do not start by building the complete always-on platform.
 ## 24.3 MVP User Flow
 
 ```text
-1. Install Observr.
+1. Install Remnary.
 
 2. Run:
-   observr init
+   remnary init
 
 3. Import history:
-   observr import chatgpt-export.zip
+   remnary import chatgpt-export.zip
 
 4. Analyze:
-   observr analyze
+   remnary analyze
 
 5. Discover:
-   observr discover
+   remnary discover
 
 6. Generate vault:
-   observr vault sync
+   remnary vault sync
 
 7. Open dashboard:
-   observr web
+   remnary web
 
 8. Review insights and profile.
 ```
@@ -2399,7 +2401,7 @@ No automatic changes to external AI tools without explicit approval.
 Use a TypeScript monorepo.
 
 ```text
-observr/
+remnary/
 │
 ├── README.md
 ├── PROJECT.md
@@ -2593,7 +2595,7 @@ Future daemon requirements:
 
 # 29. Differentiation From Existing Products
 
-Observr competes with adjacent products in several categories:
+Remnary competes with adjacent products in several categories:
 
 - AI conversation archival
 - Personal AI memory
@@ -2612,11 +2614,11 @@ Relevant projects to study include:
 - Screenpipe
 - Existing provider-native memory features
 
-The existence of these tools means Observr should not claim to have invented universal conversation capture or AI-generated personal profiles.
+The existence of these tools means Remnary should not claim to have invented universal conversation capture or AI-generated personal profiles.
 
 ## 29.1 Proposed Differentiation
 
-Observr should focus on the combination of:
+Remnary should focus on the combination of:
 
 1. Cross-provider observation.
 2. Evidence-backed personal intelligence.
@@ -2631,11 +2633,11 @@ Observr should focus on the combination of:
 
 ## 29.2 Primary Differentiator
 
-**Observr does not simply remember conversations. It discovers meaningful patterns and preserves how knowledge evolves.**
+**Remnary does not simply remember conversations. It discovers meaningful patterns and preserves how knowledge evolves.**
 
 ## 29.3 Critical Competitive Test
 
-Before expanding beyond the MVP, compare Observr's discoveries against existing alternatives.
+Before expanding beyond the MVP, compare Remnary's discoveries against existing alternatives.
 
 The system should produce meaningfully more useful, accurate, or actionable results.
 
@@ -2647,7 +2649,7 @@ A more attractive dashboard alone is insufficient differentiation.
 
 ## 30.1 Main Tagline
 
-**Your conversations tell a story. Observr helps you understand it.**
+**Your conversations tell a story. Remnary helps you understand it.**
 
 ## 30.2 Alternative Taglines
 
@@ -2668,7 +2670,7 @@ You have hundreds or thousands of conversations scattered across different AI as
 
 Those conversations contain ideas, preferences, decisions, goals, and useful discoveries.
 
-Observr connects them.
+Remnary connects them.
 
 It identifies what you keep discussing, what you've changed your mind about, what you repeatedly correct, and what you may have forgotten.
 
@@ -2681,19 +2683,19 @@ Then it turns that information into an evolving knowledge base you actually own.
 ## 31.1 Installation
 
 ```bash
-observr init
+remnary init
 ```
 
 ## 31.2 Import
 
 ```bash
-observr import chatgpt-export.zip
+remnary import chatgpt-export.zip
 ```
 
 Example output:
 
 ```text
-OBSERVR — Conversation Import
+REMNARY — Conversation Import
 
 Source: ChatGPT
 
@@ -2712,13 +2714,13 @@ Import complete.
 ## 31.3 Analyze
 
 ```bash
-observr analyze
+remnary analyze
 ```
 
 Example output:
 
 ```text
-OBSERVR — Intelligence Analysis
+REMNARY — Intelligence Analysis
 
 Processing conversation history...
 
@@ -2734,13 +2736,13 @@ Analysis complete.
 ## 31.4 Discover
 
 ```bash
-observr discover
+remnary discover
 ```
 
 Example output:
 
 ```text
-OBSERVR — Your Discoveries
+REMNARY — Your Discoveries
 
 01. RECURRING IDEA
 
@@ -2785,11 +2787,11 @@ These examples are illustrative.
 ## 31.5 Generate Obsidian Vault
 
 ```bash
-observr vault sync
+remnary vault sync
 ```
 
 ```text
-OBSERVR — Knowledge Vault
+REMNARY — Knowledge Vault
 
 ✓ Daily summaries generated
 ✓ Personal profile updated
@@ -2798,7 +2800,7 @@ OBSERVR — Knowledge Vault
 ✓ Project notes created
 
 Vault:
-~/Documents/Observr
+~/Documents/Remnary
 
 Open in Obsidian? [Y/n]
 ```
@@ -3045,7 +3047,7 @@ Create:
 Support:
 
 ```bash
-observr search "PostgreSQL"
+remnary search "PostgreSQL"
 ```
 
 Return relevant conversation references.
@@ -3073,7 +3075,7 @@ Start with corrections and explicit preferences.
 Support:
 
 ```bash
-observr discover
+remnary discover
 ```
 
 Return the highest-quality findings with source references.
@@ -3083,7 +3085,7 @@ Return the highest-quality findings with source references.
 Support:
 
 ```bash
-observr vault sync
+remnary vault sync
 ```
 
 Generate:
@@ -3142,7 +3144,7 @@ Convert confirmed preferences into reusable instructions.
 Example:
 
 ```bash
-observr export rules --target codex
+remnary export rules --target codex
 ```
 
 The user reviews the generated instructions before applying them.
@@ -3193,7 +3195,7 @@ Example:
 
 An AI coding agent requests the user's confirmed development preferences.
 
-Observr returns only the approved, relevant information.
+Remnary returns only the approved, relevant information.
 
 The MCP server must enforce source and scope permissions.
 
@@ -3201,7 +3203,7 @@ The MCP server must enforce source and scope permissions.
 
 # 37. What We Must Not Build
 
-To preserve focus, Observr must not become:
+To preserve focus, Remnary must not become:
 
 - Another generic chatbot.
 - Another task manager.
@@ -3251,7 +3253,7 @@ The following decisions are proposed defaults.
 
 # 39. Definition of Success
 
-Observr is successful when users can import their conversation histories and discover meaningful information they would otherwise have difficulty identifying.
+Remnary is successful when users can import their conversation histories and discover meaningful information they would otherwise have difficulty identifying.
 
 A successful experience should feel like:
 
@@ -3298,7 +3300,7 @@ The system should be useful without requiring users to change how they interact 
 
 It should work quietly in the background, continuously transforming fragmented conversations into organized knowledge.
 
-**Observr is not intended to replace AI assistants.**
+**Remnary is not intended to replace AI assistants.**
 
 **It is intended to give users ownership, visibility, and understanding of the knowledge accumulated through their interactions with them.**
 
@@ -3308,7 +3310,7 @@ It should work quietly in the background, continuously transforming fragmented c
 
 Before implementing the daemon, browser extension, or advanced dashboard, build the smallest version that can answer one question:
 
-**Can Observr discover meaningful, accurate, and useful patterns from a person's existing AI conversation history?**
+**Can Remnary discover meaningful, accurate, and useful patterns from a person's existing AI conversation history?**
 
 The first milestone is therefore:
 
@@ -3334,7 +3336,7 @@ Once that pipeline works reliably, expand toward continuous universal observatio
 
 # 42. Guiding Principle
 
-> **Don't optimize for how much Observr knows. Optimize for how much useful, trustworthy knowledge it helps the user discover.**
+> **Don't optimize for how much Remnary knows. Optimize for how much useful, trustworthy knowledge it helps the user discover.**
 
 This principle should guide the design of every feature.
 

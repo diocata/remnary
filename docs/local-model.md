@@ -4,7 +4,7 @@ Current producer/prompt: **v36**; encrypted schema: **5**. Model-quality accepta
 
 ## Run a local model
 
-The observed setup is Homebrew Ollama **0.40.6** on Apple Silicon. The installed evaluation comparator is `gemma4:12b-it-q4_K_M`: GGUF Q4_K_M, 11.9B, 8,021,618,941 bytes, manifest digest `6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b`. It is under evaluation, not a qualified default. Observr requires an explicit model name.
+The observed setup is Homebrew Ollama **0.40.6** on Apple Silicon. The installed evaluation comparator is `gemma4:12b-it-q4_K_M`: GGUF Q4_K_M, 11.9B, 8,021,618,941 bytes, manifest digest `6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b`. It is under evaluation, not a qualified default. Remnary requires an explicit model name.
 
 ```sh
 brew install ollama
@@ -15,13 +15,13 @@ In another terminal:
 
 ```sh
 OLLAMA_HOST=127.0.0.1:11435 ollama pull gemma4:12b-it-q4_K_M
-observr analyze --engine ollama --model gemma4:12b-it-q4_K_M \
+remnary analyze --engine ollama --model gemma4:12b-it-q4_K_M \
   --endpoint http://127.0.0.1:11435 --progress
 ```
 
 The download contacts the model registry. Extraction sends redacted history to the local daemon. The launcher binds loopback, disables cloud features and request-body debug logging, and limits loaded models and parallel requests to one. It runs in the foreground; Ctrl-C stops it. It installs no login service or shell-profile changes. Homebrew can change shared dependencies; the observed installation added MLX support and upgraded Python, OpenSSL and related packages.
 
-Observr never installs or downloads a model automatically. A trusted local daemon is necessary: preflight checks reject advertised remote/cloud aliases before history is sent, but cannot attest what an arbitrary daemon executes. Keep the complete dashboard URL private while its separate server runs.
+Remnary never installs or downloads a model automatically. A trusted local daemon is necessary: preflight checks reject advertised remote/cloud aliases before history is sent, but cannot attest what an arbitrary daemon executes. Keep the complete dashboard URL private while its separate server runs.
 
 ## Processing and limits
 
@@ -51,12 +51,12 @@ Start the local daemon and install the explicitly named model first:
 ```sh
 ./scripts/cargo-local test --locked --all-targets
 ./scripts/cargo-local build --locked
-python3 scripts/evaluate-model.py --binary target/debug/observr \
+python3 scripts/evaluate-model.py --binary target/debug/remnary \
   --model gemma4:12b-it-q4_K_M --endpoint http://127.0.0.1:11435
 ./scripts/cargo-local run --locked --example evaluate-verifier -- \
   http://127.0.0.1:11435 gemma4:12b-it-q4_K_M
-OBSERVR_TEST_OLLAMA_MODEL=gemma4:12b-it-q4_K_M \
-OBSERVR_TEST_OLLAMA_ENDPOINT=http://127.0.0.1:11435 \
+REMNARY_TEST_OLLAMA_MODEL=gemma4:12b-it-q4_K_M \
+REMNARY_TEST_OLLAMA_ENDPOINT=http://127.0.0.1:11435 \
   ./scripts/cargo-local test --locked --lib reconciliation::local_model -- \
   --ignored --nocapture --test-threads=1
 ```

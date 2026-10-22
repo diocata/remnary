@@ -5,13 +5,13 @@ use std::{
 };
 
 fn run(data_dir: &Path, arguments: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_observr"))
+    Command::new(env!("CARGO_BIN_EXE_remnary"))
         .arg("--insecure-plaintext")
         .arg("--data-dir")
         .arg(data_dir)
         .args(arguments)
         .output()
-        .expect("run Observr")
+        .expect("run Remnary")
 }
 
 fn successful(data_dir: &Path, arguments: &[&str]) -> String {

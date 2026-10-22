@@ -1,6 +1,6 @@
 # Rust and embedded storage
 
-Observr is one Rust crate with direct SQL through `rusqlite`. SQLCipher bundles the encrypted SQLite engine; the macOS build uses Apple CommonCrypto. There is no database service, ORM or mandatory model service. Application code uses blocking APIs; the HTTP client brings a transitive Tokio runtime.
+Remnary is one Rust crate with direct SQL through `rusqlite`. SQLCipher bundles the encrypted SQLite engine; the macOS build uses Apple CommonCrypto. There is no database service, ORM or mandatory model service. Application code uses blocking APIs; the HTTP client brings a transitive Tokio runtime.
 
 ```text
 Selected local history → bounded normalization → atomic import / immutable revisions

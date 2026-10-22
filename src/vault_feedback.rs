@@ -34,7 +34,10 @@ pub fn read_feedback(path: &Path) -> Result<VaultFeedback> {
         "feedback note exceeds 1 MiB limit"
     );
     let content = String::from_utf8(bytes).context("feedback note must be UTF-8")?;
-    let sections = if content.contains(GENERATED_START) || content.contains(GENERATED_END) {
+    let sections = if content.contains(GENERATED_START)
+        || content.contains(GENERATED_END)
+        || content.contains("<!-- observr:generated:")
+    {
         let (before, _, after) = split_managed_section(&content)?;
         vec![before, after]
     } else {
@@ -46,7 +49,7 @@ pub fn read_feedback(path: &Path) -> Result<VaultFeedback> {
     }
     ensure!(
         blocks.len() == 1,
-        "note must contain exactly one top-level observr-feedback code block outside generated sections"
+        "note must contain exactly one top-level remnary-feedback code block outside generated sections"
     );
     let feedback: VaultFeedback = serde_json::from_str(&blocks[0])
         .map_err(|_| anyhow::anyhow!("feedback block does not match the review schema"))?;
@@ -128,7 +131,11 @@ fn feedback_blocks(content: &str) -> Result<Vec<String>> {
             continue;
         }
         let info = line[count..].trim();
-        fence = Some((marker, count, info == "observr-feedback"));
+        fence = Some((
+            marker,
+            count,
+            matches!(info, "remnary-feedback" | "observr-feedback"),
+        ));
     }
     ensure!(
         fence.is_none(),
@@ -148,6 +155,35 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn legacy_feedback_excludes_generated_content() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let path = temporary.path().join("review.md");
+        let block = format!(
+            "```observr-feedback\n{}\n```\n",
+            json!({
+                "observation_id": "a".repeat(64), "action": "reject",
+                "expected_feedback_count": 0, "text": null
+            })
+        );
+        fs::write(
+            &path,
+            format!("<!-- observr:generated:start -->\n{block}<!-- observr:generated:end -->\n"),
+        )?;
+        assert!(read_feedback(&path).is_err());
+        fs::write(
+            &path,
+            format!(
+                "<!-- observr:generated:start -->\n{block}<!-- observr:generated:end -->\n{block}"
+            ),
+        )?;
+        assert!(matches!(
+            read_feedback(&path)?.action,
+            FeedbackAction::Reject
+        ));
+        Ok(())
+    }
+
+    #[test]
     fn explicit_markdown_correction_preserves_note_and_rejects_stale_replay() -> Result<()> {
         let temp = tempfile::tempdir()?;
         let mut store = Store::init(&temp.path().join("data"))?;
@@ -159,7 +195,7 @@ mod tests {
         sync_vault(&mut store, &vault, "UTC")?;
         let path = vault.join("Profile.md");
         let mut content = fs::read_to_string(&path)?;
-        content.push_str(&format!("\nMy review:\n```observr-feedback\n{}\n```\n",json!({"observation_id":record.id,"action":"correct","expected_feedback_count":0,"text":"Simple implementations for small projects"})));
+        content.push_str(&format!("\nMy review:\n```remnary-feedback\n{}\n```\n",json!({"observation_id":record.id,"action":"correct","expected_feedback_count":0,"text":"Simple implementations for small projects"})));
         fs::write(&path, &content)?;
         let feedback = read_feedback(&path)?;
         check_feedback(&store, &feedback)?;
@@ -185,7 +221,7 @@ mod tests {
         let temp = tempfile::tempdir()?;
         let path = temp.path().join("review.md");
         let block = format!(
-            "```observr-feedback\n{}\n```\n",
+            "```remnary-feedback\n{}\n```\n",
             json!({"observation_id":"a".repeat(64),"action":"confirm","expected_feedback_count":0})
         );
         for content in [
@@ -193,7 +229,7 @@ mod tests {
             format!("````markdown\n{block}````\n"),
             format!("{block}{block}"),
             format!("> {block}"),
-            "```observr-feedback\n{}".into(),
+            "```remnary-feedback\n{}".into(),
         ] {
             fs::write(&path, content)?;
             assert!(read_feedback(&path).is_err());

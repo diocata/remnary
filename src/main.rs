@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
-use observr::{
+use remnary::{
     analysis::{AnalysisEngine, AnalysisProgress, analyze_with_progress},
     analysis_store::{FeedbackAction, ObservationRecord, ObservationStatus},
     intelligence::ExtractionKind,
@@ -18,7 +18,7 @@ use std::{
 
 #[derive(Parser)]
 #[command(
-    name = "observr",
+    name = "remnary",
     version,
     about = "Evidence-backed knowledge from your AI conversations"
 )]
@@ -203,7 +203,7 @@ enum PrivacyScope {
     Directory,
     Topic,
 }
-impl From<PrivacyScope> for observr::exclusions::ExclusionScope {
+impl From<PrivacyScope> for remnary::exclusions::ExclusionScope {
     fn from(scope: PrivacyScope) -> Self {
         match scope {
             PrivacyScope::Provider => Self::Provider,
@@ -280,7 +280,7 @@ fn run() -> Result<()> {
     }
     let data_dir = match cli.data_dir {
         Some(dir) => dir,
-        None => directories::ProjectDirs::from("", "", "observr")
+        None => directories::ProjectDirs::from("", "", "remnary")
             .context("cannot locate application data; provide --data-dir")?
             .data_local_dir()
             .to_path_buf(),
@@ -289,7 +289,7 @@ fn run() -> Result<()> {
         command: KeyCommand::Create { output },
     } = &cli.command
     {
-        observr::security::SecretKey::generate()?.write_new(output)?;
+        remnary::security::SecretKey::generate()?.write_new(output)?;
         println!(
             "Created private key file at {}. Keep it separate from database backups.",
             output.display()
@@ -300,7 +300,7 @@ fn run() -> Result<()> {
         let restore_key = if cli.insecure_plaintext {
             None
         } else {
-            Some(observr::security::SecretKey::from_key_file(
+            Some(remnary::security::SecretKey::from_key_file(
                 cli.key_file
                     .as_deref()
                     .context("restore requires --key-file with the original backup recovery key")?,
@@ -322,7 +322,7 @@ fn run() -> Result<()> {
             cli.insecure_plaintext,
             "encrypt-copy requires --insecure-plaintext to explicitly select the legacy source"
         );
-        let new_key = observr::security::SecretKey::from_key_file(new_key_file)?;
+        let new_key = remnary::security::SecretKey::from_key_file(new_key_file)?;
         Store::encrypt_plaintext_copy(&data_dir, output, &new_key)?;
         println!(
             "Encrypted copy saved to {}. Original archive preserved. Restore into a new directory with the new key, then verify before retiring old plaintext copies.",
@@ -333,7 +333,7 @@ fn run() -> Result<()> {
     let key = if cli.insecure_plaintext {
         None
     } else {
-        Some(observr::security::resolve_key(
+        Some(remnary::security::resolve_key(
             &data_dir,
             cli.key_file.as_deref(),
             matches!(cli.command, Command::Init),
@@ -345,7 +345,7 @@ fn run() -> Result<()> {
         } else {
             Store::init(&data_dir)?;
         }
-        println!("Initialized Observr at {}", data_dir.display());
+        println!("Initialized Remnary at {}", data_dir.display());
         return Ok(());
     }
     let mut store = if let Some(key) = &key {
@@ -371,7 +371,7 @@ fn run() -> Result<()> {
             );
             let backup_key = backup_key_file
                 .as_deref()
-                .map(observr::security::SecretKey::from_key_file)
+                .map(remnary::security::SecretKey::from_key_file)
                 .transpose()?;
             store.backup_to(&output, backup_key.as_ref().or(key.as_ref()))?;
             let protection = if key.is_some() {
@@ -395,7 +395,7 @@ fn run() -> Result<()> {
                 output.display()
             );
         }
-        Command::Web { port } => return observr::web::serve_store(store, port),
+        Command::Web { port } => return remnary::web::serve_store(store, port),
         Command::Status => {
             let stats = store.stats()?;
             println!(
@@ -421,7 +421,7 @@ fn run() -> Result<()> {
             );
         }
         Command::ImportAppSnapshot { file } => {
-            let conversation = observr::app_snapshot::read_snapshot(&file)?;
+            let conversation = remnary::app_snapshot::read_snapshot(&file)?;
             let summary = store.import(&[conversation])?;
             println!(
                 "Imported partial app view: {} new, {} updated, {} unchanged, {} skipped conversations. Coverage and truncation remain recorded.",
@@ -713,7 +713,7 @@ fn run() -> Result<()> {
         Command::Feedback { id, action, text } => {
             store.feedback(&id, action.into(), text.as_deref())?;
             println!(
-                "Feedback saved for {id}. Run `observr vault sync` to refresh exported knowledge."
+                "Feedback saved for {id}. Run `remnary vault sync` to refresh exported knowledge."
             );
         }
         Command::Sources { .. } => {
@@ -728,14 +728,14 @@ fn run() -> Result<()> {
         Command::Vault {
             command: VaultCommand::ApplyFeedback { file, check },
         } => {
-            let feedback = observr::vault_feedback::read_feedback(&file)?;
-            observr::vault_feedback::check_feedback(&store, &feedback)?;
+            let feedback = remnary::vault_feedback::read_feedback(&file)?;
+            remnary::vault_feedback::check_feedback(&store, &feedback)?;
             if check {
                 print_json(&feedback)?;
             } else {
-                observr::vault_feedback::apply_feedback(&mut store, &feedback)?;
+                remnary::vault_feedback::apply_feedback(&mut store, &feedback)?;
                 println!(
-                    "Feedback imported. Run `observr vault sync` to regenerate knowledge notes."
+                    "Feedback imported. Run `remnary vault sync` to regenerate knowledge notes."
                 );
             }
         }
@@ -770,7 +770,7 @@ fn run() -> Result<()> {
         Command::Privacy { command } => match command {
             PrivacyCommand::List => print_json(&store.exclusion_rules()?)?,
             PrivacyCommand::Add { scope, value } => {
-                let rule = observr::exclusions::ExclusionRule::new(scope.into(), &value)?;
+                let rule = remnary::exclusions::ExclusionRule::new(scope.into(), &value)?;
                 let affected = store.add_exclusion_rule(&rule)?;
                 println!(
                     "Exclusion {} saved; {affected} retained conversations newly excluded. Future matching imports will be skipped.",
@@ -796,7 +796,7 @@ fn run() -> Result<()> {
             );
             ensure!(
                 summary.conflicts == 0,
-                "edited projections were preserved and remain in cleanup; inspect them and run `observr cleanup`"
+                "edited projections were preserved and remain in cleanup; inspect them and run `remnary cleanup`"
             );
         }
         Command::Cleanup => report_cleanup(&mut store)?,
@@ -809,7 +809,7 @@ fn display_observations(records: &[ObservationRecord], json: bool) -> Result<()>
     }
     if records.is_empty() {
         println!(
-            "No matching observations. Import conversations and run `observr analyze` to extract candidates."
+            "No matching observations. Import conversations and run `remnary analyze` to extract candidates."
         );
     }
     for observation in records {

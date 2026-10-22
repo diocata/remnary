@@ -3,12 +3,12 @@
 Exclusion retains existing canonical data encrypted but hides matching conversations from search, analysis, reports, source inspection and generated knowledge. To purge retained data instead, use `delete conversation ID`. Original provider files, independent exports and backups are outside these controls.
 
 ```sh
-observr privacy add provider claude-code
-observr privacy add project /absolute/path/to/project
-observr privacy add directory /absolute/path/to/session-files
-observr privacy add topic "private subject"
-observr privacy list
-observr privacy remove RULE_ID
+remnary privacy add provider claude-code
+remnary privacy add project /absolute/path/to/project
+remnary privacy add directory /absolute/path/to/session-files
+remnary privacy add topic "private subject"
+remnary privacy list
+remnary privacy remove RULE_ID
 ```
 
 Add your archive's `--data-dir` and `--key-file` options when applicable. The add command reports how many retained conversations became newly excluded, and reports pending projection conflicts. List shows rule IDs, scopes and values; remove accepts the ID. Exclusions are persisted inside the encrypted database and survive backup/restore.

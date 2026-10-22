@@ -1,5 +1,5 @@
 #!/bin/sh
-# Dedicated local-only model server for Observr evaluation. No login service.
+# Dedicated local-only model server for Remnary evaluation. No login service.
 set -eu
 export OLLAMA_NO_CLOUD=1
 export OLLAMA_HOST=127.0.0.1:11435

@@ -1,12 +1,12 @@
 use anyhow::Result;
-use observr::{
+use remnary::{
     analysis_store::{FeedbackAction, ObservationStatus, Processor},
     import::read_chatgpt,
     intelligence::{AnalysisOutput, extract_rules},
     store::Store,
 };
 
-fn fixture() -> Result<Vec<observr::model::Conversation>> {
+fn fixture() -> Result<Vec<remnary::model::Conversation>> {
     read_chatgpt(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/chatgpt.json"),
     )
@@ -54,7 +54,7 @@ fn processor_replacement_retires_automatic_claims_but_preserves_human_review() -
         Some("Rust for this project"),
     )?;
     let vault = temp.path().join("vault");
-    observr::knowledge::sync_vault(&mut store, &vault, "UTC")?;
+    remnary::knowledge::sync_vault(&mut store, &vault, "UTC")?;
     let mut replacement = original.clone();
     replacement.version = "new-version-returning-no-claims".into();
     for target in store.analysis_targets(&replacement)? {
@@ -72,7 +72,7 @@ fn processor_replacement_retires_automatic_claims_but_preserves_human_review() -
             .exists()
     );
     assert!(store.analysis_targets(&replacement)?.is_empty());
-    observr::knowledge::sync_vault(&mut store, &vault, "UTC")?;
+    remnary::knowledge::sync_vault(&mut store, &vault, "UTC")?;
     assert!(std::fs::read_to_string(vault.join("Profile.md"))?.contains("Rust for this project"));
     // History remains cached; selecting an already completed older run does
     // not silently reactivate its retired automatic candidates.
@@ -264,7 +264,7 @@ fn explicit_model_selection_retires_only_completed_source_results_and_keeps_revi
     std::fs::write(&projection, "Synthetic automatic finding")?;
     store.register_managed_file(
         &projection,
-        &observr::model::digest(b"Synthetic automatic finding"),
+        &remnary::model::digest(b"Synthetic automatic finding"),
         &[],
         &[automatic],
     )?;
@@ -301,7 +301,7 @@ fn explicit_model_selection_retires_only_completed_source_results_and_keeps_revi
 
 #[test]
 fn progress_reports_completed_and_failed_sources_without_exposing_payloads() -> Result<()> {
-    use observr::analysis::{AnalysisEngine, AnalysisProgress, analyze_with_progress};
+    use remnary::analysis::{AnalysisEngine, AnalysisProgress, analyze_with_progress};
     let temp = tempfile::tempdir()?;
     let mut store = Store::init(temp.path())?;
     store.import(&fixture()?)?;
@@ -349,7 +349,7 @@ fn progress_reports_completed_and_failed_sources_without_exposing_payloads() -> 
 
 #[test]
 fn replacing_weights_or_daemon_invalidates_cached_runs() -> Result<()> {
-    use observr::ollama::ModelIdentity;
+    use remnary::ollama::ModelIdentity;
     let temp = tempfile::tempdir()?;
     let mut store = Store::init(temp.path())?;
     store.import(&fixture()?)?;
@@ -396,7 +396,7 @@ fn unreconciled_paraphrases_cannot_bypass_an_existing_rejection() -> Result<()> 
     paraphrase.observations[0].canonical_value =
         "favor Rust when making local CLI applications".into();
     paraphrase.observations[0].summary = "User favors Rust for local CLI applications.".into();
-    paraphrase.observations[0].kind = observr::intelligence::ExtractionKind::Topic;
+    paraphrase.observations[0].kind = remnary::intelligence::ExtractionKind::Topic;
     paraphrase.observations[0].evidence[0].quote = target.conversation.messages[0].content.clone();
     processor.version = "review-identity-b".into();
     let error = store
@@ -415,7 +415,7 @@ fn unreconciled_paraphrases_cannot_bypass_an_existing_rejection() -> Result<()> 
 #[test]
 fn deleted_spans_block_paraphrases_after_restore_without_hiding_other_facts() -> Result<()> {
     let temp = tempfile::tempdir()?;
-    let key = observr::security::SecretKey::generate()?;
+    let key = remnary::security::SecretKey::generate()?;
     let mut store = Store::init_encrypted(&temp.path().join("source"), &key)?;
     let mut sources = fixture()?;
     sources.truncate(1);
@@ -442,7 +442,7 @@ fn deleted_spans_block_paraphrases_after_restore_without_hiding_other_facts() ->
     let mut restored = Store::restore_new(&temp.path().join("restored"), &backup, Some(&key))?;
     // An unrelated message changes the conversation revision; the cited user
     // message stays unchanged, so its deletion provenance must still apply.
-    sources[0].messages.push(observr::model::Message {
+    sources[0].messages.push(remnary::model::Message {
         source_id: "new-response".into(),
         parent_source_id: None,
         role: "assistant".into(),
@@ -462,7 +462,7 @@ fn deleted_spans_block_paraphrases_after_restore_without_hiding_other_facts() ->
         .unwrap();
     paraphrase.canonical_value = "Rust tooling topic".into();
     paraphrase.summary = "User discusses Rust tooling.".into();
-    paraphrase.kind = observr::intelligence::ExtractionKind::Topic;
+    paraphrase.kind = remnary::intelligence::ExtractionKind::Topic;
     paraphrase.evidence[0].quote = "Rust".into(); // shorter overlapping UTF-8 span
     assert_eq!(restored.save_analysis(&target, &processor, output)?, 1);
     let visible = restored.observations(false)?;
@@ -583,8 +583,8 @@ fn verified_reprocessing_refreshes_unreviewed_wording_and_preserves_owner_text()
     Ok(())
 }
 
-fn comparison_source(id: &str, first: &str, second: &str) -> observr::model::Conversation {
-    use observr::model::{Conversation, Message};
+fn comparison_source(id: &str, first: &str, second: &str) -> remnary::model::Conversation {
+    use remnary::model::{Conversation, Message};
     Conversation {
         provider: "synthetic".into(),
         source_id: id.into(),
@@ -609,7 +609,7 @@ fn comparison_source(id: &str, first: &str, second: &str) -> observr::model::Con
 
 #[test]
 fn comparison_pattern_review_and_deletion_survive_encrypted_append_and_restore() -> Result<()> {
-    use observr::{
+    use remnary::{
         analysis::{AnalysisEngine, analyze},
         intelligence::ExtractionKind,
         security::SecretKey,
@@ -686,7 +686,7 @@ fn comparison_pattern_review_and_deletion_survive_encrypted_append_and_restore()
 
 #[test]
 fn copied_kiro_comparison_questions_do_not_fabricate_independent_recurrence() -> Result<()> {
-    use observr::{
+    use remnary::{
         analysis::{AnalysisEngine, analyze},
         local_sources::{SourceFormat, read_source},
     };

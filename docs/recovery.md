@@ -7,11 +7,11 @@ Stop commands/writers using the old archive while preparing a cutover. Keep the 
 Default encrypted commands refuse plaintext archives. Explicitly select the legacy source and create a new private key:
 
 ```sh
-observr key create /private/keys/new.key
-observr --insecure-plaintext --data-dir /path/to/legacy encrypt-copy /private/backups/encrypted.sqlite3 --new-key-file /private/keys/new.key
-observr --data-dir /path/to/new-archive --key-file /private/keys/new.key restore /private/backups/encrypted.sqlite3
-observr --data-dir /path/to/new-archive --key-file /private/keys/new.key doctor
-observr --data-dir /path/to/new-archive --key-file /private/keys/new.key search "words you recognize"
+remnary key create /private/keys/new.key
+remnary --insecure-plaintext --data-dir /path/to/legacy encrypt-copy /private/backups/encrypted.sqlite3 --new-key-file /private/keys/new.key
+remnary --data-dir /path/to/new-archive --key-file /private/keys/new.key restore /private/backups/encrypted.sqlite3
+remnary --data-dir /path/to/new-archive --key-file /private/keys/new.key doctor
+remnary --data-dir /path/to/new-archive --key-file /private/keys/new.key search "words you recognize"
 ```
 
 `encrypt-copy` opens the source read-only, uses SQLCipher's logical export into a keyed private stage and upgrades only that encrypted copy. This preserves source versions 1–5 without migrating the original file in place. It carries evidence, FTS, feedback and tombstones, clears external projection ownership, verifies integrity and publishes without replacing an existing file. Export has a 30-second interrupt deadline. Wrong/foreign/incompatible sources fail; no incomplete destination is published. An abrupt process kill may leave an encrypted temporary stage; the original remains available.
@@ -21,10 +21,10 @@ New keys are required explicitly; conversion does not overwrite Keychain entries
 ## Recover an encrypted archive
 
 ```sh
-observr key export /private/keys/recovery.key
-observr backup /private/backups/archive.sqlite3
-observr --data-dir /path/to/recovered --key-file /private/keys/recovery.key restore /private/backups/archive.sqlite3
-observr --data-dir /path/to/recovered --key-file /private/keys/recovery.key doctor
+remnary key export /private/keys/recovery.key
+remnary backup /private/backups/archive.sqlite3
+remnary --data-dir /path/to/recovered --key-file /private/keys/recovery.key restore /private/backups/archive.sqlite3
+remnary --data-dir /path/to/recovered --key-file /private/keys/recovery.key doctor
 ```
 
 Use the key that encrypted the selected backup. Restore requires a new destination and validates before publication. Supported older schema versions upgrade only on the private destination stage; the original backup is opened read-only. A wrong key or incompatible/corrupt backup leaves the original archive and existing destinations untouched. Restored ownership registries are cleared: generate a new vault explicitly instead of adopting or deleting the original installation's files.
@@ -32,10 +32,10 @@ Use the key that encrypted the selected backup. Restore requires a new destinati
 ## Change encryption keys by creating a new archive
 
 ```sh
-observr key create /private/keys/rotated.key
-observr backup /private/backups/rotated.sqlite3 --backup-key-file /private/keys/rotated.key
-observr --data-dir /path/to/rotated-archive --key-file /private/keys/rotated.key restore /private/backups/rotated.sqlite3
-observr --data-dir /path/to/rotated-archive --key-file /private/keys/rotated.key doctor
+remnary key create /private/keys/rotated.key
+remnary backup /private/backups/rotated.sqlite3 --backup-key-file /private/keys/rotated.key
+remnary --data-dir /path/to/rotated-archive --key-file /private/keys/rotated.key restore /private/backups/rotated.sqlite3
+remnary --data-dir /path/to/rotated-archive --key-file /private/keys/rotated.key doctor
 ```
 
 Add your existing `--data-dir`/`--key-file` to the backup command if the old archive uses nondefault settings. The new archive opens with the new key; the old key cannot open it. The old archive remains independently readable with its old key. This avoids an interruption window between rewriting the original and updating an OS key entry. There is no in-place `rekey` command or automatic Keychain reassignment; use the new directory/key-file explicitly after cutover.

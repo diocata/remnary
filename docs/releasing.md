@@ -12,10 +12,10 @@ The script runs formatting, locked tests and Clippy, builds an optimized binary 
 
 The archive includes the CLI, README, MIT license, security guidance, product documentation and complete target-specific dependency notices/source obligations. `BUILD.json` records the source commit, target, Cargo.lock hash and binary hash. An adjacent `.sha256` file records the archive checksum. Archive timestamps, ownership and ordering are fixed; this does not assert cross-machine reproducible native compilation.
 
-Extract the archive into a directory you own and run `./observr --version` there. To verify the archive before extraction:
+Extract the archive into a directory you own and run `./remnary --version` there. To verify the archive before extraction:
 
 ```sh
-shasum -a 256 -c observr-VERSION-evaluation-COMMIT-aarch64-apple-darwin.tar.gz.sha256
+shasum -a 256 -c remnary-VERSION-evaluation-COMMIT-aarch64-apple-darwin.tar.gz.sha256
 ```
 
 The binary has the Apple Silicon linker’s ad-hoc signature, which the recipe verifies. It has no Developer ID distribution signature and is unnotarized. Public distribution, code signing, notarization, hosted CI evidence and a repository-specific private security reporting channel require separate release setup. This script performs no publication, signing, installation or model download.
@@ -29,6 +29,6 @@ After completing the applicable acceptance gates in [readiness.md](readiness.md)
 python3 scripts/package-release.py --release
 ```
 
-This uses the same clean-checkout, test, lint, optimized-build, signature and encrypted-smoke checks. The flag labels the archive `observr-VERSION-COMMIT-aarch64-apple-darwin.tar.gz` and records local-release status in `BUILD.json`; the linked acceptance evidence supplies the qualification. The default command continues to produce evaluation archives. Both modes remain local and unpublished, with the same signing/distribution limits above.
+This uses the same clean-checkout, test, lint, optimized-build, signature and encrypted-smoke checks. The flag labels the archive `remnary-VERSION-COMMIT-aarch64-apple-darwin.tar.gz` and records local-release status in `BUILD.json`; the linked acceptance evidence supplies the qualification. The default command continues to produce evaluation archives. Both modes remain local and unpublished, with the same signing/distribution limits above.
 
 The package smoke loop uses its own `smoke_args` variable so it cannot overwrite parsed release options before archive naming and `BUILD.json` creation. Both modes keep the same mandatory build/signature/encrypted-workflow checks.

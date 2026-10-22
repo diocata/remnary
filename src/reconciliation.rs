@@ -853,9 +853,9 @@ mod local_model {
     use super::*;
     fn settings() -> (String, String) {
         (
-            std::env::var("OBSERVR_TEST_OLLAMA_ENDPOINT")
+            std::env::var("REMNARY_TEST_OLLAMA_ENDPOINT")
                 .unwrap_or_else(|_| "http://127.0.0.1:11435".into()),
-            std::env::var("OBSERVR_TEST_OLLAMA_MODEL")
+            std::env::var("REMNARY_TEST_OLLAMA_MODEL")
                 .unwrap_or_else(|_| "qwen3.5:9b-q4_K_M".into()),
         )
     }

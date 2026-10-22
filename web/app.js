@@ -20,12 +20,12 @@ const views = {
 };
 
 let token = '';
-try { token = sessionStorage.getItem('observr-token') || ''; } catch (_) { /* Memory-only authentication is still available. */ }
+try { token = sessionStorage.getItem('remnary-token') || ''; } catch (_) { /* Memory-only authentication is still available. */ }
 const fragment = new URLSearchParams(location.hash.slice(1));
 const freshToken = fragment.get('token');
 if (freshToken && /^[a-f0-9]{64}$/.test(freshToken)) {
   token = freshToken;
-  try { sessionStorage.setItem('observr-token', token); } catch (_) { /* Do not require browser storage. */ }
+  try { sessionStorage.setItem('remnary-token', token); } catch (_) { /* Do not require browser storage. */ }
 }
 if (location.hash) history.replaceState(null, '', location.pathname);
 
@@ -61,8 +61,8 @@ async function api(path, options = {}) {
     headers: { Authorization: `Bearer ${token}`, ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers }
   });
   if (response.status === 401) {
-    try { sessionStorage.removeItem('observr-token'); } catch (_) { /* Nothing is retained outside this tab. */ }
-    throw new Error('This private link has expired. Open the dashboard link from the current Observr process in your terminal.');
+    try { sessionStorage.removeItem('remnary-token'); } catch (_) { /* Nothing is retained outside this tab. */ }
+    throw new Error('This private link has expired. Open the dashboard link from the current Remnary process in your terminal.');
   }
   let body;
   try { body = await response.json(); } catch (_) { throw new Error('The local dashboard returned an unreadable response. Refresh and try again.'); }
@@ -71,7 +71,7 @@ async function api(path, options = {}) {
 }
 
 function showError(error) {
-  $('connection-error').textContent = error instanceof TypeError ? 'The local dashboard is unavailable. Check that Observr is still running, then refresh.' : error.message;
+  $('connection-error').textContent = error instanceof TypeError ? 'The local dashboard is unavailable. Check that Remnary is still running, then refresh.' : error.message;
   $('connection-error').hidden = false;
 }
 

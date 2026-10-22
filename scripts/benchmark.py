@@ -11,7 +11,7 @@ import time
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--binary", type=Path, default=Path("target/release/observr"))
+    parser.add_argument("--binary", type=Path, default=Path("target/release/remnary"))
     parser.add_argument("--conversations", type=int, default=2000)
     parser.add_argument("--messages", type=int, default=16)
     parser.add_argument("--vault", action="store_true")
@@ -20,7 +20,7 @@ def main():
         parser.error("use 1..10000 conversations and 1..100 messages")
     binary = args.binary.resolve(strict=True)
     stages = []
-    with tempfile.TemporaryDirectory(prefix="observr-synthetic-benchmark-") as work:
+    with tempfile.TemporaryDirectory(prefix="remnary-synthetic-benchmark-") as work:
         root = Path(work)
         source = root / "conversations.json"
         data = root / "archive"
@@ -84,7 +84,7 @@ def main():
         assert doctor["database_integrity"] and doctor["foreign_keys_valid"]
         report = {"synthetic": True, "conversations": args.conversations,
                   "messages": args.conversations*args.messages, "source_mib": round(source.stat().st_size/1048576, 2),
-                  "database_mib": round((data/"observr.sqlite3").stat().st_size/1048576, 2),
+                  "database_mib": round((data/"remnary.sqlite3").stat().st_size/1048576, 2),
                   "doctor": doctor, "stages": stages}
         print(json.dumps(report, indent=2))
 

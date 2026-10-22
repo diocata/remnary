@@ -470,7 +470,7 @@ fn require_source(transaction: &Transaction<'_>, id: &str) -> Result<()> {
     )?;
     ensure!(
         exists,
-        "conversation not found; provide its stable Observr ID"
+        "conversation not found; provide its stable Remnary ID"
     );
     Ok(())
 }
@@ -942,7 +942,7 @@ mod tests {
 
     fn managed_note(prefix: &str, body: &str, suffix: &str) -> String {
         format!(
-            "{prefix}<!-- observr:generated:start -->\n{body}<!-- observr:generated:end -->{suffix}"
+            "{prefix}<!-- remnary:generated:start -->\n{body}<!-- remnary:generated:end -->{suffix}"
         )
     }
 

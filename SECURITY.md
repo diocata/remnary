@@ -1,6 +1,6 @@
 # Security and privacy
 
-This project is under evaluation, has no independent security audit and is not declared production ready. Do not post personal exports, databases, keys, bearer URLs, model payloads or source quotations in public issues.
+Remnary has a tested local v0.1 release for the documented Mac target and has no independent security audit. Do not post personal exports, databases, keys, bearer URLs, model payloads or source quotations in public issues.
 
 The default CLI uses SQLCipher for conversations, metadata, derived records and FTS in one encrypted archive. macOS Keychain stores the key by archive location; explicit private recovery files are an alternative. Keys use OS randomness, are never printed, and are zeroized where supported by owned Rust buffers. New private files use restrictive Unix permissions. Native libraries, operating-system memory and copied buffers are not a guaranteed zeroization boundary.
 
@@ -20,4 +20,4 @@ Exclusion hides retained conversations; deletion removes canonical revisions, se
 
 ## Reporting
 
-No private reporting channel or public release repository has been established. Keep sensitive reports private with the project owner. Share synthetic reproductions and affected commits, avoiding credentials/personal data. A maintained private reporting channel must be established before public release; local evaluation does not create a remote repository or publish a release.
+The source repository is [diocata/remnary](https://github.com/diocata/remnary). Public issues are suitable only for nonsensitive synthetic reproductions and affected commit IDs. Contact the repository owner privately for sensitive reports; a dedicated private reporting channel has not been configured by this project. Publishing source does not establish an independent security audit or a signed/notarized binary distribution.

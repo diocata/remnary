@@ -12,7 +12,7 @@ import time
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--binary", type=Path, default=Path("target/debug/observr"))
+    parser.add_argument("--binary", type=Path, default=Path("target/debug/remnary"))
     parser.add_argument("--model", default="qwen3.5:9b-q4_K_M")
     parser.add_argument("--endpoint", default="http://127.0.0.1:11435")
     parser.add_argument("--case", dest="case_ids", action="append", help="Run only a named case; repeat for multiple cases")
@@ -26,11 +26,11 @@ def main():
             parser.error("unknown case IDs: "+", ".join(sorted(unknown)))
         cases = [case for case in cases if case["id"] in args.case_ids]
     binary = args.binary.resolve(strict=True)
-    with tempfile.TemporaryDirectory(prefix="observr-synthetic-model-evaluation-") as work:
+    with tempfile.TemporaryDirectory(prefix="remnary-synthetic-model-evaluation-") as work:
         path = Path(work)
         # Freeze the tested executable so concurrent local rebuilds cannot
         # change its identity between initialization, analysis and reporting.
-        snapshot_binary = path/"observr-evaluation"
+        snapshot_binary = path/"remnary-evaluation"
         shutil.copy2(binary, snapshot_binary)
         binary = snapshot_binary
         binary_digest = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -39,7 +39,7 @@ def main():
         for index, case in enumerate(cases):
             mapping = {}
             def message_id(position):
-                return hashlib.sha256(f'observr-synthetic-message:{case["id"]}:{position}'.encode()).hexdigest()
+                return hashlib.sha256(f'remnary-synthetic-message:{case["id"]}:{position}'.encode()).hexdigest()
             for position, message in enumerate(case["messages"]):
                 node = message_id(position)
                 mapping[node] = {"id": node,

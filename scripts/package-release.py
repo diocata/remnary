@@ -52,19 +52,19 @@ def main():
         raise SystemExit("Unset custom Rust flags before creating a release package.")
     prefixes = [ROOT, ROOT / ".tools/cargo", Path.home() / ".cargo"]
     env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(
-        f"--remap-path-prefix={path}=/observr/build/{index}"
+        f"--remap-path-prefix={path}=/remnary/build/{index}"
         for index, path in enumerate(prefixes)
     )
     run(cargo, "build", "--release", "--locked", "--target", target,
         "--target-dir", "target/package-build", env=env)
-    binary = ROOT / "target/package-build" / target / "release/observr"
+    binary = ROOT / "target/package-build" / target / "release/remnary"
     run(str(binary), "--version")
     run("codesign", "--verify", "--strict", str(binary))
     signature = run("codesign", "-dv", str(binary), capture_output=True, text=True).stderr
     if "Signature=adhoc" not in signature or "TeamIdentifier=not set" not in signature:
         raise SystemExit("Expected the linker's ad-hoc signature without a distribution identity.")
     # Exercise the packaged binary against a fresh encrypted archive, not real data.
-    with tempfile.TemporaryDirectory(prefix="observr-release-smoke-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="remnary-release-smoke-") as temporary:
         base = Path(temporary)
         key, archive = base / "recovery.key", base / "archive"
         run(str(binary), "key", "create", str(key))
@@ -72,11 +72,11 @@ def main():
         for smoke_args in [("init",), ("import", str(ROOT / "tests/fixtures/chatgpt.json")),
                      ("analyze",), ("search", "Rust"), ("doctor",)]:
             run(*command, *smoke_args)
-        if (archive / "observr.sqlite3").read_bytes().startswith(b"SQLite format 3"):
+        if (archive / "remnary.sqlite3").read_bytes().startswith(b"SQLite format 3"):
             raise SystemExit("Release smoke archive unexpectedly has a plaintext header.")
     if clean_commit() != commit:
         raise SystemExit("The source commit changed during the build; package not created.")
-    name = f"observr-{version}-{'' if args.release else 'evaluation-'}{commit[:12]}-{target}"
+    name = f"remnary-{version}-{'' if args.release else 'evaluation-'}{commit[:12]}-{target}"
     destination = ROOT / "target/dist"
     destination.mkdir(parents=True, exist_ok=True)
     package = destination / f"{name}.tar.gz"
@@ -91,7 +91,7 @@ def main():
         "minimum_macos": "27.0.1", "code_signing": "linker-ad-hoc",
         "developer_id_signed": False, "notarized": False,
     }
-    files = [("observr", binary)]
+    files = [("remnary", binary)]
     for selected in ["README.md", "LICENSE", "SECURITY.md", "docs", "third_party"]:
         path = ROOT / selected
         files.extend((str(file.relative_to(ROOT)), file) for file in
@@ -104,7 +104,7 @@ def main():
             staged = Path(temporary.name)
             with gzip.GzipFile(fileobj=temporary, mode="wb", filename="", mtime=0) as compressed:
                 with tarfile.open(fileobj=compressed, mode="w") as bundle:
-                    entries = [(name, path.read_bytes(), 0o755 if name == "observr" else 0o644)
+                    entries = [(name, path.read_bytes(), 0o755 if name == "remnary" else 0o644)
                                for name, path in files]
                     entries.append(("BUILD.json", (json.dumps(metadata, indent=2)+"\n").encode(), 0o644))
                     for relative, data, mode in sorted(entries):

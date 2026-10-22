@@ -1,5 +1,6 @@
 /target/
 /.tools/
+/.remnary/
 /.observr/
 *.sqlite3
 *.sqlite3-*

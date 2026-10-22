@@ -3,13 +3,13 @@
 Measured 2026-10-22 on an Apple M4 Pro Mac with 24 GiB unified memory, Rust 1.99.1 and the optimized packaged Rules v7 executable from commit `5c0bb475c59a` (binary SHA-256 `d4ca70f74687ea77a1549b831b999cd94280a71e5c86bc2ff5ad9af50798fcc1`). This is a local engineering check, not a cross-platform guarantee or a model-quality benchmark.
 
 ```sh
-python3 scripts/benchmark.py --binary /path/to/extracted/observr \
+python3 scripts/benchmark.py --binary /path/to/extracted/remnary \
   --conversations 2000 --messages 16 --vault
 ```
 
 The script creates a temporary directory containing only generated synthetic history, a private key, an encrypted archive, a vault and backup. It verifies unchanged reimport, cached analysis, unchanged vault generation and final integrity, then removes the temporary directory. It never scans real histories. `/usr/bin/time -l` supplies peak process RSS on macOS.
 
-Input: **2,000 conversations / 32,000 messages**, 16.05 MiB JSON. The encrypted schema-5 database occupied 65.18 MiB. Integrity/foreign keys passed, with zero pending projection cleanup. Local Observr inference had finished before this check. Other desktop activity was not isolated, so these figures remain an engineering observation rather than an isolated microbenchmark.
+Input: **2,000 conversations / 32,000 messages**, 16.05 MiB JSON. The encrypted schema-5 database occupied 65.18 MiB. Integrity/foreign keys passed, with zero pending projection cleanup. Local Remnary inference had finished before this check. Other desktop activity was not isolated, so these figures remain an engineering observation rather than an isolated microbenchmark.
 
 | Operation | Wall time | Peak process RSS |
 | --- | ---: | ---: |

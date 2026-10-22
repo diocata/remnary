@@ -16,9 +16,8 @@ use zeroize::Zeroizing;
 
 const KEY_BYTES: usize = 32;
 const KEY_HEX_BYTES: usize = KEY_BYTES * 2;
-const DATABASE_NAME: &str = "observr.sqlite3";
 #[cfg(target_os = "macos")]
-const KEYCHAIN_SERVICE: &str = "dev.observr";
+const KEYCHAIN_SERVICE: &str = "dev.remnary";
 
 /// A 256-bit key with zeroization on drop. No serialization or implicit clone.
 /// Debug deliberately reveals no key material. Zeroization does not protect
@@ -247,7 +246,8 @@ pub fn resolve_key(data_dir: &Path, key_file: Option<&Path>, create: bool) -> Re
     {
         let canonical = prepare_key_directory(data_dir, create)?;
         let _lock = lock_key_directory(&canonical)?;
-        let database_exists = match fs::symlink_metadata(canonical.join(DATABASE_NAME)) {
+        let database_path = crate::store::database_path(&canonical)?;
+        let database_exists = match fs::symlink_metadata(&database_path) {
             Ok(metadata) => {
                 ensure!(
                     metadata.file_type().is_file(),
@@ -259,7 +259,15 @@ pub fn resolve_key(data_dir: &Path, key_file: Option<&Path>, create: bool) -> Re
             Err(_) => return Err(anyhow!("cannot inspect database before key lookup")),
         };
         let account = crate::model::digest(canonical.as_os_str().as_encoded_bytes());
-        let entry = keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|_| {
+        let service = if database_path
+            .file_name()
+            .is_some_and(|name| name == crate::store::LEGACY_DATABASE_NAME)
+        {
+            "dev.observr"
+        } else {
+            KEYCHAIN_SERVICE
+        };
+        let entry = keyring::Entry::new(service, &account).map_err(|_| {
             anyhow!(
                 "cannot access macOS Keychain; unlock it or provide an explicit private --key-file"
             )
@@ -287,7 +295,7 @@ pub fn resolve_key(data_dir: &Path, key_file: Option<&Path>, create: bool) -> Re
                 "the original encryption key is missing for this existing database; restore the key or supply the correct private --key-file"
             )),
             Err(keyring::Error::NoEntry) => Err(anyhow!(
-                "no encryption key is stored for this directory; run `observr init` first or supply the correct private --key-file"
+                "no encryption key is stored for this directory; run `remnary init` first or supply the correct private --key-file"
             )),
             Err(_) => Err(anyhow!(
                 "cannot read macOS Keychain; unlock it or provide an explicit private --key-file"
@@ -308,7 +316,7 @@ fn prepare_key_directory(path: &Path, create: bool) -> Result<std::path::PathBuf
             .map_err(|_| anyhow!("cannot create private data directory"))?;
     }
     let canonical = fs::canonicalize(path)
-        .map_err(|_| anyhow!("data directory is unavailable; run `observr init` first"))?;
+        .map_err(|_| anyhow!("data directory is unavailable; run `remnary init` first"))?;
     ensure!(canonical.is_dir(), "data directory is not a directory");
     Ok(canonical)
 }
@@ -342,7 +350,7 @@ fn lock_key_directory(path: &Path) -> Result<File> {
         same_file(&metadata, &current),
         "key initialization lock changed"
     );
-    lock.try_lock().map_err(|_| anyhow!("encryption key initialization is busy or unavailable; retry after the other Observr process finishes"))?;
+    lock.try_lock().map_err(|_| anyhow!("encryption key initialization is busy or unavailable; retry after the other Remnary process finishes"))?;
     Ok(lock)
 }
 

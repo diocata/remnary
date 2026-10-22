@@ -848,7 +848,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "observr"
+name = "remnary"
 version = "0.1.0"
 dependencies = [
  "anyhow",

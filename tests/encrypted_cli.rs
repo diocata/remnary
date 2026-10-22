@@ -6,7 +6,7 @@ use std::{
 };
 
 fn run(data: &Path, key: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_observr"))
+    Command::new(env!("CARGO_BIN_EXE_remnary"))
         .arg("--data-dir")
         .arg(data)
         .arg("--key-file")
@@ -30,7 +30,7 @@ fn encrypted_cli_workflow_survives_backup_restore_and_source_deletion() {
     let data = temp.path().join("data");
     let key = temp.path().join("recovery.key");
     assert!(
-        Command::new(env!("CARGO_BIN_EXE_observr"))
+        Command::new(env!("CARGO_BIN_EXE_remnary"))
             .args(["key", "create"])
             .arg(&key)
             .output()
@@ -39,7 +39,7 @@ fn encrypted_cli_workflow_survives_backup_restore_and_source_deletion() {
             .success()
     );
     assert!(
-        Command::new(env!("CARGO_BIN_EXE_observr"))
+        Command::new(env!("CARGO_BIN_EXE_remnary"))
             .args(["key", "create"])
             .arg(&key)
             .output()
@@ -84,7 +84,7 @@ fn encrypted_cli_workflow_survives_backup_restore_and_source_deletion() {
             .unwrap()
             .contains("Prefer simple implementations for personal projects")
     );
-    let bytes = fs::read(data.join("observr.sqlite3")).unwrap();
+    let bytes = fs::read(data.join("remnary.sqlite3")).unwrap();
     assert!(!bytes.starts_with(b"SQLite format 3"));
     assert!(
         !bytes
@@ -127,7 +127,7 @@ fn plaintext_upgrade_and_key_rotation_publish_independent_verified_archives() {
     let legacy = temp.path().join("legacy");
     let key = temp.path().join("new.key");
     let plain = |args: &[&str]| {
-        Command::new(env!("CARGO_BIN_EXE_observr"))
+        Command::new(env!("CARGO_BIN_EXE_remnary"))
             .arg("--insecure-plaintext")
             .arg("--data-dir")
             .arg(&legacy)
@@ -150,8 +150,8 @@ fn plaintext_upgrade_and_key_rotation_publish_independent_verified_archives() {
             String::from_utf8_lossy(&result.stderr)
         );
     }
-    let original = fs::read(legacy.join("observr.sqlite3")).unwrap();
-    let key_result = Command::new(env!("CARGO_BIN_EXE_observr"))
+    let original = fs::read(legacy.join("remnary.sqlite3")).unwrap();
+    let key_result = Command::new(env!("CARGO_BIN_EXE_remnary"))
         .args(["key", "create"])
         .arg(&key)
         .output()
@@ -185,14 +185,14 @@ fn plaintext_upgrade_and_key_rotation_publish_independent_verified_archives() {
         "{}",
         String::from_utf8_lossy(&result.stderr)
     );
-    assert_eq!(fs::read(legacy.join("observr.sqlite3")).unwrap(), original);
+    assert_eq!(fs::read(legacy.join("remnary.sqlite3")).unwrap(), original);
     let converted = temp.path().join("converted");
     ok(&converted, &key, &["restore", encrypted.to_str().unwrap()]);
     assert!(ok(&converted, &key, &["search", "Rust"]).contains("Rust"));
     assert!(ok(&converted, &key, &["doctor"]).contains("\"database_integrity\": true"));
     let rotated_key = temp.path().join("rotated.key");
     assert!(
-        Command::new(env!("CARGO_BIN_EXE_observr"))
+        Command::new(env!("CARGO_BIN_EXE_remnary"))
             .args(["key", "create"])
             .arg(&rotated_key)
             .output()
@@ -231,4 +231,59 @@ fn plaintext_upgrade_and_key_rotation_publish_independent_verified_archives() {
     assert!(!run(&rotated, &key, &["status"]).status.success());
     assert!(ok(&converted, &key, &["status"]).contains("Conversations: 2"));
     assert!(!run(&converted, &rotated_key, &["status"]).status.success());
+}
+
+#[test]
+fn legacy_filename_opens_and_restores_under_new_name_without_mutating_backup() {
+    let temp = tempfile::tempdir().unwrap();
+    let data = temp.path().join("legacy");
+    let key = temp.path().join("recovery.key");
+    assert!(
+        Command::new(env!("CARGO_BIN_EXE_remnary"))
+            .args(["key", "create"])
+            .arg(&key)
+            .status()
+            .unwrap()
+            .success()
+    );
+    ok(&data, &key, &["init"]);
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/chatgpt.json");
+    ok(&data, &key, &["import", fixture.to_str().unwrap()]);
+    fs::rename(data.join("remnary.sqlite3"), data.join("observr.sqlite3")).unwrap();
+    ok(&data, &key, &["doctor"]);
+    ok(&data, &key, &["init"]);
+    assert!(!data.join("remnary.sqlite3").exists());
+    let backup = temp.path().join("legacy-backup.sqlite3");
+    ok(&data, &key, &["backup", backup.to_str().unwrap()]);
+    let before = fs::read(&backup).unwrap();
+    let restored = temp.path().join("restored");
+    ok(&restored, &key, &["restore", backup.to_str().unwrap()]);
+    assert!(restored.join("remnary.sqlite3").is_file());
+    assert_eq!(fs::read(backup).unwrap(), before);
+    assert!(ok(&restored, &key, &["search", "Rust"]).contains("Rust"));
+}
+
+#[test]
+fn ambiguous_archive_names_fail_without_changing_either_file() {
+    let temp = tempfile::tempdir().unwrap();
+    let data = temp.path().join("ambiguous");
+    let key = temp.path().join("recovery.key");
+    assert!(
+        Command::new(env!("CARGO_BIN_EXE_remnary"))
+            .args(["key", "create"])
+            .arg(&key)
+            .status()
+            .unwrap()
+            .success()
+    );
+    ok(&data, &key, &["init"]);
+    let current = data.join("remnary.sqlite3");
+    let legacy = data.join("observr.sqlite3");
+    fs::copy(&current, &legacy).unwrap();
+    let before = fs::read(&current).unwrap();
+    let result = run(&data, &key, &["doctor"]);
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("both current and legacy"));
+    assert_eq!(fs::read(current).unwrap(), before);
+    assert_eq!(fs::read(legacy).unwrap(), before);
 }

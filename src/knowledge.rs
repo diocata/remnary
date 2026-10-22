@@ -17,8 +17,8 @@ use crate::{
     vault::{message_anchor, quoted, snapshot_markdown},
 };
 
-pub const GENERATED_START: &str = "<!-- observr:generated:start -->\n";
-pub const GENERATED_END: &str = "<!-- observr:generated:end -->";
+pub const GENERATED_START: &str = "<!-- remnary:generated:start -->\n";
+pub const GENERATED_END: &str = "<!-- remnary:generated:end -->";
 
 #[derive(Debug, Default, Serialize, PartialEq, Eq)]
 pub struct VaultSummary {
@@ -54,18 +54,27 @@ impl VaultSummary {
 /// First-start/last-end intentionally tolerates literal copies inside source
 /// code fences. A previously recorded body hash must be checked before mutation.
 pub(crate) fn split_managed_section(content: &str) -> Result<(&str, &str, &str)> {
-    let start = content
-        .find(GENERATED_START)
+    let pairs = [
+        (GENERATED_START, GENERATED_END),
+        (
+            "<!-- observr:generated:start -->\n",
+            "<!-- observr:generated:end -->",
+        ),
+    ];
+    let (start, start_marker, end_marker) = pairs
+        .into_iter()
+        .filter_map(|(a, b)| content.find(a).map(|position| (position, a, b)))
+        .min_by_key(|(position, _, _)| *position)
         .context("generated start marker missing")?;
-    let body_start = start + GENERATED_START.len();
+    let body_start = start + start_marker.len();
     let end = content
-        .rfind(GENERATED_END)
+        .rfind(end_marker)
         .context("generated end marker missing")?;
     ensure!(end >= body_start, "generated markers are out of order");
     Ok((
         &content[..start],
         &content[body_start..end],
-        &content[end + GENERATED_END.len()..],
+        &content[end + end_marker.len()..],
     ))
 }
 
@@ -140,7 +149,7 @@ pub fn sync_vault(store: &mut Store, output: &Path, timezone: &str) -> Result<Va
         .collect::<Vec<_>>();
     let mut notes = Vec::new();
     let mut home = String::from(
-        "# Observr\n\nYour imported conversation activity and evidence-backed observations.\n\n[Profile](Profile.md) · [Discoveries](Discoveries.md) · [Related topics](Topics.md)\n\n",
+        "# Remnary\n\nYour thoughts leave traces. We connect them.\n\n[Profile](Profile.md) · [Discoveries](Discoveries.md) · [Related topics](Topics.md)\n\n",
     );
     home.push_str(&format!("- Imported conversations: {}\n- Active observations with available evidence: {}\n- Messages with unknown time: {} ({} user messages)\n\n", snapshots.len(), records.len(), days.unknown_time_messages, days.unknown_time_user_messages));
     quoted(&mut home, &format!("Daily timezone: {}", days.timezone));
@@ -610,7 +619,7 @@ fn stage_path(path: &Path, content_hash: &str) -> PathBuf {
         &serde_json::to_vec(&(path.to_string_lossy().as_ref(), content_hash))
             .expect("projection stage identity serializes"),
     );
-    path.with_file_name(format!(".observr-write-{identity}.tmp"))
+    path.with_file_name(format!(".remnary-write-{identity}.tmp"))
 }
 
 #[cfg(test)]
@@ -643,6 +652,27 @@ mod tests {
         assert!(body.contains(GENERATED_START));
         assert!(body.ends_with("actual body\n"));
         assert!(split_managed_section("ordinary user note").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn legacy_managed_markers_upgrade_and_preserve_owner_annotations() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let mut store = populated(&temporary.path().join("data"))?;
+        let output = temporary.path().join("vault");
+        sync_vault(&mut store, &output, "UTC")?;
+        let path = output.join("Home.md");
+        let text = fs::read_to_string(&path)?
+            .replace(GENERATED_START, "<!-- observr:generated:start -->\n")
+            .replace(GENERATED_END, "<!-- observr:generated:end -->");
+        fs::write(&path, format!("My introduction\n{text}My annotation\n"))?;
+        let result = sync_vault(&mut store, &output, "UTC")?;
+        assert_eq!(result.conflicts, 0);
+        let text = fs::read_to_string(path)?;
+        assert!(text.starts_with("My introduction\n"));
+        assert!(text.ends_with("My annotation\n"));
+        assert!(text.contains(GENERATED_START));
+        assert!(!text.contains("<!-- observr:generated:"));
         Ok(())
     }
 

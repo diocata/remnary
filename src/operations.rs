@@ -32,7 +32,7 @@ impl Store {
     /// Source is opened read-only and is never migrated or rekeyed in place.
     /// SQLCipher's backup API cannot mix encrypted and plaintext databases.
     pub fn encrypt_plaintext_copy(data_dir: &Path, output: &Path, key: &SecretKey) -> Result<()> {
-        let source_path = data_dir.join("observr.sqlite3");
+        let source_path = crate::store::database_path(data_dir)?;
         ensure!(
             fs::symlink_metadata(&source_path)
                 .is_ok_and(|m| m.is_file() && !m.file_type().is_symlink()),
@@ -52,7 +52,7 @@ impl Store {
         ensure!(
             application == crate::store::APPLICATION_ID
                 && (1..=crate::store::SCHEMA_VERSION).contains(&version),
-            "conversion source is not a supported Observr archive"
+            "conversion source is not a supported Remnary archive"
         );
         verify_integrity(&source)?;
         ensure!(
@@ -83,7 +83,7 @@ impl Store {
                 .map_err(|_| anyhow::anyhow!("cannot represent conversion source as a file URI"))?;
             source_uri.query_pairs_mut().append_pair("mode", "ro");
             target.execute(
-                "ATTACH DATABASE ?1 AS observr_plain KEY ''",
+                "ATTACH DATABASE ?1 AS remnary_plain KEY ''",
                 [source_uri.as_str()],
             )?;
             let interrupt = target.get_interrupt_handle();
@@ -98,7 +98,7 @@ impl Store {
             });
             let result = (|| -> Result<()> {
                 let transaction = target.transaction()?;
-                let attached = Some("observr_plain");
+                let attached = Some("remnary_plain");
                 let application: i64 =
                     transaction.pragma_query_value(attached, "application_id", |r| r.get(0))?;
                 let version: i64 =
@@ -110,7 +110,7 @@ impl Store {
                 );
                 transaction
                     .query_row(
-                        "SELECT sqlcipher_export('main', 'observr_plain')",
+                        "SELECT sqlcipher_export('main', 'remnary_plain')",
                         [],
                         |_| Ok(()),
                     )
@@ -118,7 +118,7 @@ impl Store {
                 transaction.pragma_update(None, "application_id", application)?;
                 transaction.pragma_update(None, "user_version", version)?;
                 transaction.commit()?;
-                target.execute_batch("DETACH DATABASE observr_plain; PRAGMA foreign_keys=ON;")?;
+                target.execute_batch("DETACH DATABASE remnary_plain; PRAGMA foreign_keys=ON;")?;
                 Ok(())
             })();
             let _ = completed.send(());
@@ -239,7 +239,7 @@ impl Store {
     /// overwrites an existing archive or modifies the selected backup.
     pub fn restore_new(data_dir: &Path, backup: &Path, key: Option<&SecretKey>) -> Result<Self> {
         ensure!(
-            fs::symlink_metadata(data_dir.join("observr.sqlite3")).is_err(),
+            fs::symlink_metadata(crate::store::database_path(data_dir)?).is_err(),
             "restore requires a new data directory; the existing archive was preserved"
         );
         ensure!(
@@ -265,7 +265,7 @@ impl Store {
             builder.mode(0o700);
         }
         builder.create(data_dir)?;
-        source.snapshot_to(&data_dir.join("observr.sqlite3"), key, true)?;
+        source.snapshot_to(&data_dir.join("remnary.sqlite3"), key, true)?;
         match key {
             Some(key) => Self::open_encrypted(data_dir, key),
             None => Self::open(data_dir),
@@ -332,7 +332,7 @@ mod tests {
         let temp = tempfile::tempdir()?;
         let legacy = temp.path().join("legacy é #?' archive");
         fs::create_dir(&legacy)?;
-        let path = legacy.join("observr.sqlite3");
+        let path = legacy.join("remnary.sqlite3");
         let connection = Connection::open(&path)?;
         connection.execute_batch(include_str!("schema.sql"))?;
         connection.pragma_update(None, "application_id", crate::store::APPLICATION_ID)?;
@@ -410,11 +410,11 @@ mod tests {
         let vault = temp.path().join("vault");
         crate::knowledge::sync_vault(&mut store, &vault, "UTC")?;
         let profile = fs::read(vault.join("Profile.md"))?;
-        let original = fs::read(source.join("observr.sqlite3"))?;
+        let original = fs::read(source.join("remnary.sqlite3"))?;
         let key = SecretKey::generate()?;
         let output = temp.path().join("copy.sqlite3");
         Store::encrypt_plaintext_copy(&source, &output, &key)?;
-        assert_eq!(fs::read(source.join("observr.sqlite3"))?, original);
+        assert_eq!(fs::read(source.join("remnary.sqlite3"))?, original);
         let mut converted = Store::restore_new(&temp.path().join("restored"), &output, Some(&key))?;
         assert_eq!(
             converted.observations(false)?[0].display_text(),
