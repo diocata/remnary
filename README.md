@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/hero.svg" alt="Remnary :  Your thoughts leave traces. We connect them. Conversation fragments connect into a living record." width="100%">
+  <img src="docs/assets/hero.svg" alt="Remnary. Your thoughts leave traces. We connect them." width="100%">
 </p>
 
 <p align="center">
