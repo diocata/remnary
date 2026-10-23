@@ -51,6 +51,17 @@ All targets use Rust **1.99.1**, the checked-in lockfile and a C compiler. macOS
 
 The release recipe uses each target's native operating system and executes its output. It does not infer runtime support from a successful cross-compile. Test compilation can use the runner's normal C runtime; the packaged Windows binary is separately rebuilt with a static runtime and smoke-tested.
 
+After installing the native prerequisites:
+
+```sh
+git clone https://github.com/diocata/remnary.git
+cd remnary
+cargo install --path . --locked
+remnary --version
+```
+
+`rust-toolchain.toml` pins the tested toolchain. Put Cargo's binary directory on your `PATH`. To build without installing, run `cargo build --release --locked` and use `./target/release/remnary` (`.\target\release\remnary.exe` in PowerShell). The optional `scripts/cargo-local` helper uses this checkout's isolated toolchain when present and otherwise falls back to Cargo. For checked local packages, see [releasing](releasing.md).
+
 ## Signing and durability boundaries
 
 macOS packages are ad-hoc signed and unnotarized. Windows packages do not have Authenticode signatures. No paid signing identity, public installer, update service or OS-security-policy modification is configured. Build from source if the unsigned distribution does not meet your environment's policies.
