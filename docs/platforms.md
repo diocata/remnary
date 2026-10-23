@@ -1,6 +1,6 @@
 # Windows, Linux and macOS
 
-Remnary v0.2.0 builds native **x86-64 and ARM64 packages for all three operating systems**. Download a ZIP for Windows or tar.gz for Linux/macOS from [GitHub Releases](https://github.com/diocata/remnary/releases/latest). These are command-line applications with a browser dashboard, not GUI installers. Python/Rust are not required for normal operation of the downloaded binary; the optional demo script needs Python 3.11+.
+Remnary v0.2.1 builds native **x86-64 and ARM64 packages for all three operating systems**. Download a ZIP for Windows or tar.gz for Linux/macOS from [GitHub Releases](https://github.com/diocata/remnary/releases/latest). These are command-line applications with a browser dashboard, not GUI installers. Python/Rust are not required for normal operation of the downloaded binary; the optional demo script needs Python 3.11+.
 
 ## Build and runtime matrix
 
