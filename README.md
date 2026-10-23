@@ -17,7 +17,7 @@ Turn selected AI conversations into a local, searchable record of your ideas, de
 
 One Rust binary, an encrypted SQLite archive, a browser dashboard and an optional Markdown vault. Built-in rules work without a model, subscription or account.
 
-[Install](#install) · [Quick start](#quick-start) · [Demo](#try-the-fictional-demo) · [Usage](docs/usage.md) · [Privacy](#privacy-and-data-ownership) · [Documentation](docs/README.md)
+[Install](#install) · [Configuration](#configuration-and-analysis) · [Quick start](#quick-start) · [Demo](#try-the-fictional-demo) · [Usage](docs/usage.md) · [Privacy](#privacy-and-data-ownership) · [Documentation](docs/README.md)
 
 ## What it does
 
@@ -67,6 +67,40 @@ git clone https://github.com/diocata/remnary.git
 cd remnary
 cargo install --path . --locked
 ```
+
+## Configuration and analysis
+
+**Installing Remnary does not install Ollama or a language model.** Choose how to analyze your imported messages:
+
+| Mode | What you need | What it does |
+| --- | --- | --- |
+| **Rules — default** | Only Remnary | Recognizes a narrow set of direct statements and recurring requests. No LLM runs. |
+| **Ollama — optional** | A separately installed Ollama runtime, downloaded local model and running local daemon | Uses the model for richer candidate extraction and evidence verification. |
+
+`remnary analyze` uses rules. For model analysis, you must explicitly pass `--engine ollama` and `--model`. Remnary never automatically downloads, selects or starts a model.
+
+There is currently **no setup wizard or persistent configuration file**. Engine, model and endpoint are selected through CLI flags each run. On macOS/Windows, `init` sets up the archive and its native credential-store key; Linux requires the explicit key file shown below.
+
+<details>
+<summary>Enable optional Ollama analysis (macOS/Linux)</summary>
+
+Install Ollama and download a model separately using the [local-model guide](docs/local-model.md#run-a-local-model). From the cloned repository, start the dedicated loopback daemon in one terminal:
+
+```sh
+./scripts/ollama-local
+```
+
+In another terminal, list the models installed on that daemon, then select one:
+
+```sh
+OLLAMA_HOST=127.0.0.1:11435 ollama list
+remnary analyze --engine ollama --model YOUR_INSTALLED_MODEL \
+  --endpoint http://127.0.0.1:11435 --progress
+```
+
+Replace `YOUR_INSTALLED_MODEL` with an exact installed model name. The launcher disables cloud features and binds port **11435**; the CLI's default endpoint is **11434**, so keep the explicit `--endpoint` when using this launcher. On Linux, also pass your `--key-file`. Stop the daemon with Ctrl-C.
+
+</details>
 
 ## Quick start
 
