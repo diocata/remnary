@@ -310,7 +310,7 @@ fn progress_reports_completed_and_failed_sources_without_exposing_payloads() -> 
         events.push(event)
     })?;
     assert_eq!(summary.processed, 2);
-    assert_eq!(events.len(), 4);
+    assert_eq!(events.len(), 6);
     assert!(matches!(
         events[0],
         AnalysisProgress::Conversation {
@@ -319,12 +319,21 @@ fn progress_reports_completed_and_failed_sources_without_exposing_payloads() -> 
         }
     ));
     assert!(matches!(
-        events[1],
+        events[2],
         AnalysisProgress::Finished {
             conversation: 1,
             success: true
         }
     ));
+    assert!(matches!(
+        events[1],
+        AnalysisProgress::Evidence {
+            conversation: 1,
+            eligible_user_messages: 2,
+            worker_thread: false
+        }
+    ));
+    assert_eq!(summary.with_user_evidence, 2);
     events.clear();
     // Remote endpoints fail locally before any network request or content send.
     let error = analyze_with_progress(

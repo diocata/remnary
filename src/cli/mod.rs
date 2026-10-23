@@ -162,7 +162,17 @@ pub(crate) fn run() -> Result<()> {
             );
         }
         Command::Import { file, source } => {
-            let summary = store.import(&read_source(&file, source)?)?;
+            let (conversations, coverage) =
+                if source == remnary::sources::SourceFormat::CodexDesktop {
+                    let batch = remnary::sources::codex_desktop::read(&file)?;
+                    (batch.conversations, Some(batch.coverage))
+                } else {
+                    (read_source(&file, source)?, None)
+                };
+            let summary = store.import(&conversations)?;
+            if let Some(coverage) = coverage {
+                print_json(&coverage)?;
+            }
             println!(
                 "Imported {} new, {} updated, {} unchanged, {} skipped conversations.",
                 summary.inserted, summary.updated, summary.unchanged, summary.skipped
@@ -226,6 +236,18 @@ pub(crate) fn run() -> Result<()> {
                         AnalysisProgress::Conversation { current, total } => {
                             eprintln!("Conversation {current}/{total}")
                         }
+                        AnalysisProgress::Evidence {
+                            conversation,
+                            eligible_user_messages,
+                            worker_thread,
+                        } => eprintln!(
+                            "  Conversation {conversation}: {eligible_user_messages} eligible user messages{}",
+                            if worker_thread {
+                                " (worker thread)"
+                            } else {
+                                ""
+                            }
+                        ),
                         AnalysisProgress::Window {
                             conversation,
                             current,
@@ -268,6 +290,10 @@ pub(crate) fn run() -> Result<()> {
             println!(
                 "Analyzed {} conversations; persisted {} candidate extractions.",
                 summary.processed, summary.observations
+            );
+            println!(
+                "Analysis targets: {} with eligible user text; {} without it ({} worker threads). Only eligible user text can support personal findings.",
+                summary.with_user_evidence, summary.without_user_evidence, summary.worker_threads
             );
             if summary.rejected_candidates > 0 {
                 println!(
@@ -465,7 +491,7 @@ pub(crate) fn run() -> Result<()> {
             );
         }
         Command::Sources { .. } => {
-            let records=store.current_snapshots()?.into_iter().map(|s|serde_json::json!({"id":s.conversation.stable_id(),"provider":s.conversation.provider,"source_id":s.conversation.source_id,"title":s.conversation.title,"revision":s.revision,"messages":s.conversation.messages.len()})).collect::<Vec<_>>();
+            let records=store.current_snapshots()?.into_iter().map(|s|serde_json::json!({"id":s.conversation.stable_id(),"provider":s.conversation.provider,"source_id":s.conversation.source_id,"title":s.conversation.title,"revision":s.revision,"messages":s.conversation.messages.len(),"coverage":remnary::sources::evidence_coverage(&s.conversation)})).collect::<Vec<_>>();
             print_json(&records)?;
         }
         Command::Show { id, revision } => {

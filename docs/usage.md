@@ -30,7 +30,9 @@ remnary sources --detect
 # Choose the files or directory you want imported.
 remnary import /path/to/chatgpt-export.zip
 remnary import ~/.claude/projects --source claude-code
-remnary import ~/.codex/sessions --source codex
+remnary import ~/.codex --source codex-desktop
+# Older Codex versions without desktop history databases:
+# remnary import ~/.codex/sessions --source codex
 remnary import "$HOME/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent" --source kiro
 
 remnary status

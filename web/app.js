@@ -295,7 +295,8 @@ function renderSources() {
   [...state.sources].sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0)).forEach((source) => {
     const row = node('article', 'source-row');
     const information = node('div');
-    information.append(node('h3', '', source.title || 'Untitled conversation'), node('p', '', `${source.provider} · ${source.messages} messages · revision ${source.revision} · ${date(source.updated_at || source.created_at)}${source.partial_view ? ' · Partial history view' : ''}`));
+    const evidence = source.coverage ? ` · ${source.coverage.eligible_user_messages} eligible user messages${source.coverage.worker_thread ? ' · Worker thread' : ''}` : '';
+    information.append(node('h3', '', source.title || 'Untitled conversation'), node('p', '', `${source.provider} · ${source.messages} messages${evidence} · revision ${source.revision} · ${date(source.updated_at || source.created_at)}${source.partial_view ? ' · Partial history view' : ''}`));
     row.append(information, button('Read source ↗', 'button button-quiet', () => openSource(source.id, source.revision)));
     container.append(row);
   });

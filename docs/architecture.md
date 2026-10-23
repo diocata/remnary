@@ -23,6 +23,7 @@ src/
     chatgpt/              ChatGPT JSON/ZIP parsing
     claude.rs             Claude Code records
     codex.rs              Codex rollout records
+    codex_desktop.rs      Read-only persisted desktop message projection
     kiro.rs               Kiro chat records
     app_snapshot.rs       Explicit partial app-history imports
     origins.rs            Copied-dialogue origin accounting

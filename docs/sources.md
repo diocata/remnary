@@ -1,16 +1,17 @@
 # Supported local sources
 
-Remnary imports files you select. It does not sign into providers, read credentials, monitor applications or enable background collection. `remnary sources --detect` inventories filenames and sizes in the three locations below; it reads no message bodies and needs no initialized archive. Import is a separate action.
+Remnary imports files you select. It does not sign into providers, read credentials, monitor applications or enable background collection. `remnary sources --detect` inventories filenames, sizes and desktop thread availability in the locations below; it reads no message bodies and needs no initialized archive. Import is a separate action.
 
 | Source | Import input | Detection on macOS | Verification |
 | --- | --- | --- | --- |
 | ChatGPT | Mapping-format `conversations.json`, or ZIP containing one such file or numbered `conversations-*.json` shards | No owner export found in the selected local/indexed filename search | Synthetic JSON/ZIP/shard fixtures plus five published real records with exact reconstruction; [compatibility scope](import-compatibility.md) |
 | Connected app history views | Selected Codex-app `read_thread` JSON snapshot | Available through this assistant session's connected history tools, rather than a filesystem scan | 40 selected ChatGPT views imported; partial coverage and truncation retained |
 | Claude Code | One JSONL file or selected session directory | `~/.claude/projects` | 17 local files imported; synthetic regression and encrypted integration tests |
-| Codex | One rollout JSONL file or selected session directory | `~/.codex/sessions` | 11 local files imported; forked/inherited metadata regression tests |
+| Codex desktop | Selected Codex home with `state_5.sqlite` and `thread_history_1.sqlite`, plus session files | `~/.codex` | Synthetic multi-project, archived, worker, overlap and encrypted reimport tests; private local verification |
+| Codex rollouts | One rollout JSONL file or selected session directory | `~/.codex/sessions` | 11 local files imported; forked/inherited metadata regression tests |
 | Kiro IDE | One `.chat` JSON file or selected chat directory | `~/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent` | Eight local snapshots coalesced into four chats; synthetic regression tests |
 
-These private application formats can change. Local compatibility evidence is from this machine on 2026-10-20, rather than a promise about every application version. Unknown formats fail with a diagnostic instead of being reported as connected. Claude consumer exports, Kiro CLI exports, Cursor databases, Gemini and other account histories are currently unsupported. Finding an installed application does not provide access to its account history.
+These private application formats can change. Local compatibility evidence is from this machine on 2026-10-20, with the desktop adapter checked on 2026-10-23, rather than a promise about every application version. Unknown formats fail with a diagnostic instead of being reported as connected. Claude consumer exports, Kiro CLI exports, Cursor databases, Gemini and other account histories are currently unsupported. Finding an installed application does not provide access to its account history.
 
 ## Platform source locations
 
@@ -18,7 +19,7 @@ v0.2 detects Claude Code and Codex below the home directory on every platform. K
 
 ## Partial connected-app views
 
-`remnary import-app-snapshot /path/to/snapshot.json` accepts a selected ChatGPT `read_thread` result from Codex app. Codex task views are refused here because their human/subagent attribution is not established by this view; use local Codex JSONL instead. `remnary import-app-snapshot -` reads one compact JSON line from standard input, allowing a caller to send an authorized tool result directly into encryption without a plaintext export file. The Rust application does not itself connect to Codex/ChatGPT accounts; these tools are available to the assistant in this app session.
+`remnary import-app-snapshot /path/to/snapshot.json` accepts a selected ChatGPT `read_thread` result from Codex app. Codex task views are refused here because their human/subagent attribution is not established by this view; use the desktop adapter or local Codex JSONL instead. `remnary import-app-snapshot -` reads one compact JSON line from standard input, allowing a caller to send an authorized tool result directly into encryption without a plaintext export file. The Rust application does not itself connect to Codex/ChatGPT accounts; these tools are available to the assistant in this app session.
 
 Provider/message IDs and source text are retained. Message timestamps/parents absent from the view stay unknown; turn timing remains metadata. Partial history, pagination and truncated items remain explicit, including in the dashboard/transcripts. Truncated user items cannot supply personal findings. Snapshots never replace a full provider export, and an updated partial view must retain every previously imported message ID. Combine source pages before importing a larger view. Identical snapshots are unchanged. This does not validate ChatGPT's account-export ZIP format against real data or imply access to every account conversation.
 
@@ -26,7 +27,7 @@ Provider/message IDs and source text are retained. Message timestamps/parents ab
 remnary sources --detect
 remnary import ~/Downloads/conversations.json
 remnary import ~/.claude/projects --source claude-code
-remnary import ~/.codex/sessions --source codex
+remnary import ~/.codex --source codex-desktop
 remnary import "$HOME/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent" --source kiro
 remnary analyze
 remnary discover --all
@@ -67,3 +68,24 @@ Kiro's execution ID is retained as a source-record identity. Different execution
 The observed Kiro steering-initialization template is excluded from personal evidence by exact LF/CRLF prefix fingerprints. Owner text appended after a recognized prefix remains eligible, and the raw message is retained. This is observed-template compatibility, not universal recognition of future provider prompts. Source-origin correlation requires a substantive reply after eligible owner text; machine initialization frames alone cannot make independent owner requests look copied.
 
 The observed Kiro Included Rules workspace envelope also supplies machine context under a native human role. A normalized guidance fingerprint and matching header/tag identify consecutive blocks; original owner text following them stays eligible. Raw source records remain unchanged. This is bounded compatibility with the observed envelope, not universal recognition of future provider formats.
+
+
+## Codex desktop history
+
+```sh
+remnary sources --detect
+remnary import "$HOME/.codex" --source codex-desktop
+remnary sources
+```
+
+PowerShell: `remnary import "$HOME\.codex" --source codex-desktop`. Select your actual Codex home if it differs from the default. Detection checks the default home only.
+
+Recent Codex versions can retain history in SQLite after rollout JSONL files are no longer present. Importing only `sessions` misses these records, regardless of which project folders appear in the sidebar. The desktop adapter reads the selected home with SQLite read-only connections and includes `sessions` and `archived_sessions` recursively. It does not follow symlinked inputs or read credentials.
+
+Coverage counts describe the local index, including workers. `indexed_threads` counts indexed tasks; `threads_with_history` counts tasks with any stored items; `threads_without_history` identifies index entries whose messages are unavailable. `rollout_sources` counts included JSONL sources and can overlap the index. None is an account-wide chat count. Tool-only histories may contain no importable messages. `sources` lists each imported source with `coverage.eligible_user_messages`, `worker_thread` and `partial`; analysis progress and its summary distinguish eligible owner text from empty or worker targets.
+
+The adapter reads persisted typed user/assistant items across turns, including archived and realtime entries, and keeps thread/item IDs, project directory, origin and raw item metadata. Worker/review requests and unknown origins cannot become owner evidence. Missing message timestamps stay unknown. Tool items are omitted, and every database projection remains marked partial even if all currently stored items were read. Full rollouts take precedence on overlap, so one thread does not become two sources. Existing full imports cannot be replaced by a partial projection; partial reimports that would drop retained message IDs fail atomically.
+
+Compatibility follows the observed Codex v0.145 local schemas (`state_5.sqlite`, `thread_history_1.sqlite`), not a stable provider export API. Unsupported schemas fail explicitly. The two databases are read in independent snapshots; concurrent app activity may require a repeat import. Input limits remain 10,000 sources, 512 MiB combined selected inputs and 16 MiB per desktop record. On older installations without both databases, import `sessions` and, if present, `archived_sessions` separately using `--source codex`.
+
+ChatGPT-backed app chats and remote-only Codex tasks may have no local records. A sidebar folder is not a filesystem history directory. Import a ChatGPT account export for those chats, or explicitly selected app snapshots using the existing `import-app-snapshot` command. One selected snapshot is a partial page; retain/merge all previously imported message IDs before replacing it. Remnary does not log into the account, automatically fetch missing pages or infer complete account coverage from the app's first history page.

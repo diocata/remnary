@@ -64,7 +64,7 @@ pub(super) fn api(
                 let source = target.conversation;
                 json!({"id":source.stable_id(),"provider":source.provider,"title":source.title,
                     "messages":source.messages.len(),"created_at":source.created_at,"updated_at":source.updated_at,"revision":target.revision,
-                    "partial_view":crate::app_snapshot::is_partial(&source.metadata)})
+                    "partial_view":crate::app_snapshot::is_partial(&source.metadata),"coverage":crate::sources::evidence_coverage(&source)})
             }).collect();
             Ok(json_response(200, json!({"sources":sources})))
         }

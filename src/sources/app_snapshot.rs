@@ -42,7 +42,7 @@ pub fn is_partial(metadata: &Value) -> bool {
             .pointer("/remnary_collection/format")
             .or_else(|| metadata.pointer("/observr_collection/format"))
             .and_then(Value::as_str),
-        Some("codex-app-view-v1" | "claude-native-view-v1")
+        Some("codex-app-view-v1" | "claude-native-view-v1" | "codex-desktop-history-v1")
     )
 }
 
