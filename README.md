@@ -70,20 +70,50 @@ cargo install --path . --locked
 
 ## Configuration and analysis
 
-**Ollama is recommended for analyzing normal conversation wording.** Rules are available when you do not want to run a model, but they only match the English patterns listed below.
+**Only the `analyze` command selects an engine.** These two commands do different work:
 
-| Mode | Setup | Command |
-| --- | --- | --- |
-| Ollama (recommended) | Install Ollama, download a local model and start its daemon | `remnary analyze --engine ollama --model MODEL_NAME --endpoint http://127.0.0.1:11435 --progress` |
-| Rules (CLI default) | Nothing beyond Remnary | `remnary analyze` |
+| To use | Run |
+| --- | --- |
+| **Ollama model (recommended)** | `remnary analyze --engine ollama --model gemma4:12b-it-q4_K_M --endpoint http://127.0.0.1:11435 --progress` |
+| **Built-in rules, no model** | `remnary analyze --engine rules` |
 
-Remnary does not install, download, select or start a model. There is no setup wizard or persistent configuration file. Pass the engine, model and endpoint on each run. Both modes produce findings for you to review; neither confirms a personal fact automatically.
+**`remnary analyze` without `--engine` always uses rules.** Installing Ollama or using it on a previous run does not change that default. There is no saved engine setting or configuration file; repeat the model flags every time you want model analysis. Remnary does not install Ollama or download/start a model for you.
 
-### Run with Ollama
+`init`, `import`, `discover`, `search`, `profile`, `vault` and `web` work the same with either engine. `web` displays stored findings; starting it does not run or select a model. If you analyze one archive with both engines, findings from both can appear together.
 
-First initialize your archive and import messages using [Quick start](#quick-start).
+## Quick start
 
-**1. Install Ollama.** On macOS with Homebrew:
+### 1. Create an archive and import your messages
+
+This setup is shared by both engines. On **macOS and Windows**, keys use Keychain or Credential Manager:
+
+```sh
+remnary init
+remnary import /path/to/conversations.json
+```
+
+Replace the path with your export. For local Codex messages on macOS/Linux, use `remnary import "$HOME/.codex/sessions" --source codex` instead. In PowerShell, use a Windows path such as `C:\path\to\conversations.json`.
+
+<details>
+<summary>Linux: create and select a private key file</summary>
+
+```sh
+mkdir -p "$HOME/.config/remnary"
+chmod 700 "$HOME/.config/remnary"
+remnary key create "$HOME/.config/remnary/recovery.key"
+remnary --key-file "$HOME/.config/remnary/recovery.key" init
+remnary --key-file "$HOME/.config/remnary/recovery.key" import /path/to/conversations.json
+```
+
+On Linux, add `--key-file "$HOME/.config/remnary/recovery.key"` to **every archive command below**, including analysis and dashboard commands. Create the key once; keep it for subsequent runs.
+
+</details>
+
+### 2. Choose one analysis option
+
+#### Option A: Ollama (recommended)
+
+Install Ollama. On macOS with Homebrew:
 
 ```sh
 brew install ollama
@@ -91,7 +121,7 @@ brew install ollama
 
 For Windows or Linux, use the [official Ollama download](https://ollama.com/download).
 
-**2. Start a local daemon in one terminal** (macOS/Linux):
+Start the Ollama server in one terminal (macOS/Linux):
 
 ```sh
 OLLAMA_NO_CLOUD=1 OLLAMA_HOST=127.0.0.1:11435 ollama serve
@@ -99,15 +129,13 @@ OLLAMA_NO_CLOUD=1 OLLAMA_HOST=127.0.0.1:11435 ollama serve
 
 Keep that terminal open. This disables cloud features and listens on localhost port 11435. From a clone, `./scripts/ollama-local` starts the daemon with the same address and additional resource/logging limits.
 
-**3. In another terminal, download the model and analyze your messages:**
+In another terminal, download the model and run **Ollama analysis**:
 
 ```sh
 export OLLAMA_HOST=127.0.0.1:11435
 ollama pull gemma4:12b-it-q4_K_M
 remnary analyze --engine ollama --model gemma4:12b-it-q4_K_M \
   --endpoint http://127.0.0.1:11435 --progress
-remnary discover
-remnary web
 ```
 
 [This model](https://ollama.com/library/gemma4:12b-it-q4_K_M) is an approximately 8 GB download and was evaluated on an M4 Pro with 24 GiB memory. Downloads contact the model registry; analysis uses the local daemon. You can substitute another installed local model, but results and memory requirements will differ. `ollama list` shows installed model names.
@@ -131,12 +159,32 @@ In another terminal:
 $env:OLLAMA_HOST = "127.0.0.1:11435"
 ollama pull gemma4:12b-it-q4_K_M
 remnary analyze --engine ollama --model gemma4:12b-it-q4_K_M --endpoint http://127.0.0.1:11435 --progress
-remnary web
 ```
 
 </details>
 
-### What the rules recognize
+#### Option B: rules only (no Ollama or model)
+
+```sh
+remnary analyze --engine rules
+```
+
+This uses only the [fixed patterns listed below](#what-the-rules-recognize). It does not call Ollama, even if Ollama is running.
+
+### 3. View the results (same commands for both engines)
+
+```sh
+remnary discover
+remnary web
+```
+
+Open the complete localhost URL printed by `web`. Keep its session token private and stop the server with Ctrl-C. The profile stays empty until you confirm or correct a finding.
+
+For new messages, repeat the import and then **your chosen analysis command from Option A or B**. Do not replace the Ollama command with bare `remnary analyze`; that would run rules instead.
+
+`init` does not scan sources. Keep a recovery key separate from your backups; losing access to the key means losing access to the archive. [Recovery guide](docs/recovery.md) · [Choose a separate archive](docs/usage.md#choose-a-separate-archive)
+
+## What the rules recognize
 
 Rules match sentence beginnings, ignoring case. These are the current patterns:
 
@@ -163,37 +211,6 @@ A separate rule detects repeated comparison requests:
 A leading `please` is allowed. Negated comparisons are skipped. The pattern requires two different requests in two distinct messages in the same conversation. It records those requests, not a general preference for comparisons.
 
 **Wording matters:** `Remove comment lines` is missed; `Don't add comments` matches an instruction. Rules mainly cover English and are not user-configurable. Recognized code blocks, quoted material, pasted transcripts and non-owner messages are filtered before extraction. Each finding keeps its source quotation. See the [rule implementation](src/analysis/intelligence/rules.rs) for the exact checks and limits.
-
-## Quick start
-
-**macOS and Windows** use Keychain or Credential Manager by default:
-
-```sh
-remnary init
-remnary import /path/to/conversations.json
-remnary analyze
-remnary discover
-remnary web
-```
-
-Replace the import path with your export. In PowerShell, use a Windows path such as `C:\path\to\conversations.json`.
-
-**Linux requires a private key file.** Create it once, then pass it to every archive command:
-
-```sh
-mkdir -p "$HOME/.config/remnary"
-chmod 700 "$HOME/.config/remnary"
-remnary key create "$HOME/.config/remnary/recovery.key"
-remnary --key-file "$HOME/.config/remnary/recovery.key" init
-remnary --key-file "$HOME/.config/remnary/recovery.key" import /path/to/conversations.json
-remnary --key-file "$HOME/.config/remnary/recovery.key" analyze
-remnary --key-file "$HOME/.config/remnary/recovery.key" discover
-remnary --key-file "$HOME/.config/remnary/recovery.key" web
-```
-
-`init` creates your archive without scanning sources. `web` prints a private localhost link; open the complete URL and stop the server with Ctrl-C. Keep its session token private.
-
-The profile starts empty. Confirm or correct a finding in the dashboard to add it. Keep a recovery key separate from your backups; losing access to the key means losing access to the archive. [Recovery guide](docs/recovery.md) · [Choose a separate archive](docs/usage.md#choose-a-separate-archive)
 
 ## Try the fictional demo
 
@@ -235,7 +252,7 @@ Replace `OBSERVATION_ID` with an ID from `remnary discover`. On Linux, include y
 
 The optional vault contains a Home page, profile, discoveries, decisions, patterns, daily digests and source transcripts. Obsidian is optional. Write annotations outside generated sections; edits to generated content are preserved as conflicts.
 
-For model analysis, follow [Run with Ollama](#run-with-ollama). [Full usage and command reference](docs/usage.md#command-reference).
+For model analysis, follow [Option A: Ollama](#option-a-ollama-recommended). [Full usage and command reference](docs/usage.md#command-reference).
 
 ## How it works
 
