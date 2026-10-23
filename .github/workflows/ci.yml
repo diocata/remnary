@@ -76,7 +76,9 @@ jobs:
             target/${{ matrix.target }}
             target/package-build
           key: native-${{ matrix.target }}-1.99.1-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
-          restore-keys: native-${{ matrix.target }}-1.99.1-${{ hashFiles('Cargo.lock') }}-
+          restore-keys: |
+            native-${{ matrix.target }}-1.99.1-${{ hashFiles('Cargo.lock') }}-
+            native-${{ matrix.target }}-1.99.1-
       - name: Tests, lint, native release build, runtime smoke and target notices
         id: native-build
         run: python scripts/package-release.py --release --target ${{ matrix.target }}
