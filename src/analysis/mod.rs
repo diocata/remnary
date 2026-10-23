@@ -27,6 +27,9 @@ pub struct AnalysisSummary {
     pub processor: Option<Processor>,
     pub processed: usize,
     pub observations: usize,
+    pub with_user_evidence: usize,
+    pub without_user_evidence: usize,
+    pub worker_threads: usize,
     pub rejected_candidates: usize,
     pub failures: Vec<String>,
 }
@@ -43,6 +46,11 @@ pub enum AnalysisProgress {
     Conversation {
         current: usize,
         total: usize,
+    },
+    Evidence {
+        conversation: usize,
+        eligible_user_messages: usize,
+        worker_thread: bool,
     },
     Window {
         conversation: usize,
@@ -94,6 +102,15 @@ pub fn analyze_with_progress(
     for (index, target) in targets.into_iter().enumerate() {
         let current = index + 1;
         progress(AnalysisProgress::Conversation { current, total });
+        let coverage = crate::sources::evidence_coverage(&target.conversation);
+        summary.with_user_evidence += usize::from(coverage.eligible_user_messages > 0);
+        summary.without_user_evidence += usize::from(coverage.eligible_user_messages == 0);
+        summary.worker_threads += usize::from(coverage.worker_thread);
+        progress(AnalysisProgress::Evidence {
+            conversation: current,
+            eligible_user_messages: coverage.eligible_user_messages,
+            worker_thread: coverage.worker_thread,
+        });
         let result = (|| -> Result<(usize, usize)> {
             let mut rejected_candidates = 0;
             let mut reconciliation: Option<crate::reconciliation::Receipt> = None;

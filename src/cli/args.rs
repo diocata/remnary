@@ -49,7 +49,7 @@ pub(super) enum Command {
     Init,
     /// Show imported data and completed analysis counts.
     Status,
-    /// Import selected ChatGPT exports or local Claude Code, Codex or Kiro sessions.
+    /// Import selected exports, local sessions or persisted Codex desktop history.
     Import {
         file: PathBuf,
         #[arg(long, value_enum, default_value_t = SourceFormat::Auto)]

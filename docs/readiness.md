@@ -1,5 +1,11 @@
 # Release validation
 
+## Unreleased desktop history coverage
+
+On 2026-10-23, the desktop importer passes **234 offline tests** locally (210 library, one terminal-output and 23 integration tests). Eight new regressions cover multiple project directories/turns, archived and realtime items, worker and unknown-origin attribution, full-rollout overlap, encrypted repeat imports, appended revisions with retained review feedback, partial-history loss, malformed/oversized inputs symlink refusal and metadata-only detection. The two live-model tests remain opt-in; this change makes no new model-quality claim.
+
+A private encrypted import read 74 local sources and 2,738 messages, including 58 sources with eligible user text and 16 workers, versus 12 available rollout files. The desktop index listed 98 threads, 73 with stored items and 25 without them; rollout and index counts overlap. Private contents, titles, source IDs and paths are not published. ChatGPT account history and remote-only tasks are outside this local coverage. Native Windows/Linux/macOS CI remains the portability gate.
+
 ## Unreleased source organization
 
 The reorganized source passes **226 offline tests** locally: 202 library tests, one terminal-output test and 23 integration tests. The two opt-in live-model tests remain ignored in the offline suite. All 203 pre-existing Rust unit-test functions are retained. Formatting and locked all-target Clippy pass with warnings denied.

@@ -2,6 +2,7 @@
 //! No credentials, application settings or unrelated browser data are scanned.
 pub mod app_snapshot;
 pub mod chatgpt;
+pub mod codex_desktop;
 pub(crate) mod origins;
 
 mod claude;
@@ -38,6 +39,7 @@ pub enum SourceFormat {
     Chatgpt,
     ClaudeCode,
     Codex,
+    CodexDesktop,
     Kiro,
 }
 
@@ -49,6 +51,31 @@ pub struct DetectedSource {
     pub files: usize,
     pub bytes: u64,
     pub collection_mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coverage: Option<codex_desktop::DesktopCoverage>,
+}
+
+/// Counts eligible owner text separately from provider/worker messages.
+#[derive(Debug, Serialize)]
+pub struct EvidenceCoverage {
+    pub eligible_user_messages: usize,
+    pub worker_thread: bool,
+    pub partial: bool,
+}
+
+pub fn evidence_coverage(source: &Conversation) -> EvidenceCoverage {
+    EvidenceCoverage {
+        eligible_user_messages: source
+            .messages
+            .iter()
+            .filter(|message| crate::intelligence::eligible_personal_evidence(message))
+            .count(),
+        worker_thread: codex_desktop::worker(
+            &source.metadata["source"],
+            source.metadata["thread_source"].as_str(),
+        ),
+        partial: app_snapshot::is_partial(&source.metadata),
+    }
 }
 
 /// Inventory only the documented/session-specific locations. Detection does
@@ -92,6 +119,20 @@ pub fn detect_local(home: &Path) -> Result<Vec<DetectedSource>> {
             files: files.len(),
             bytes,
             collection_mode: "manual local import".into(),
+            coverage: None,
+        });
+    }
+    let path = home.join(".codex");
+    if path.join("state_5.sqlite").is_file() && path.join("thread_history_1.sqlite").is_file() {
+        found.push(DetectedSource {
+            provider: "codex".into(),
+            bytes: fs::metadata(path.join("state_5.sqlite"))?.len()
+                + fs::metadata(path.join("thread_history_1.sqlite"))?.len(),
+            coverage: Some(codex_desktop::inspect(&path)?),
+            path,
+            format: SourceFormat::CodexDesktop,
+            files: 2,
+            collection_mode: "manual read-only desktop import (also includes session files)".into(),
         });
     }
     Ok(found)
@@ -103,6 +144,9 @@ pub fn read_source(path: &Path, format: SourceFormat) -> Result<Vec<Conversation
         !metadata.file_type().is_symlink(),
         "source root cannot be a symlink"
     );
+    if format == SourceFormat::CodexDesktop {
+        return Ok(codex_desktop::read(path)?.conversations);
+    }
     if metadata.is_file() && format == SourceFormat::Chatgpt {
         return read_chatgpt(path);
     }
@@ -145,7 +189,7 @@ pub fn read_source(path: &Path, format: SourceFormat) -> Result<Vec<Conversation
                 &serde_json::from_slice(&read_bounded(&file)?).context("parse Kiro chat JSON")?,
                 &file,
             )?,
-            SourceFormat::Auto => unreachable!(),
+            SourceFormat::Auto | SourceFormat::CodexDesktop => unreachable!(),
         };
         for conversation in imported {
             let identity = (
@@ -377,7 +421,7 @@ fn text(content: Option<&Value>) -> String {
 }
 fn is_subagent(value: Option<&Value>) -> bool {
     value.is_some_and(|value| match value {
-        Value::String(s) => matches!(s.as_str(), "subagent" | "sub_agent"),
+        Value::String(s) => matches!(s.as_str(), "subagent" | "sub_agent" | "guardian_review"),
         Value::Object(map) => {
             map.contains_key("subagent")
                 || map.contains_key("sub_agent")

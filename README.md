@@ -6,7 +6,7 @@
   <a href="https://github.com/diocata/remnary/actions/workflows/ci.yml"><img src="https://github.com/diocata/remnary/actions/workflows/ci.yml/badge.svg" alt="Rust checks"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-4e5bd9" alt="MIT or Apache-2.0"></a>
   <a href="docs/platforms.md"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-279caf" alt="Windows, Linux and macOS"></a>
-  <a href="docs/readiness.md"><img src="https://img.shields.io/badge/offline_tests-226_verified-226754" alt="226 offline tests verified locally"></a>
+  <a href="docs/readiness.md"><img src="https://img.shields.io/badge/offline_tests-234_verified-226754" alt="234 offline tests verified locally"></a>
 </p>
 
 # Remnary
@@ -92,7 +92,21 @@ remnary init
 remnary import /path/to/conversations.json
 ```
 
-Replace the path with your export. For local Codex messages on macOS/Linux, use `remnary import "$HOME/.codex/sessions" --source codex` instead. In PowerShell, use a Windows path such as `C:\path\to\conversations.json`.
+Replace the path with your export. For local Codex messages, use the desktop importer below instead. In PowerShell, use a Windows path such as `C:\path\to\conversations.json`.
+
+For Codex desktop history on macOS/Linux:
+
+```sh
+remnary sources --detect
+remnary import "$HOME/.codex" --source codex-desktop
+remnary sources
+```
+
+In PowerShell, use `remnary import "$HOME\.codex" --source codex-desktop`. For a custom Codex home, supply that directory instead.
+
+This reads persisted desktop messages plus active and archived session files across local project folders. It reports indexed threads with and without stored history, and imports available messages as partial views. `sources` shows eligible user-message counts and worker threads; an analysis target is not necessarily a user chat or a finding.
+
+**The app sidebar can also contain ChatGPT account chats and remote tasks that are absent locally.** These are not included by the desktop importer. For your ChatGPT account history, import an account export containing `conversations.json` instead. [Coverage, older Codex versions and limitations](docs/sources.md#codex-desktop-history).
 
 <details>
 <summary>Linux: create and select a private key file</summary>
