@@ -28,6 +28,8 @@ Each archive includes `remnary`/`remnary.exe`, `BUILD.json`, README, both licens
 
 ## Publish a version
 
+Merging a pull request or pushing to `main` runs checks but does not publish a release. Publication requires a new version tag after the version and release notes are updated.
+
 Update Cargo.toml/Cargo.lock and `docs/releases/vVERSION.md`, push the source commit, and verify the ordinary matrix run. Create and push an annotated tag matching the package version:
 
 ```sh

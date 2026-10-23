@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 - 2026-10-23
+
+Added `--source codex-desktop` to import persisted Codex desktop history alongside active and archived rollouts across local projects. Source inventory reports unavailable local history; source listings, analysis progress and the dashboard distinguish eligible user text, worker threads and partial views. Stable identities, encrypted archives, reviews and exclusions remain compatible. Database projections cannot replace fuller imports or drop retained messages.
+
+Clarified Ollama versus rules commands, rule matching and account-history limits. Local Codex storage does not include every ChatGPT-backed or remote-only chat visible in the app sidebar. See [release notes](releases/v0.2.1.md).
 
 Organized Rust code into source adapters, storage, analysis, reports, projections, CLI and web folders. Provider parsers, extraction rules, API routes and CLI argument/output code now have separate files; large unit suites live beside their modules. Original public Rust module paths remain available through re-exports. Command behavior, schema/migrations and model policies stay compatible.
 
