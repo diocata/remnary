@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/hero.svg" alt="Remnary — Your thoughts leave traces. We connect them. Conversation fragments connect into a living record." width="100%">
+  <img src="docs/assets/hero.svg" alt="Remnary. Your thoughts leave traces. We connect them." width="100%">
 </p>
 
 <p align="center">
@@ -13,33 +13,33 @@
 
 **Your thoughts leave traces. We connect them.**
 
-Turn selected AI conversations into a local, searchable record of your ideas, decisions and preferences. Every finding links back to the original words. You choose what becomes part of your profile.
+Search your AI conversations and review the ideas, decisions and preferences found in them. Each finding links to its source messages. You choose what goes into your profile.
 
-One Rust binary, an encrypted SQLite archive, a browser dashboard and an optional Markdown vault. Built-in rules work without a model, subscription or account.
+Remnary runs locally as a Rust CLI with an encrypted SQLite archive, a browser dashboard and Markdown export. Ollama is recommended for analysis; basic rules work without a model.
 
 [Install](#install) · [Configuration](#configuration-and-analysis) · [Quick start](#quick-start) · [Demo](#try-the-fictional-demo) · [Usage](docs/usage.md) · [Privacy](#privacy-and-data-ownership) · [Documentation](docs/README.md)
 
 ## What it does
 
-- **Find the original conversation.** Search imported histories and open exact source revisions.
-- **Connect recurring ideas.** Review preferences, corrections, related topics and decision events with supporting quotations.
-- **Build a record you trust.** Confirm, correct, reject or dismiss findings. Automatic analysis never confirms a fact for you.
-- **Keep useful notes.** Generate an Obsidian-compatible Markdown vault that preserves your annotations.
+- Search imported histories and open the source messages.
+- Review preferences, corrections, topics and decisions with supporting quotations.
+- Confirm, correct, reject or dismiss findings.
+- Export an Obsidian-compatible Markdown vault and add your own notes.
 
-Remnary combines **remnant + diary**: a living record built from traces of earlier conversations. It is an invented name, not a dictionary word.
+The name combines **remnant + diary**.
 
 ## See it in action
 
 ![Review a finding, open its evidence, confirm it and see it in your profile](docs/assets/dashboard-demo.gif)
 
-The real dashboard, using bundled **fictional history**: three conversations, 28 messages and nine grouped findings. [Try it yourself](#try-the-fictional-demo) · [Static screenshots](docs/assets/README.md)
+The dashboard with bundled **fictional history**: three conversations, 28 messages and nine grouped findings. [Try it yourself](#try-the-fictional-demo) · [Static screenshots](docs/assets/README.md)
 
 <details>
 <summary>Watch the CLI walkthrough</summary>
 
 ![Initialize, import, analyze, review and generate a vault from fictional history](docs/assets/cli-demo.gif)
 
-Actual command output; displayed IDs are abbreviated. [Text transcript](docs/assets/cli-transcript.txt) · [Media sources and regeneration](docs/assets/README.md)
+Recorded command output; displayed IDs are abbreviated. [Text transcript](docs/assets/cli-transcript.txt) · [Media sources and regeneration](docs/assets/README.md)
 
 </details>
 
@@ -60,7 +60,7 @@ Extract it into a folder you own. Run `./remnary --help` on macOS/Linux or `.\re
 
 Verify the download against its `.sha256` file or `SHA256SUMS`. Linux requires **glibc 2.35+**; macOS builds target **13.0+**. Windows binaries are unsigned; macOS binaries are ad-hoc signed and unnotarized. [Tested versions, build prerequisites and signing limits](docs/platforms.md).
 
-Prefer a source build? With Git, Rust **1.99.1** and the [native build tools](docs/platforms.md#source-builds) installed:
+To build from source, install Git, Rust **1.99.1** and the [native build tools](docs/platforms.md#source-builds), then run:
 
 ```sh
 git clone https://github.com/diocata/remnary.git
@@ -70,37 +70,99 @@ cargo install --path . --locked
 
 ## Configuration and analysis
 
-**Installing Remnary does not install Ollama or a language model.** Choose how to analyze your imported messages:
+**Ollama is recommended for analyzing normal conversation wording.** Rules are available when you do not want to run a model, but they only match the English patterns listed below.
 
-| Mode | What you need | What it does |
+| Mode | Setup | Command |
 | --- | --- | --- |
-| **Rules — default** | Only Remnary | Recognizes a narrow set of direct statements and recurring requests. No LLM runs. |
-| **Ollama — optional** | A separately installed Ollama runtime, downloaded local model and running local daemon | Uses the model for richer candidate extraction and evidence verification. |
+| Ollama (recommended) | Install Ollama, download a local model and start its daemon | `remnary analyze --engine ollama --model MODEL_NAME --endpoint http://127.0.0.1:11435 --progress` |
+| Rules (CLI default) | Nothing beyond Remnary | `remnary analyze` |
 
-`remnary analyze` uses rules. For model analysis, you must explicitly pass `--engine ollama` and `--model`. Remnary never automatically downloads, selects or starts a model.
+Remnary does not install, download, select or start a model. There is no setup wizard or persistent configuration file. Pass the engine, model and endpoint on each run. Both modes produce findings for you to review; neither confirms a personal fact automatically.
 
-There is currently **no setup wizard or persistent configuration file**. Engine, model and endpoint are selected through CLI flags each run. On macOS/Windows, `init` sets up the archive and its native credential-store key; Linux requires the explicit key file shown below.
+### Run with Ollama
+
+First initialize your archive and import messages using [Quick start](#quick-start).
+
+**1. Install Ollama.** On macOS with Homebrew:
+
+```sh
+brew install ollama
+```
+
+For Windows or Linux, use the [official Ollama download](https://ollama.com/download).
+
+**2. Start a local daemon in one terminal** (macOS/Linux):
+
+```sh
+OLLAMA_NO_CLOUD=1 OLLAMA_HOST=127.0.0.1:11435 ollama serve
+```
+
+Keep that terminal open. This disables cloud features and listens on localhost port 11435. From a clone, `./scripts/ollama-local` starts the daemon with the same address and additional resource/logging limits.
+
+**3. In another terminal, download the model and analyze your messages:**
+
+```sh
+export OLLAMA_HOST=127.0.0.1:11435
+ollama pull gemma4:12b-it-q4_K_M
+remnary analyze --engine ollama --model gemma4:12b-it-q4_K_M \
+  --endpoint http://127.0.0.1:11435 --progress
+remnary discover
+remnary web
+```
+
+[This model](https://ollama.com/library/gemma4:12b-it-q4_K_M) is an approximately 8 GB download and was evaluated on an M4 Pro with 24 GiB memory. Downloads contact the model registry; analysis uses the local daemon. You can substitute another installed local model, but results and memory requirements will differ. `ollama list` shows installed model names.
+
+On Linux, also pass your `--key-file` to each Remnary archive command. Keep `--endpoint` on model runs: the CLI defaults to port 11434, while these instructions use 11435. Stop the daemon with Ctrl-C. [Model setup and measured results](docs/local-model.md).
 
 <details>
-<summary>Enable optional Ollama analysis (macOS/Linux)</summary>
+<summary>Windows PowerShell commands</summary>
 
-Install Ollama and download a model separately using the [local-model guide](docs/local-model.md#run-a-local-model). From the cloned repository, start the dedicated loopback daemon in one terminal:
+After installing Ollama and importing your messages, start the daemon in one terminal:
 
-```sh
-./scripts/ollama-local
+```powershell
+$env:OLLAMA_NO_CLOUD = "1"
+$env:OLLAMA_HOST = "127.0.0.1:11435"
+ollama serve
 ```
 
-In another terminal, list the models installed on that daemon, then select one:
+In another terminal:
 
-```sh
-OLLAMA_HOST=127.0.0.1:11435 ollama list
-remnary analyze --engine ollama --model YOUR_INSTALLED_MODEL \
-  --endpoint http://127.0.0.1:11435 --progress
+```powershell
+$env:OLLAMA_HOST = "127.0.0.1:11435"
+ollama pull gemma4:12b-it-q4_K_M
+remnary analyze --engine ollama --model gemma4:12b-it-q4_K_M --endpoint http://127.0.0.1:11435 --progress
+remnary web
 ```
-
-Replace `YOUR_INSTALLED_MODEL` with an exact installed model name. The launcher disables cloud features and binds port **11435**; the CLI's default endpoint is **11434**, so keep the explicit `--endpoint` when using this launcher. On Linux, also pass your `--key-file`. Stop the daemon with Ctrl-C.
 
 </details>
+
+### What the rules recognize
+
+Rules match sentence beginnings, ignoring case. These are the current patterns:
+
+| Finding | Recognized beginnings |
+| --- | --- |
+| Preference | `i prefer` |
+| Dislike | `i don't like`, `i do not like` |
+| Consideration | `i am considering`, `i'm considering`, `i considered` |
+| Proposal | `i propose`, `i suggest` |
+| Choice | `i chose`, `i have decided`, `i've decided`, `i decided` |
+| Reconsideration | `i am reconsidering`, `i'm reconsidering`, `i reconsidered` |
+| Confirmation | `i reaffirm`, `i confirm` |
+| Reversal | `i reversed my decision`, `i changed my mind` |
+| Instruction/correction | `keep`, `don't`, `do not`, `stop`, `avoid`, `reuse`, `give me shorter` |
+
+The phrase must include text after the prefix. A leading `again,` is allowed. Questions are not treated as explicit statements. A few exact whole-instruction variants are grouped under the same meaning: keep code simple, avoid new dependencies, avoid unnecessary Markdown files, reuse components, preserve working code and keep explanations concise.
+
+A separate rule detects repeated comparison requests:
+
+- `compare`, `can you compare`, `could you compare` or `would you compare`, with a comparison separator such as `and`, `versus`, `vs`, `with` or `to`.
+- Questions starting with `which` and containing `best`, `better` or `more`.
+- Questions shaped like `Rust or Go for web APIs?`.
+
+A leading `please` is allowed. Negated comparisons are skipped. The pattern requires two different requests in two distinct messages in the same conversation. It records those requests, not a general preference for comparisons.
+
+**Wording matters:** `Remove comment lines` is missed; `Don't add comments` matches an instruction. Rules mainly cover English and are not user-configurable. Recognized code blocks, quoted material, pasted transcripts and non-owner messages are filtered before extraction. Each finding keeps its source quotation. See the [rule implementation](src/analysis/intelligence/rules.rs) for the exact checks and limits.
 
 ## Quick start
 
@@ -173,7 +235,7 @@ Replace `OBSERVATION_ID` with an ID from `remnary discover`. On Linux, include y
 
 The optional vault contains a Home page, profile, discoveries, decisions, patterns, daily digests and source transcripts. Obsidian is optional. Write annotations outside generated sections; edits to generated content are preserved as conflicts.
 
-For richer extraction, use a separately installed, trusted local Ollama model. [Local-model setup](docs/local-model.md) · [Full usage and command reference](docs/usage.md#command-reference)
+For model analysis, follow [Run with Ollama](#run-with-ollama). [Full usage and command reference](docs/usage.md#command-reference).
 
 ## How it works
 
